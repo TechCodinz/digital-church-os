@@ -27,14 +27,13 @@ export default function SignInPage() {
         setIsLoading('credentials');
 
         const result = await signIn('credentials', {
-            email,
+            email: email.trim().toLowerCase(),
             password,
             callbackUrl,
             redirect: false
         });
 
         if (result?.error) {
-            // Force error reload to show the NextAuth error block
             window.location.href = `/auth/signin?error=CredentialsSignin`;
         } else if (result?.url) {
             window.location.href = result.url;
@@ -45,7 +44,6 @@ export default function SignInPage() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-stone-50 via-cream-50 to-sage-50 flex items-center justify-center px-4">
             <div className="w-full max-w-md">
-                {/* Logo / Brand */}
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -69,7 +67,6 @@ export default function SignInPage() {
                     <h2 className="text-xl font-semibold text-stone-800 mb-1">Welcome back</h2>
                     <p className="text-stone-500 text-sm mb-8">Sign in to continue your spiritual journey.</p>
 
-                    {/* Error and Success States */}
                     {searchParams.get('registered') === 'true' && (
                         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 text-sm text-emerald-700 font-medium text-center">
                             Account created successfully! Please sign in below.
@@ -85,86 +82,66 @@ export default function SignInPage() {
                         </div>
                     )}
 
-                    <>
-                        {/* Google Sign In */}
-                        <button
-                            onClick={handleGoogleSignIn}
-                            disabled={!!isLoading}
-                            className="w-full flex items-center justify-center gap-3 py-3.5 px-4 border border-stone-200 rounded-xl hover:bg-stone-50 transition-all font-medium text-stone-700 mb-4 disabled:opacity-50"
-                        >
-                            {isLoading === 'google' ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                                <Chrome className="w-5 h-5 text-blue-500" />
-                            )}
-                            Continue with Google
-                        </button>
+                    <button
+                        onClick={handleGoogleSignIn}
+                        disabled={!!isLoading}
+                        className="w-full flex items-center justify-center gap-3 py-3.5 px-4 border border-stone-200 rounded-xl hover:bg-stone-50 transition-all font-medium text-stone-700 mb-4 disabled:opacity-50"
+                    >
+                        {isLoading === 'google' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Chrome className="w-5 h-5 text-blue-500" />}
+                        Continue with Google
+                    </button>
 
-                        {/* Divider */}
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="flex-1 h-px bg-stone-100" />
-                            <span className="text-xs text-stone-400 uppercase tracking-wide">or sign in with email</span>
-                            <div className="flex-1 h-px bg-stone-100" />
-                        </div>
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="flex-1 h-px bg-stone-100" />
+                        <span className="text-xs text-stone-400 uppercase tracking-wide">or sign in with email</span>
+                        <div className="flex-1 h-px bg-stone-100" />
+                    </div>
 
-                        {/* Credentials Sign In */}
-                        <form onSubmit={handleEmailSignIn}>
-                            <div className="space-y-3 mb-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-stone-600 mb-1.5">
-                                        Email address
-                                    </label>
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={e => setEmail(e.target.value)}
-                                        placeholder="you@example.com"
-                                        required
-                                        className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sage-200 text-sm"
-                                    />
-                                </div>
-                                <div>
-                                    <div className="flex justify-between items-center mb-1.5">
-                                        <label className="block text-sm font-medium text-stone-600">
-                                            Password
-                                        </label>
-                                    </div>
-                                    <input
-                                        type="password"
-                                        value={password}
-                                        onChange={e => setPassword(e.target.value)}
-                                        placeholder="••••••••"
-                                        required
-                                        className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sage-200 text-sm"
-                                    />
-                                </div>
+                    <form onSubmit={handleEmailSignIn}>
+                        <div className="space-y-3 mb-4">
+                            <div>
+                                <label className="block text-sm font-medium text-stone-600 mb-1.5">Email address</label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={e => setEmail(e.target.value)}
+                                    placeholder="you@example.com"
+                                    required
+                                    className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sage-200 text-sm"
+                                />
                             </div>
-
-                            <button
-                                type="submit"
-                                disabled={!!isLoading || !email.trim() || !password.trim()}
-                                className="w-full py-3.5 bg-sage-500 text-white rounded-xl font-medium hover:bg-sage-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                                {isLoading === 'credentials' ? (
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                ) : (
-                                    <>Sign In <ArrowRight className="w-4 h-4" /></>
-                                )}
-                            </button>
-                        </form>
-
-                        <div className="mt-5 text-center text-sm text-stone-500">
-                            Don't have an account?{' '}
-                            <Link href="/auth/register" className="text-sage-600 font-medium hover:underline">
-                                Create one now
-                            </Link>
+                            <div>
+                                <label className="block text-sm font-medium text-stone-600 mb-1.5">Password</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    required
+                                    className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sage-200 text-sm"
+                                />
+                            </div>
                         </div>
-                    </>
 
-                    {/* Security note */}
+                        <button
+                            type="submit"
+                            disabled={!!isLoading || !email.trim() || !password.trim()}
+                            className="w-full py-3.5 bg-sage-500 text-white rounded-xl font-medium hover:bg-sage-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {isLoading === 'credentials' ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Sign In <ArrowRight className="w-4 h-4" /></>}
+                        </button>
+                    </form>
+
+                    <div className="mt-5 text-center text-sm text-stone-500">
+                        Don't have an account?{' '}
+                        <Link href="/auth/register" className="text-sage-600 font-medium hover:underline">
+                            Create one now
+                        </Link>
+                    </div>
+
                     <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-stone-400">
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                        Secure sign-in. No password required.
+                        Secure sign-in with protected session handling.
                     </div>
                 </motion.div>
 
