@@ -1,13 +1,20 @@
-import { BookOpenText, Brain, HeartHandshake, Mic2, ShieldAlert, Users, WalletCards } from 'lucide-react';
+export type MinistryCouncilRole = {
+  id: string;
+  name: string;
+  scope: string;
+  limit: string;
+  route: string;
+  iconKey: 'pastor' | 'sermon' | 'worship' | 'care' | 'admin' | 'transparency' | 'intelligence';
+};
 
-export const ministryCouncilRoles = [
+export const ministryCouncilRoles: MinistryCouncilRole[] = [
   {
     id: 'ai-pastor',
     name: 'AI Pastor',
     scope: 'Spiritual encouragement, prayer support, and safe pastoral reflection.',
     limit: 'Does not replace clergy, emergency support, therapy, or final spiritual authority.',
     route: '/spiritual',
-    icon: HeartHandshake,
+    iconKey: 'pastor',
   },
   {
     id: 'sermon-assistant',
@@ -15,7 +22,7 @@ export const ministryCouncilRoles = [
     scope: 'Sermon drafts, outlines, questions, devotionals, and multi-age teaching packs.',
     limit: 'Human leaders must review doctrine, tone, and final delivery.',
     route: '/sermons',
-    icon: BookOpenText,
+    iconKey: 'sermon',
   },
   {
     id: 'worship-director',
@@ -23,7 +30,7 @@ export const ministryCouncilRoles = [
     scope: 'Worship lyrics, chord suggestions, service atmosphere, and choir preparation.',
     limit: 'Generated songs are drafts for worship-leader review.',
     route: '/choir',
-    icon: Mic2,
+    iconKey: 'worship',
   },
   {
     id: 'care-guardian',
@@ -31,7 +38,7 @@ export const ministryCouncilRoles = [
     scope: 'Care escalation, crisis awareness, support flags, and human handoff suggestions.',
     limit: 'Not emergency dispatch. Always directs crisis users to local emergency help.',
     route: '/care',
-    icon: ShieldAlert,
+    iconKey: 'care',
   },
   {
     id: 'admin-operator',
@@ -39,7 +46,7 @@ export const ministryCouncilRoles = [
     scope: 'CRM signals, operational reminders, support queues, member follow-up, and reporting.',
     limit: 'Cannot make financial or governance decisions without human approval.',
     route: '/admin',
-    icon: Users,
+    iconKey: 'admin',
   },
   {
     id: 'transparency-analyst',
@@ -47,7 +54,7 @@ export const ministryCouncilRoles = [
     scope: 'Giving trends, aid reporting, purpose allocation, and privacy-safe impact summaries.',
     limit: 'Reports must be verified against official finance records before publishing.',
     route: '/transparency',
-    icon: WalletCards,
+    iconKey: 'transparency',
   },
   {
     id: 'raizion-intelligence',
@@ -55,7 +62,7 @@ export const ministryCouncilRoles = [
     scope: 'Ministry-wide signals, priorities, outreach ideas, care focus, and weekly strategy.',
     limit: 'Strategic advisor only; human leaders remain responsible for decisions.',
     route: '/intelligence',
-    icon: Brain,
+    iconKey: 'intelligence',
   },
 ];
 
@@ -70,6 +77,6 @@ export function getCouncilBriefing() {
       'Financial and aid decisions require human approval and audit trails.',
       'Privacy-first defaults apply to prayer, children, aid, counseling, and family data.',
     ],
-    roles: ministryCouncilRoles.map(({ icon, ...role }) => role),
+    roles: ministryCouncilRoles,
   };
 }
