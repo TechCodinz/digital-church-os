@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { BarChart3, HeartHandshake, Shield, Users, WalletCards } from 'lucide-react';
+import { ChurchCrmPanel } from '@/components/admin/ChurchCrmPanel';
+import { BarChart3, Brain, HeartHandshake, Shield, Users, WalletCards } from 'lucide-react';
 
 const cards = [
   { title: 'Members', description: 'Review user growth, roles, and care needs.', icon: Users },
@@ -18,9 +19,9 @@ export default function AdminPage() {
               <Shield className="mr-2 h-4 w-4" /> Admin control center
             </div>
             <h1 className="text-4xl font-light text-stone-800 md:text-6xl">Operational oversight for a trusted digital sanctuary.</h1>
-            <p className="mt-6 max-w-3xl text-lg leading-8 text-stone-600">Admin routes should centralize safety, ministry operations, payments, support requests, audit logs, and AI supervision.</p>
+            <p className="mt-6 max-w-3xl text-lg leading-8 text-stone-600">Admin routes centralize safety, ministry operations, payments, support requests, audit logs, AI supervision, and member care.</p>
           </div>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="mb-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {cards.map((card) => {
               const Icon = card.icon;
               return (
@@ -32,7 +33,11 @@ export default function AdminPage() {
               );
             })}
           </div>
-          <Link href="/admin/settings" className="mt-8 inline-flex rounded-full bg-stone-900 px-6 py-3 text-sm font-semibold text-white hover:bg-stone-800">Open admin settings</Link>
+          <div className="mb-10 flex flex-wrap gap-3">
+            <Link href="/admin/settings" className="inline-flex rounded-full bg-stone-900 px-6 py-3 text-sm font-semibold text-white hover:bg-stone-800">Open admin settings</Link>
+            <Link href="/intelligence" className="inline-flex items-center rounded-full border border-sage-200 bg-white px-6 py-3 text-sm font-semibold text-sage-700 hover:border-sage-400"><Brain className="mr-2 h-4 w-4" /> Raizion Intelligence</Link>
+          </div>
+          <ChurchCrmPanel />
         </div>
       </section>
     </div>
