@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   const limit = rateLimit(key, { limit: 5, windowMs: 10 * 60 * 1000 });
   if (!limit.allowed) {
     return NextResponse.json(
-      { error: 'Too many aid requests submitted. Please wait before trying again.' },
+      { error: 'Too many requests. Please wait before trying again.' },
       { status: 429, headers: rateLimitHeaders(limit) }
     );
   }
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Invalid aid request payload', details: parsed.error.flatten() },
+        { error: 'Invalid request payload', details: parsed.error.flatten() },
         { status: 400, headers: rateLimitHeaders(limit) }
       );
     }
@@ -82,8 +82,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ request }, { status: 201, headers: rateLimitHeaders(limit) });
   } catch (error) {
-    console.error('Aid request creation failed:', error);
-    return NextResponse.json({ error: 'Failed to submit aid request' }, { status: 500, headers: rateLimitHeaders(limit) });
+    console.error('Request creation failed:', error);
+    return NextResponse.json({ error: 'Failed to submit request' }, { status: 500, headers: rateLimitHeaders(limit) });
   }
 }
 
@@ -121,7 +121,6 @@ export async function GET(req: NextRequest) {
       status: true,
       createdAt: true,
       updatedAt: true,
-      user: isReviewer ? { select: { id: true, name: true, email: true } } : false,
     },
   });
 
