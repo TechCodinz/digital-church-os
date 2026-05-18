@@ -1,0 +1,762 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  VISITOR
+  MEMBER
+  CHURCH_ADMIN
+  AI_DEPARTMENT
+  AID_REVIEWER
+}
+
+
+
+enum AIModuleType {
+  TEACHING
+  WORSHIP
+  PRAYER
+  CARE
+  ADMIN
+}
+
+enum AidRequestStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  PARTIALLY_APPROVED
+  REJECTED
+  DISBURSED
+}
+
+enum AidCategory {
+  MEDICAL
+  HOUSING
+  FOOD
+  EDUCATION
+  UTILITIES
+  EMERGENCY
+  OTHER
+}
+
+// Global Types from previous schema to preserve application integrity
+enum PrayerVisibility {
+  PUBLIC
+  PRIVATE
+  ANONYMOUS
+}
+
+enum OfferingPurpose {
+  PLATFORM_UPKEEP
+  COMMUNITY_AID
+  CONFERENCE_SUPPORT
+}
+
+enum PostStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ConferenceStatus {
+  UPCOMING
+  LIVE
+  COMPLETED
+}
+
+
+// Core Religion Table
+model Religion {
+  id            String    @id @default(cuid())
+  name          String    @unique
+  description   String
+  primaryText   String    // Bible, Quran, etc.
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  
+  // Relations
+  users         User[]
+  conferences   Conference[]
+  aiModules     AIModule[]
+  sermons       Sermon[]
+  worshipContent WorshipContent[]
+}
+
+// User Model (Enhanced)
+model User {
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  passwordHash          String?
+  name                  String?
+  avatar                String?
+  image                 String?
+  role                  Role      @default(MEMBER)
+  religionId            String?
+  religion              Religion? @relation(fields: [religionId], references: [id])
+  faithPreference       String    @default("Christian")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // Relations
+  prayerRequests        PrayerRequest[]
+  goals                 Goal[]
+  conferenceAttendance  ConferenceAttendance[]
+  offerings             Offering[]
+  journalEntries        JournalEntry[]
+  posts                 CommunityPost[]
+  comments              Comment[]
+  aiInteractions        AIInteraction[]
+  aidRequests           AidRequest[]
+  auditLogs             AuditLog[]      // As actor
+  sessions              Session[]
+  accounts              Account[]
+  sermons               Sermon[]
+  worshipContent        WorshipContent[]
+  prayerReminders       PrayerReminder[]
+  intercessions         Intercession[]
+  offeringAllocations   OfferingAllocation[]
+  transparencyReports   TransparencyReport[]
+  aidAllocations        AidAllocation[]
+  aidReviews            AidReview[]
+  conferenceReflections ConferenceReflection[]
+  notifications         Notification[]
+  notificationPreferences Json?           @default("{\"email\": true, \"push\": false}")
+  counselingLogs        CounselingLog[]
+  aiCosts               AICost[]
+  flaggedInteractions   FlagForReview[]
+
+  // Viral Engagement
+  points                Int       @default(0)
+  level                 Int       @default(1)
+  referralLink          String?
+  referralCodes         ReferralCode[]
+  followUps             FollowUp[]
+  badges                UserBadge[]
+  activities            UserActivity[]
+  onboardingCompleted   Boolean   @default(false)
+  onboardingStep        String?
+
+  // Phase 3 Relations
+  children              ChildProfile[]
+  trackRecord           TrackRecord?
+  liveChatMessages      LiveChatMessage[]
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // PRAYER_ANSWERED, POST_APPROVED, etc.
+  title     String
+  message   String
+  data      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// AI Module Configuration
+model AIModule {
+  id              String        @id @default(cuid())
+  name            String
+  type            AIModuleType
+  religionId      String
+  religion        Religion      @relation(fields: [religionId], references: [id])
+  version         String
+  active          Boolean       @default(true)
+  config          Json          // Module-specific configuration
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  interactions    AIInteraction[]
+}
+
+// AI Interactions with Full Audit Trail
+model AIInteraction {
+  id              String        @id @default(cuid())
+  moduleId        String
+  module          AIModule      @relation(fields: [moduleId], references: [id])
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  input           Json          // Full input data
+  output          Json?         // AI response
+  metadata        Json?         // Model info, temperature, etc.
+  duration        Int?          // Response time in ms
+  createdAt       DateTime      @default(now())
+  
+  // For audit traceability
+  ipAddress       String?
+  userAgent       String?
+  sessionId       String?
+  
+  // Relations
+  auditLogs       AuditLog[]
+}
+
+// Comprehensive Audit Log
+model AuditLog {
+  id              String        @id @default(cuid())
+  timestamp       DateTime      @default(now())
+  actorId         String?
+  actor           User?         @relation(fields: [actorId], references: [id])
+  action          String        // CREATE, READ, UPDATE, DELETE, AI_INTERACTION
+  entityType      String        // User, Prayer, Offering, AIModule, etc.
+  entityId        String?
+  changes         Json?         // Before/after for updates
+  metadata        Json?         // Additional context
+  ipAddress       String?
+  
+  // For AI-specific logs
+  aiInteractionId String?
+  aiInteraction   AIInteraction? @relation(fields: [aiInteractionId], references: [id])
+  
+  @@index([timestamp])
+  @@index([actorId])
+  @@index([entityType, entityId])
+}
+
+model CounselingLog {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  concern         String
+  riskLevel       String   // low, medium, high
+  responseType    String
+  timestamp       DateTime @default(now())
+
+  @@index([userId])
+  @@index([riskLevel])
+}
+
+model AICost {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module          String
+  cost            Float
+  timestamp       DateTime @default(now())
+
+  @@index([userId])
+}
+
+model FlagForReview {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module          String
+  interactionId   String?
+  reason          String
+  resolved        Boolean  @default(false)
+  timestamp       DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Aid Request System
+model AidRequest {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  category        AidCategory
+  title           String
+  description     String
+  amount          Float?        // Requested amount
+  currency        String        @default("USD")
+  proofUrls       String[]      // Document URLs
+  status          AidRequestStatus @default(PENDING)
+  adminNotes      String?
+  approvedAmount  Float?
+  allocatedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  allocations     AidAllocation[]
+  reviews         AidReview[]
+}
+
+// Aid Allocation
+model AidAllocation {
+  id              String        @id @default(cuid())
+  requestId       String
+  request         AidRequest    @relation(fields: [requestId], references: [id])
+  amount          Float
+  approvedBy      String
+  approver        User          @relation(fields: [approvedBy], references: [id])
+  notes           String?
+  disbursedAt     DateTime?
+  createdAt       DateTime      @default(now())
+}
+
+// Aid Review Trail
+model AidReview {
+  id              String        @id @default(cuid())
+  requestId       String
+  request         AidRequest    @relation(fields: [requestId], references: [id])
+  reviewerId      String
+  reviewer        User          @relation(fields: [reviewerId], references: [id])
+  status          AidRequestStatus
+  comments        String?
+  createdAt       DateTime      @default(now())
+}
+
+// Sermon Model
+model Sermon {
+  id              String        @id @default(cuid())
+  title           String
+  outline         Json          // Structured outline
+  scriptureRefs   String[]
+  theme           String
+  content         String?       // Full sermon text
+  religionId      String
+  religion        Religion      @relation(fields: [religionId], references: [id])
+  createdBy       String
+  creator         User          @relation(fields: [createdBy], references: [id])
+  conferenceId    String?
+  conference      Conference?   @relation(fields: [conferenceId], references: [id])
+  createdAt       DateTime      @default(now())
+  usedAt          DateTime?     // When sermon was delivered
+}
+
+// Worship Content
+model WorshipContent {
+  id              String        @id @default(cuid())
+  title           String
+  type            String        // HYMN, SONG, LYRICS, PLAYLIST
+  style           String?       // Gospel, Contemporary, Hymn
+  theme           String?       // Faith, Hope, Gratitude, Healing
+  scriptureRefs   String[]
+  content         Json          // Lyrics, structure, etc.
+  religionId      String
+  religion        Religion      @relation(fields: [religionId], references: [id])
+  createdBy       String
+  creator         User          @relation(fields: [createdBy], references: [id])
+  createdAt       DateTime      @default(now())
+  usedCount       Int           @default(0)
+}
+
+// Prayer Reminders
+model PrayerReminder {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  title           String
+  time           String         // Cron expression or time
+  active         Boolean        @default(true)
+  lastSent       DateTime?
+  createdAt      DateTime       @default(now())
+}
+
+// Intercession Scheduling
+model Intercession {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  prayerRequestId String?
+  prayerRequest   PrayerRequest? @relation(fields: [prayerRequestId], references: [id])
+  scheduledFor    DateTime
+  completedAt     DateTime?
+  notes           String?
+  createdAt       DateTime      @default(now())
+}
+
+// Enhanced Offering Model
+model Offering {
+  id              String        @id @default(cuid())
+  amount          Float
+  currency        String        @default("USD")
+  purpose         OfferingPurpose
+  stripePaymentIntentId String? @unique
+  paymentMethod   String?       // e.g. 'stripe', 'paypal', 'coinbase', 'bitpay', 'boomfi'
+  transactionId   String?       // Provider-agnostic transaction / charge ID
+  isRecurring     Boolean       @default(false)
+  isAnonymous     Boolean       @default(false)
+  recurringId     String?
+  status          String        @default("PENDING")
+  metadata        Json?         // Chain, provider-specific extras
+
+  // Aid allocation tracking
+  allocatedToAid  Boolean       @default(false)
+  aidAllocationId String?
+
+  createdAt       DateTime      @default(now())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+
+  // Relations
+  allocations     OfferingAllocation[]
+
+  @@index([userId])
+  @@index([transactionId])
+  @@index([status])
+}
+
+// Offering Allocation for Aid
+model OfferingAllocation {
+  id              String        @id @default(cuid())
+  offeringId      String
+  offering        Offering      @relation(fields: [offeringId], references: [id])
+  amount          Float
+  allocatedTo     String        // Aid category or general fund
+  allocatedAt     DateTime      @default(now())
+  allocatedBy     String
+  allocator       User          @relation(fields: [allocatedBy], references: [id])
+}
+
+// Public Transparency Report
+model TransparencyReport {
+  id              String        @id @default(cuid())
+  period          String        // "2024-01", "Q1-2024", etc.
+  totalOfferings  Float
+  totalAidDistributed Float
+  categories      Json          // Breakdown by category
+  approvedRequests Int
+  pendingRequests Int
+  publishedAt     DateTime      @default(now())
+  publishedBy     String
+  publisher       User          @relation(fields: [publishedBy], references: [id])
+}
+
+// ----- PREVIOUS MODELS TO RETAIN APP INTEGRITY -----
+
+model PrayerRequest {
+  id          String          @id @default(cuid())
+  title       String
+  content     String
+  visibility  PrayerVisibility @default(PRIVATE)
+  isAnswered  Boolean         @default(false)
+  answeredAt  DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  conferenceId String?         
+  conference  Conference?     @relation(fields: [conferenceId], references: [id])
+  
+  intercessions Intercession[]
+  followUps     FollowUp[]
+}
+
+model Goal {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  targetDate  DateTime?
+  isAchieved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model JournalEntry {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  mood      String?
+  createdAt DateTime @default(now())
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Conference {
+  id              String       @id @default(cuid())
+  title           String
+  theme           String
+  scriptureRefs   String[]
+  startDate       DateTime
+  endDate         DateTime
+  location        String?
+  virtualRoomLink String?
+  replayUrl       String?
+  status          ConferenceStatus @default(UPCOMING)
+  maxAttendees    Int?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  religionId      String?
+  religion        Religion?     @relation(fields: [religionId], references: [id])
+  
+  // Relations
+  attendees       ConferenceAttendance[]
+  prayerRequests  PrayerRequest[]
+  reflections     ConferenceReflection[]
+  sermons         Sermon[]
+}
+
+model ConferenceAttendance {
+  id           String     @id @default(cuid())
+  attended     Boolean    @default(false)
+  registeredAt DateTime   @default(now())
+  
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  conferenceId String
+  conference   Conference @relation(fields: [conferenceId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, conferenceId])
+}
+
+model ConferenceReflection {
+  id          String     @id @default(cuid())
+  content     String
+  createdAt   DateTime   @default(now())
+  
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  conferenceId String
+  conference   Conference @relation(fields: [conferenceId], references: [id], onDelete: Cascade)
+}
+
+
+model CommunityPost {
+  id          String     @id @default(cuid())
+  title       String
+  content     String
+  scriptureRef String?
+  status      PostStatus @default(PENDING)
+  likes       Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  comments    Comment[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  postId    String
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+// Authentication models (NextAuth.js)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ReferralCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  maxUses   Int      @default(10)
+  uses      Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model FollowUp {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prayerRequestId String?
+  prayerRequest   PrayerRequest? @relation(fields: [prayerRequestId], references: [id])
+  type            String   
+  content         String
+  scheduledFor    DateTime
+  sentAt          DateTime?
+  status          String   @default("PENDING") 
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([scheduledFor])
+}
+
+model Badge {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  icon        String
+  points      Int
+  requirement String?  
+  users       UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId   String
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  earnedAt  DateTime @default(now())
+
+  @@unique([userId, badgeId])
+}
+
+model UserActivity {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   
+  content   String
+  points    Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ============================================
+// PHASE 3 EXPANSION MODELS
+// ============================================
+
+// --- Children's Ecosystem ---
+model ChildProfile {
+  id              String   @id @default(cuid())
+  parentId        String
+  parent          User     @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  name            String
+  age             Int
+  birthDate       DateTime
+  grade           String
+  interests       String[]
+  learningStyle   String
+  specialNeeds    String[]
+  allergies       String[]
+  level           Int      @default(1)
+  points          Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  permissions     ParentApproval[]
+  milestones      ChildMilestone[]
+  badges          ChildBadge[]
+  
+  @@index([parentId])
+}
+
+model ParentApproval {
+  id              String       @id @default(cuid())
+  childId         String
+  child           ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  type            String       // photos, videos, socialMedia, publicTestimonies
+  approved        Boolean      @default(false)
+  updatedAt       DateTime     @updatedAt
+  
+  @@unique([childId, type])
+}
+
+model ChildMilestone {
+  id              String       @id @default(cuid())
+  childId         String
+  child           ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  title           String
+  description     String
+  dateAchieved    DateTime     @default(now())
+  
+  @@index([childId])
+}
+
+model ChildBadge {
+  id              String       @id @default(cuid())
+  childId         String
+  child           ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  name            String
+  earnedAt        DateTime     @default(now())
+  
+  @@index([childId])
+}
+
+// --- Content Distribution & Newsletters ---
+model NewsletterSubscription {
+  id              String   @id @default(cuid())
+  userId          String?  @unique
+  email           String   @unique
+  name            String?
+  topics          String[] // prayer, teaching, news, etc.
+  frequency       String   @default("weekly") // daily, weekly, monthly
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ContentDistributionLog {
+  id              String   @id @default(cuid())
+  contentId       String   // ID of sermon, article, etc.
+  platform        String   // youtube, spotify, email
+  status          String   // pending, success, failed
+  url             String?
+  error           String?
+  createdAt       DateTime @default(now())
+  
+  @@index([contentId])
+}
+
+// --- Specific AI Tracking ---
+model TrackRecord {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  faithStage      String   @default("seeker")
+  engagementScore Int      @default(0)
+  lastActive      DateTime @default(now())
+  keyInsights     String[] // AI-detected insights about the user's growth
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// --- Live Service Chat ---
+enum ChatMessageType {
+  MESSAGE
+  BLESSING
+  PRAYER
+  ANNOUNCEMENT
+}
+
+model LiveChatMessage {
+  id        String          @id @default(cuid())
+  content   String
+  type      ChatMessageType @default(MESSAGE)
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+}
+

@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-cream: 250 245 240;
+    --color-sage: 160 190 170;
+    --color-stone: 120 110 100;
+    --color-gold: 210 180 140;
+  }
+  
+  body {
+    @apply bg-cream-50 text-stone-800;
+  }
+  
+  h1, h2, h3, h4 {
+    @apply font-light tracking-wide;
+  }
+}
+
+@layer components {
+  .sanctuary-card {
+    @apply bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-cream-200 p-6 transition-all duration-300 hover:shadow-xl;
+  }
+  
+  .soft-input {
+    @apply w-full px-4 py-3 bg-white/60 border border-cream-200 rounded-xl focus:ring-2 focus:ring-sage-300 focus:border-transparent outline-none transition-all;
+  }
+  
+  .prayer-button {
+    @apply px-6 py-3 bg-sage-500 text-white rounded-xl hover:bg-sage-600 transition-all duration-300 transform hover:scale-105 shadow-md;
+  }
+  
+  .glass-morphism {
+    @apply backdrop-blur-md bg-white/30 border border-white/20;
+  }
+}
+
+/* Custom animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Sanctuary aesthetic scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f5f0ea;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c0b7ae;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a89f95;
+}
