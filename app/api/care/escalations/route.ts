@@ -54,18 +54,26 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const isCareLeader = ['CHURCH_ADMIN', 'AID_REVIEWER', 'AI_DEPARTMENT'].includes(session.user.role);
+  const select = {
+    id: true,
+    module: true,
+    reason: true,
+    resolved: true,
+    timestamp: true,
+    ...(isCareLeader
+      ? {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        }
+      : {}),
+  };
+
   const escalations = await prisma.flagForReview.findMany({
     where: isCareLeader ? {} : { userId: session.user.id },
     orderBy: { timestamp: 'desc' },
     take: 100,
-    select: {
-      id: true,
-      module: true,
-      reason: true,
-      resolved: true,
-      timestamp: true,
-      user: isCareLeader ? { select: { id: true, name: true, email: true } } : false,
-    },
+    select,
   });
 
   return NextResponse.json({ escalations, scope: isCareLeader ? 'care-team' : 'member' });
