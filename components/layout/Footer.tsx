@@ -8,27 +8,33 @@ export const Footer = () => {
     {
       label: 'Ministry',
       items: [
-        { href: '/conferences', label: 'Conferences' },
         { href: '/live-service', label: 'Live Service' },
         { href: '/prayer-room', label: 'Prayer Room' },
-        { href: '/community-wall', label: 'Community Wall' },
         { href: '/sermons', label: 'Sermon Studio' },
+        { href: '/spiritual', label: 'AI Pastor' },
+        { href: '/care', label: 'Human Care' },
       ],
     },
     {
-      label: 'Giving',
+      label: 'Growth',
+      items: [
+        { href: '/journey', label: 'Spiritual Journey' },
+        { href: '/council', label: 'AI Ministry Council' },
+        { href: '/intelligence', label: 'Raizion Intelligence' },
+        { href: '/children', label: "Children's Center" },
+        { href: '/choir', label: 'Worship Choir' },
+      ],
+    },
+    {
+      label: 'Platform',
       items: [
         { href: '/offering', label: 'Give Offering' },
         { href: '/transparency', label: 'Transparency Report' },
         { href: '/aid-request', label: 'Request Support' },
-      ],
-    },
-    {
-      label: 'Resources',
-      items: [
-        { href: '/children', label: "Children's Center" },
-        { href: '/spiritual', label: 'AI Pastor' },
-        { href: '/choir', label: 'Worship Choir' },
+        { href: '/marketplace', label: 'Marketplace' },
+        { href: '/website-builder', label: 'Website Builder' },
+        { href: '/multilingual', label: 'Multilingual' },
+        { href: '/mobile', label: 'Mobile/Offline' },
       ],
     },
   ];
@@ -45,7 +51,7 @@ export const Footer = () => {
               <span className="text-white font-semibold">Digital Church OS</span>
             </div>
             <p className="text-stone-500 text-sm leading-relaxed mb-4">
-              A sanctuary for digital worship, global community, and spiritual growth — available 24/7, from anywhere in the world.
+              A sanctuary operating system for worship, care, teaching, giving, intelligence, family discipleship, and global ministry growth.
             </p>
             <div className="flex items-center gap-1 text-xs text-emerald-500">
               <Shield className="w-3.5 h-3.5" />
