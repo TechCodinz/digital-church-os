@@ -14,10 +14,6 @@ export default withAuth(
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    if (path.startsWith('/ai') && !['CHURCH_ADMIN', 'AI_DEPARTMENT'].includes(token?.role as string)) {
-      return NextResponse.redirect(new URL('/dashboard', req.url));
-    }
-
     if (path.startsWith('/api/ai') && !['CHURCH_ADMIN', 'AI_DEPARTMENT', 'MEMBER'].includes(token?.role as string)) {
       return NextResponse.json({ error: 'Authenticated member access required' }, { status: 403 });
     }
@@ -41,11 +37,13 @@ export const config = {
     '/dashboard/:path*',
     '/admin/:path*',
     '/api/admin/:path*',
-    '/ai/:path*',
     '/api/ai/:path*',
     '/api/user/:path*',
     '/api/offerings/:path*',
     '/api/aid/:path*',
+    '/api/care/:path*',
+    '/api/journey/:path*',
+    '/api/ministry/:path*',
     '/aid-request',
     '/prayer-room',
     '/offering',
@@ -56,6 +54,14 @@ export const config = {
     '/sermons/:path*',
     '/choir/:path*',
     '/live-service/:path*',
+    '/journey/:path*',
+    '/care/:path*',
+    '/council/:path*',
+    '/intelligence/:path*',
+    '/marketplace/:path*',
+    '/website-builder/:path*',
+    '/multilingual/:path*',
+    '/mobile/:path*',
     '/journal/:path*',
     '/onboarding/:path*',
     '/api/live-chat',
