@@ -1,6 +1,16 @@
 import Link from 'next/link';
 import { getCouncilBriefing, ministryCouncilRoles } from '@/lib/ministry-os/ministryCouncil';
-import { ArrowRight, ShieldCheck, UsersRound } from 'lucide-react';
+import { ArrowRight, BookOpenText, Brain, HeartHandshake, Mic2, ShieldAlert, ShieldCheck, Users, UsersRound, WalletCards } from 'lucide-react';
+
+const iconMap = {
+  pastor: HeartHandshake,
+  sermon: BookOpenText,
+  worship: Mic2,
+  care: ShieldAlert,
+  admin: Users,
+  transparency: WalletCards,
+  intelligence: Brain,
+};
 
 export default function CouncilPage() {
   const briefing = getCouncilBriefing();
@@ -19,7 +29,7 @@ export default function CouncilPage() {
 
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {ministryCouncilRoles.map((role) => {
-              const Icon = role.icon;
+              const Icon = iconMap[role.iconKey];
               return (
                 <Link key={role.id} href={role.route} className="sanctuary-card group block p-6 hover:-translate-y-1">
                   <div className="mb-5 inline-flex rounded-2xl bg-sage-100 p-3 text-sage-700 transition group-hover:bg-sage-600 group-hover:text-white">
