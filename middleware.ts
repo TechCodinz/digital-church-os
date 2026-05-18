@@ -6,24 +6,26 @@ export default withAuth(
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
-    // Admin routes — CHURCH_ADMIN only
     if (path.startsWith('/admin') && token?.role !== 'CHURCH_ADMIN') {
       return NextResponse.redirect(new URL('/dashboard', req.url));
     }
 
-    // AI department routes — Admin or AI_DEPARTMENT role only
+    if (path.startsWith('/api/admin') && token?.role !== 'CHURCH_ADMIN') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
     if (path.startsWith('/ai') && !['CHURCH_ADMIN', 'AI_DEPARTMENT'].includes(token?.role as string)) {
       return NextResponse.redirect(new URL('/dashboard', req.url));
     }
 
-    // Authenticated page routes — any valid session passes
-    const res = NextResponse.next();
+    if (path.startsWith('/api/ai') && !['CHURCH_ADMIN', 'AI_DEPARTMENT', 'MEMBER'].includes(token?.role as string)) {
+      return NextResponse.json({ error: 'Authenticated member access required' }, { status: 403 });
+    }
 
-    // Add security headers to all responses
-    res.headers.set('X-Frame-Options', 'DENY');
+    const res = NextResponse.next();
     res.headers.set('X-Content-Type-Options', 'nosniff');
     res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.headers.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=()');
+    res.headers.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(), payment=(self)');
 
     return res;
   },
@@ -38,10 +40,13 @@ export const config = {
   matcher: [
     '/dashboard/:path*',
     '/admin/:path*',
-    '/api/ai/:path*',
     '/api/admin/:path*',
+    '/ai/:path*',
+    '/api/ai/:path*',
     '/api/user/:path*',
     '/api/offerings/:path*',
+    '/api/aid/:path*',
+    '/aid-request',
     '/prayer-room',
     '/offering',
     '/community-wall',
