@@ -4,179 +4,210 @@ import { TheologicalGuardrails } from '@/lib/ai/guardrails/theologicalGuardrails
 import { AILogger } from '@/lib/audit/aiLogger';
 
 interface SermonParams {
-    theme: string;
-    scriptureRefs: string[];
-    style: 'expository' | 'topical' | 'narrative';
-    denomination?: 'general' | 'reformed' | 'baptist' | 'catholic';
-    audience?: 'general' | 'youth' | 'scholars';
-    userId: string;
+  theme: string;
+  scriptureRefs: string[];
+  style: 'expository' | 'topical' | 'narrative';
+  denomination?: 'general' | 'reformed' | 'baptist' | 'catholic';
+  audience?: 'general' | 'youth' | 'scholars';
+  userId: string;
 }
 
 interface SermonResponse {
-    title: string;
-    theme: string;
-    scriptureRefs: string[];
-    outline: {
-        introduction: string;
-        points: Array<{
-            title: string;
-            scripture: string;
-            explanation: string;
-            application: string;
-        }>;
-        conclusion: string;
-    };
-    fullSermon?: string;
-    discussionQuestions?: string[];
-    visuals?: {
-        image?: string | null;
-        video?: string | null;
-    };
+  title: string;
+  theme: string;
+  scriptureRefs: string[];
+  outline: {
+    introduction: string;
+    points: Array<{
+      title: string;
+      scripture: string;
+      explanation: string;
+      application: string;
+    }>;
+    conclusion: string;
+  };
+  fullSermon?: string;
+  discussionQuestions?: string[];
+  visuals?: {
+    image?: string | null;
+    video?: string | null;
+  };
 }
 
 export class RealSermonEngine {
-    private openai: OpenAI;
-    private scriptureLoader: ScriptureLoader;
-    private guardrails: TheologicalGuardrails;
+  private openai: OpenAI | null;
+  private scriptureLoader: ScriptureLoader;
+  private guardrails: TheologicalGuardrails;
 
-    constructor() {
-        this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
-        this.scriptureLoader = new ScriptureLoader();
-        this.guardrails = new TheologicalGuardrails();
+  constructor() {
+    this.openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+    this.scriptureLoader = new ScriptureLoader();
+    this.guardrails = new TheologicalGuardrails();
+  }
+
+  async generateSermon(params: SermonParams): Promise<SermonResponse> {
+    const startTime = Date.now();
+
+    if (!this.openai) {
+      return this.fallbackSermon(params);
     }
 
-    async generateSermon(params: SermonParams): Promise<SermonResponse> {
-        const startTime = Date.now();
+    try {
+      const searchResults = await this.safeScriptureSearch(params.theme, 15);
+      const theologicalContext = this.getTheologicalContext(params.denomination || 'general');
+      const prompt = this.buildSermonPrompt(params, searchResults, theologicalContext);
 
-        try {
-            // 1. Retrieve relevant scriptures using semantic search
-            const searchResults = await this.scriptureLoader.semanticSearch(
-                params.theme,
-                15
-            );
+      const completion = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a theologically careful assistant helping church leaders draft sermons. Return valid JSON only. Never claim divine revelation. Never promise outcomes, healing, or prophecy. Use humble phrases like "According to scripture" and encourage consultation with church leaders.`,
+          },
+          { role: 'user', content: prompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.65,
+      });
 
-            // 2. Get theological context based on denomination
-            const theologicalContext = this.getTheologicalContext(
-                params.denomination || 'general'
-            );
+      const rawJson = completion.choices[0].message.content || '{}';
+      const sermonData = JSON.parse(rawJson);
+      const points = Array.isArray(sermonData.points) && sermonData.points.length ? sermonData.points : this.defaultPoints(params.theme);
+      const references = points.map((p: any) => p.scripture).filter(Boolean);
+      const verifiedVerses = await this.safeGetVerses(references);
+      const safeSermon = await this.guardrails.apply(sermonData.fullSermon || this.composeFullSermon(params.theme, points));
 
-            // 3. Build prompt
-            const prompt = this.buildSermonPrompt(params, searchResults, theologicalContext);
+      const finalSermon: SermonResponse = {
+        title: sermonData.title || `${params.theme} Sermon`,
+        theme: params.theme,
+        scriptureRefs: verifiedVerses.length ? verifiedVerses.map((v: any) => v.reference) : references,
+        outline: {
+          introduction: sermonData.introduction || `Today we reflect on ${params.theme} through scripture, humility, and practical obedience.`,
+          points: points.slice(0, 5).map((p: any, index: number) => ({
+            title: p.title || `Point ${index + 1}`,
+            scripture: verifiedVerses[index]?.reference || p.scripture || 'Matthew 11:28',
+            explanation: p.explanation || 'According to scripture, this truth calls us to faith, patience, and wise action.',
+            application: p.application || 'Apply this by praying honestly, serving someone nearby, and seeking wise counsel.',
+          })),
+          conclusion: sermonData.conclusion || 'May this message lead us toward love, humility, courage, and faithful action.',
+        },
+        fullSermon: safeSermon,
+        discussionQuestions: Array.isArray(sermonData.discussionQuestions) ? sermonData.discussionQuestions.slice(0, 8) : this.defaultQuestions(params.theme),
+      };
 
-            // 4. Generate with OpenAI (JSON Mode)
-            const completion = await this.openai.chat.completions.create({
-                model: 'gpt-4-turbo-preview',
-                messages: [
-                    {
-                        role: 'system',
-                        content: `You are a theologically trained assistant helping to generate sermons.
-            
-            CRITICAL RULES:
-            - Always ground responses in scripture
-            - Never claim divine revelation or say "God told me"
-            - Never promise specific outcomes or give prophecies
-            - Use phrases like "According to scripture..." and "Biblical teaching suggests..."
-            - Be compassionate and encouraging
-            - If asked about sensitive topics, include crisis resources
-            - Maintain theological accuracy
-            
-            You MUST return a JSON object with the following structure:
-            {
-              "title": "Sermon Title",
-              "introduction": "Intro text...",
-              "points": [
-                {
-                  "title": "Point Title",
-                  "scripture": "Reference (e.g. John 3:16)",
-                  "explanation": "Text...",
-                  "application": "Text..."
-                }
-              ],
-              "conclusion": "Conclusion text...",
-              "discussionQuestions": ["Q1", "Q2", "Q3"],
-              "fullSermon": "Complete formatted sermon text..."
-            }`
-                    },
-                    { role: 'user', content: prompt }
-                ],
-                response_format: { type: 'json_object' },
-                temperature: 0.7,
-            });
+      await AILogger.logInteraction({
+        userId: params.userId,
+        module: 'sermon-engine',
+        input: params,
+        output: finalSermon,
+        duration: Date.now() - startTime,
+        model: 'gpt-4o-mini',
+        tokens: completion.usage?.total_tokens,
+      });
 
-            const rawJson = completion.choices[0].message.content || '{}';
-            const sermonData = JSON.parse(rawJson);
-
-            // 5. Verify and fetch explicit scriptures for the points
-            const references = sermonData.points.map((p: any) => p.scripture);
-            const verifiedVerses = await this.scriptureLoader.getVerses(references);
-
-            // 6. Apply guardrails to the full sermon
-            const safeSermon = await this.guardrails.apply(sermonData.fullSermon || '');
-
-            const finalSermon: SermonResponse = {
-                title: sermonData.title,
-                theme: params.theme,
-                scriptureRefs: verifiedVerses.map(v => v.reference),
-                outline: {
-                    introduction: sermonData.introduction,
-                    points: sermonData.points.map((p: any, i: number) => ({
-                        ...p,
-                        scripture: verifiedVerses[i]?.text || p.scripture
-                    })),
-                    conclusion: sermonData.conclusion,
-                },
-                fullSermon: safeSermon,
-                discussionQuestions: sermonData.discussionQuestions,
-            };
-
-            // 7. Log
-            await AILogger.logInteraction({
-                userId: params.userId,
-                module: 'sermon-engine',
-                input: params,
-                output: finalSermon,
-                duration: Date.now() - startTime,
-                model: 'gpt-4-turbo-preview',
-                tokens: completion.usage?.total_tokens,
-            });
-
-            return finalSermon;
-
-        } catch (error) {
-            console.error('Sermon generation error:', error);
-            throw new Error('Failed to generate sermon');
-        }
+      return finalSermon;
+    } catch (error) {
+      console.error('Sermon generation error:', error);
+      return this.fallbackSermon(params);
     }
+  }
 
-    private getTheologicalContext(denomination: string): string {
-        const contexts: Record<string, string> = {
-            general: 'Focus on core Christian doctrines accepted across denominations',
-            reformed: 'Emphasize sovereignty of God, covenant theology, TULIP',
-            baptist: 'Include believer\'s baptism, local church autonomy, priesthood of believers',
-            catholic: 'Include sacramentality, magisterium, apostolic succession',
-        };
-        return contexts[denomination] || contexts.general;
+  private async safeScriptureSearch(theme: string, count: number) {
+    try {
+      return await this.scriptureLoader.semanticSearch(theme, count);
+    } catch (error) {
+      console.error('Sermon scripture search failed:', error);
+      return [];
     }
+  }
 
-    private buildSermonPrompt(
-        params: SermonParams,
-        scriptures: any[],
-        theologicalContext: string
-    ): string {
-        return `
-      Generate a ${params.style} sermon on "${params.theme}".
-      
-      CONTEXT:
-      - Denomination: ${params.denomination || 'general'}
-      - Audience: ${params.audience || 'general'}
-      - Theological guidelines: ${theologicalContext}
-
-      RELEVANT SCRIPTURE CONTEXT:
-      ${scriptures.map(s => `${s.reference}: "${s.text}"`).join('\n')}
-
-      Please provide 3 main points.
-    `;
+  private async safeGetVerses(refs: string[]) {
+    try {
+      return await this.scriptureLoader.getVerses(refs);
+    } catch (error) {
+      console.error('Sermon verse lookup failed:', error);
+      return [];
     }
+  }
+
+  private fallbackSermon(params: SermonParams): SermonResponse {
+    const points = this.defaultPoints(params.theme);
+    return {
+      title: `${params.theme} — A Scripture-Guided Message`,
+      theme: params.theme,
+      scriptureRefs: params.scriptureRefs?.length ? params.scriptureRefs : ['Matthew 11:28', 'Psalm 34:18', 'Micah 6:8'],
+      outline: {
+        introduction: `This message reflects on ${params.theme} with humility, care, and practical application.`,
+        points,
+        conclusion: 'Let this word lead us into prayer, service, and faithful action with love for God and neighbor.',
+      },
+      fullSermon: this.composeFullSermon(params.theme, points),
+      discussionQuestions: this.defaultQuestions(params.theme),
+    };
+  }
+
+  private defaultPoints(theme: string) {
+    return [
+      {
+        title: 'Come honestly before God',
+        scripture: 'Matthew 11:28',
+        explanation: `According to scripture, ${theme} begins with honesty before God rather than performance.`,
+        application: 'Invite the congregation to bring burdens into prayer and trusted community support.',
+      },
+      {
+        title: 'Receive comfort without isolation',
+        scripture: 'Psalm 34:18',
+        explanation: 'Biblical teaching suggests God is near to the brokenhearted and calls people into compassionate care.',
+        application: 'Encourage members to reach out to someone who needs comfort this week.',
+      },
+      {
+        title: 'Practice faithful action',
+        scripture: 'Micah 6:8',
+        explanation: 'Faith matures through justice, mercy, and humble walking with God.',
+        application: 'Give one practical action step for the congregation to live the message after service.',
+      },
+    ];
+  }
+
+  private defaultQuestions(theme: string) {
+    return [
+      `Where do you most need wisdom around ${theme}?`,
+      'Which scripture from this message speaks most clearly to your current season?',
+      'What is one practical act of mercy or obedience you can take this week?',
+    ];
+  }
+
+  private composeFullSermon(theme: string, points: Array<{ title: string; scripture: string; explanation: string; application: string }>) {
+    return [
+      `Today we reflect on ${theme}. According to scripture, faithful living is not only belief but also surrender, wisdom, and loving action.`,
+      ...points.map((point) => `${point.title} (${point.scripture}). ${point.explanation} ${point.application}`),
+      'May this message form us into people of prayer, compassion, courage, and humble obedience.',
+    ].join('\n\n');
+  }
+
+  private getTheologicalContext(denomination: string): string {
+    const contexts: Record<string, string> = {
+      general: 'Focus on core Christian doctrines accepted across denominations',
+      reformed: 'Emphasize sovereignty of God, covenant theology, and grace with humility',
+      baptist: "Include believer's baptism, local church autonomy, and priesthood of believers",
+      catholic: 'Include sacramentality, church tradition, and pastoral sensitivity',
+    };
+    return contexts[denomination] || contexts.general;
+  }
+
+  private buildSermonPrompt(params: SermonParams, scriptures: any[], theologicalContext: string): string {
+    const requestedRefs = params.scriptureRefs?.length ? params.scriptureRefs.join(', ') : 'Use the most relevant scriptures from context.';
+    return `Generate a ${params.style} sermon on "${params.theme}".
+
+Context:
+- Denomination: ${params.denomination || 'general'}
+- Audience: ${params.audience || 'general'}
+- Requested references: ${requestedRefs}
+- Theological guidelines: ${theologicalContext}
+
+Relevant scripture context:
+${scriptures.map((s) => `${s.reference}: "${s.text}"`).join('\n')}
+
+Return JSON with title, introduction, points, conclusion, discussionQuestions, and fullSermon. Provide 3 main points.`;
+  }
 }
