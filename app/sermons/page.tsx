@@ -1,4 +1,5 @@
 import { SermonGeneratorConsole } from '@/components/sermon/SermonGeneratorConsole';
+import { SermonPackConsole } from '@/components/sermon/SermonPackConsole';
 import { BookOpenText, ShieldCheck } from 'lucide-react';
 
 export default function SermonsPage() {
@@ -10,10 +11,13 @@ export default function SermonsPage() {
             <div className="mb-6 inline-flex items-center rounded-full border border-sage-200 bg-white/70 px-4 py-2 text-sm font-medium text-sage-700 shadow-sm">
               <BookOpenText className="mr-2 h-4 w-4" /> Sermon and teaching studio
             </div>
-            <h1 className="text-4xl font-light leading-tight text-stone-800 md:text-6xl">Prepare sermons with scripture structure, practical application, and safety guardrails.</h1>
-            <p className="mt-6 text-lg leading-8 text-stone-600">The sermon engine helps leaders create a first draft, not a final authority. It supports expository, topical, and narrative styles with safe fallback mode when external AI services are not configured.</p>
+            <h1 className="text-4xl font-light leading-tight text-stone-800 md:text-6xl">Prepare sermons, lessons, devotionals, and outreach content from one message.</h1>
+            <p className="mt-6 text-lg leading-8 text-stone-600">The sermon engine helps leaders create a first draft, then the Sermon-to-Everything engine turns the theme into children lessons, youth discussions, worship sets, social posts, newsletters, bulletins, video scripts, and devotional plans.</p>
           </div>
-          <SermonGeneratorConsole />
+          <div className="space-y-10">
+            <SermonGeneratorConsole />
+            <SermonPackConsole />
+          </div>
         </div>
       </section>
 
@@ -21,7 +25,7 @@ export default function SermonsPage() {
         <div className="mx-auto grid max-w-7xl gap-6 md:grid-cols-3">
           {[
             ['Theological humility', 'The engine avoids prophecy claims, guaranteed outcomes, and divine-revelation language.'],
-            ['Structured preparation', 'Every sermon can include introduction, main points, scripture references, applications, and discussion questions.'],
+            ['Sermon-to-everything', 'One teaching theme can become a full week of ministry content across age groups and channels.'],
             ['Operational memory', 'When database services are available, interactions are logged for audit and improvement.'],
           ].map(([title, description]) => (
             <div key={title} className="sanctuary-card p-6">
