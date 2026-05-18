@@ -7,10 +7,15 @@ import { NextAuthOptions } from 'next-auth';
 import type { Adapter } from 'next-auth/adapters';
 import { prisma } from '@/lib/prisma';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction && !process.env.NEXTAUTH_SECRET) {
+  throw new Error('NEXTAUTH_SECRET is required in production. Generate one with `openssl rand -base64 64`.');
+}
+
 // ── Dynamic provider list — only include providers when env vars are set ──────
 const providers: any[] = [];
 
-// 1. Google OAuth — only if credentials are configured
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   providers.push(
     GoogleProvider({
@@ -30,7 +35,6 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   );
 }
 
-// 2. Magic Link Email — only if Resend API key is configured
 if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
   providers.push(
     EmailProvider({
@@ -52,18 +56,18 @@ if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
             to: [email],
             subject: 'Sign in to Digital Church OS',
             html: `
-                            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-                                <div style="text-align: center; margin-bottom: 32px;">
-                                    <div style="width: 60px; height: 60px; background: #789b64; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center;">
-                                        <span style="color: white; font-size: 28px;">✝</span>
-                                    </div>
-                                    <h1 style="color: #789b64; font-weight: 300; margin-top: 16px;">Digital Church OS</h1>
-                                </div>
-                                <p style="color: #555; margin-bottom: 24px;">Click the link below to sign in securely:</p>
-                                <a href="${url}" style="display: inline-block; padding: 14px 32px; background: #789b64; color: white; text-decoration: none; border-radius: 12px; font-weight: 500;">Sign In to Digital Church OS</a>
-                                <p style="margin-top: 24px; color: #999; font-size: 12px;">This link expires in 24 hours. If you didn't request this, ignore this email.</p>
-                            </div>
-                        `,
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+                <div style="text-align: center; margin-bottom: 32px;">
+                  <div style="width: 60px; height: 60px; background: #789b64; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center;">
+                    <span style="color: white; font-size: 28px;">✝</span>
+                  </div>
+                  <h1 style="color: #789b64; font-weight: 300; margin-top: 16px;">Digital Church OS</h1>
+                </div>
+                <p style="color: #555; margin-bottom: 24px;">Click the link below to sign in securely:</p>
+                <a href="${url}" style="display: inline-block; padding: 14px 32px; background: #789b64; color: white; text-decoration: none; border-radius: 12px; font-weight: 500;">Sign In to Digital Church OS</a>
+                <p style="margin-top: 24px; color: #999; font-size: 12px;">This link expires in 24 hours. If you didn't request this, ignore this email.</p>
+              </div>
+            `,
           });
         } catch (err) {
           console.error('Email send error:', err);
@@ -74,9 +78,6 @@ if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
   );
 }
 
-// 3. Credentials (Email + Password) — ALWAYS available as fallback
-//    Works immediately without any external service setup.
-//    Users register via /auth/register (bcrypt hashed passwords stored in DB)
 providers.push(
   CredentialsProvider({
     name: 'Email & Password',
@@ -86,12 +87,14 @@ providers.push(
     },
     async authorize(credentials) {
       if (!credentials?.email || !credentials?.password) return null;
+
+      const email = credentials.email.trim().toLowerCase();
       try {
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email },
           select: { id: true, name: true, email: true, image: true, role: true, passwordHash: true, faithPreference: true },
         });
-        if (!user || !user.passwordHash) return null;
+        if (!user?.passwordHash) return null;
 
         const { compare } = await import('bcryptjs');
         const valid = await compare(credentials.password, user.passwordHash);
@@ -110,35 +113,33 @@ export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as Adapter,
   providers,
   callbacks: {
-    async session({ session, user, token }: any) {
+    async session({ session, token }: any) {
       if (session.user) {
-        // JWT strategy uses token, database strategy uses user
-        const userId = user?.id || token?.sub;
-        const role = user?.role || token?.role;
-        session.user.id = userId;
-        session.user.role = role || 'MEMBER';
-        session.user.faithPreference = user?.faithPreference || token?.faithPreference || 'Christian';
+        session.user.id = token?.sub;
+        session.user.role = token?.role || 'MEMBER';
+        session.user.faithPreference = token?.faithPreference || 'Christian';
       }
       return session;
     },
     async jwt({ token, user }: any) {
-      // Only used for Credentials provider (JWT strategy)
       if (user) {
-        token.role = user.role;
-        token.faithPreference = user.faithPreference;
+        token.sub = user.id;
+        token.role = user.role || 'MEMBER';
+        token.faithPreference = user.faithPreference || 'Christian';
       }
       return token;
     },
     async signIn({ user }: any) {
       try {
+        if (!user?.email) return false;
         const existingUser = await prisma.user.findUnique({
-          where: { email: user.email! },
+          where: { email: user.email },
           select: { id: true },
         });
         if (!existingUser) {
           try {
             const { sendEmail } = await import('@/lib/email/templates');
-            await sendEmail(user.email!, 'welcome', [user.name || 'Friend']);
+            await sendEmail(user.email, 'welcome', [user.name || 'Friend']);
           } catch (emailErr) {
             console.warn('Welcome email failed (non-fatal):', emailErr);
           }
@@ -154,14 +155,12 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/error',
     verifyRequest: '/auth/verify',
   },
-  // Always use JWT strategy - database strategy breaks CredentialsProvider.
-  // Google OAuth users will still have their accounts stored via PrismaAdapter,
-  // but session tokens are JWT-based for consistency.
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET || 'digital-church-os-dev-secret-change-in-production',
+  debug: !isProduction,
 };
 
 const handler = NextAuth(authOptions as any);
