@@ -10,7 +10,7 @@ export default withAuth(
       return NextResponse.redirect(new URL('/dashboard', req.url));
     }
 
-    if ((path.startsWith('/command-center') || path.startsWith('/api/command-center')) && token?.role !== 'CHURCH_ADMIN') {
+    if ((path.startsWith('/command-center') || path.startsWith('/api/command-center') || path.startsWith('/media-rights') || path.startsWith('/release-readiness') || path.startsWith('/api/media-rights') || path.startsWith('/api/release')) && token?.role !== 'CHURCH_ADMIN') {
       return path.startsWith('/api/')
         ? NextResponse.json({ error: 'Admin access required' }, { status: 403 })
         : NextResponse.redirect(new URL('/dashboard', req.url));
@@ -65,6 +65,8 @@ export const config = {
     '/api/marketplace/:path*',
     '/api/broadcast/:path*',
     '/api/worship/:path*',
+    '/api/media-rights/:path*',
+    '/api/release/:path*',
     '/aid-request',
     '/prayer-room',
     '/offering',
@@ -97,6 +99,8 @@ export const config = {
     '/bible-games/:path*',
     '/sanctuary-host/:path*',
     '/command-center/:path*',
+    '/media-rights/:path*',
+    '/release-readiness/:path*',
     '/journal/:path*',
     '/onboarding/:path*',
     '/api/live-chat',
