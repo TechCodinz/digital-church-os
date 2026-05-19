@@ -87,6 +87,7 @@ export const config = {
     '/activities/:path*',
     '/gifts/:path*',
     '/workers/:path*',
+    '/conference-sponsorship/:path*',
     '/church-network/:path*',
     '/impact/:path*',
     '/bible-games/:path*',
