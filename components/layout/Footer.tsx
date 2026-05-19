@@ -36,6 +36,8 @@ export const Footer = () => {
         { href: '/workers', label: 'Church Workers' },
         { href: '/gifts', label: 'Gift Pools' },
         { href: '/command-center', label: 'Command Center' },
+        { href: '/media-rights', label: 'Media Rights' },
+        { href: '/release-readiness', label: 'Release Readiness' },
         { href: '/intelligence', label: 'Raizion Intelligence' },
         { href: '/council', label: 'AI Ministry Council' },
       ],
@@ -66,7 +68,7 @@ export const Footer = () => {
               <span className="text-white font-semibold">Digital Church OS</span>
             </div>
             <p className="text-stone-500 text-sm leading-relaxed mb-4">
-              A living sanctuary operating system for scripture, worship media, live broadcasts, care, rewards, workers, gifts, conferences, family discipleship, church networks, and global ministry growth.
+              A living sanctuary operating system for scripture, worship media, live broadcasts, media rights, care, rewards, workers, gifts, conferences, family discipleship, church networks, and global ministry growth.
             </p>
             <div className="flex items-center gap-1 text-xs text-emerald-500">
               <Shield className="w-3.5 h-3.5" />
