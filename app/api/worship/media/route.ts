@@ -45,6 +45,13 @@ function safePublicLicense(licenseType: string) {
   return ['OWNED', 'LICENSED', 'PUBLIC_DOMAIN', 'CC', 'EXTERNAL_LINK'].includes(licenseType);
 }
 
+async function featureEnabled(flagKey: string) {
+  const rows = await prisma.$queryRaw<Array<{ enabled: boolean; rollout_percent: number }>>(Prisma.sql`
+    SELECT enabled, rollout_percent FROM platform_feature_flags WHERE flag_key = ${flagKey} LIMIT 1
+  `);
+  return Boolean(rows[0]?.enabled && Number(rows[0]?.rollout_percent || 0) > 0);
+}
+
 async function ensureActiveTermsAccepted(userId: string, req: NextRequest, acceptedNow: boolean) {
   const terms = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
     SELECT id, version, title FROM media_terms_versions WHERE active = true ORDER BY effective_at DESC LIMIT 1
@@ -161,6 +168,10 @@ export async function GET(req: NextRequest) {
 
   if (mine && !session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (review && session?.user?.role !== 'CHURCH_ADMIN') return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+
+  if (!mine && !review && !(await featureEnabled('public_worship_media')) && session?.user?.role !== 'CHURCH_ADMIN') {
+    return NextResponse.json({ media: [], rollout: { publicWorshipMedia: false, message: 'Public worship media is disabled until media-rights clearance and staged rollout are enabled by an admin.' } });
+  }
 
   const media = review
     ? await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
