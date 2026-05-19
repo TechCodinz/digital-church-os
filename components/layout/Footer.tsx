@@ -8,21 +8,34 @@ export const Footer = () => {
     {
       label: 'Ministry',
       items: [
+        { href: '/scripture', label: 'Scripture Intelligence' },
+        { href: '/presentation', label: 'Live Presentation' },
         { href: '/live-service', label: 'Live Service' },
         { href: '/prayer-room', label: 'Prayer Room' },
         { href: '/sermons', label: 'Sermon Studio' },
         { href: '/spiritual', label: 'AI Pastor' },
-        { href: '/care', label: 'Human Care' },
       ],
     },
     {
       label: 'Growth',
       items: [
         { href: '/journey', label: 'Spiritual Journey' },
-        { href: '/council', label: 'AI Ministry Council' },
+        { href: '/activities', label: 'Sanctuary Activities' },
+        { href: '/rewards', label: 'Rewards Wallet' },
+        { href: '/bible-games', label: 'Bible Games' },
+        { href: '/impact', label: 'Testimonies & Impact' },
+        { href: '/sanctuary-host', label: 'AI Sanctuary Host' },
+      ],
+    },
+    {
+      label: 'Operations',
+      items: [
+        { href: '/care', label: 'Human Care' },
+        { href: '/workers', label: 'Church Workers' },
+        { href: '/gifts', label: 'Gift Pools' },
+        { href: '/command-center', label: 'Command Center' },
         { href: '/intelligence', label: 'Raizion Intelligence' },
-        { href: '/children', label: "Children's Center" },
-        { href: '/choir', label: 'Worship Choir' },
+        { href: '/council', label: 'AI Ministry Council' },
       ],
     },
     {
@@ -30,7 +43,7 @@ export const Footer = () => {
       items: [
         { href: '/offering', label: 'Give Offering' },
         { href: '/transparency', label: 'Transparency Report' },
-        { href: '/aid-request', label: 'Request Support' },
+        { href: '/church-network', label: 'Church Network' },
         { href: '/marketplace', label: 'Marketplace' },
         { href: '/website-builder', label: 'Website Builder' },
         { href: '/multilingual', label: 'Multilingual' },
@@ -42,7 +55,7 @@ export const Footer = () => {
   return (
     <footer className="bg-stone-900 text-stone-300 pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-10 mb-12">
           <div>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 bg-sage-500 rounded-lg flex items-center justify-center">
@@ -51,7 +64,7 @@ export const Footer = () => {
               <span className="text-white font-semibold">Digital Church OS</span>
             </div>
             <p className="text-stone-500 text-sm leading-relaxed mb-4">
-              A sanctuary operating system for worship, care, teaching, giving, intelligence, family discipleship, and global ministry growth.
+              A living sanctuary operating system for scripture, worship, care, rewards, workers, gifts, conferences, family discipleship, church networks, and global ministry growth.
             </p>
             <div className="flex items-center gap-1 text-xs text-emerald-500">
               <Shield className="w-3.5 h-3.5" />
