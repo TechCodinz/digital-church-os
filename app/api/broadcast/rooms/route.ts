@@ -29,6 +29,13 @@ const StatusSchema = z.object({
   playbackUrl: z.string().url().optional(),
 });
 
+async function featureEnabled(flagKey: string) {
+  const rows = await prisma.$queryRaw<Array<{ enabled: boolean; rollout_percent: number }>>(Prisma.sql`
+    SELECT enabled, rollout_percent FROM platform_feature_flags WHERE flag_key = ${flagKey} LIMIT 1
+  `);
+  return Boolean(rows[0]?.enabled && Number(rows[0]?.rollout_percent || 0) > 0);
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -55,6 +62,11 @@ export async function POST(req: NextRequest) {
     const parsed = RoomSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: 'Invalid broadcast room payload', details: parsed.error.flatten() }, { status: 400 });
     const d = parsed.data;
+
+    if (d.visibility === 'PUBLIC' && !(await featureEnabled('public_live_broadcasts')) && session.user.role !== 'CHURCH_ADMIN') {
+      return NextResponse.json({ error: 'Public live broadcasts are not enabled yet. Use private, invite-only, or church-only while the platform is in staged rollout.' }, { status: 403 });
+    }
+
     const rows = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
       INSERT INTO live_broadcast_rooms (
         host_id, title, description, gathering_type, visibility, status, starts_at, stream_provider, stream_url, thumbnail_url,
@@ -80,6 +92,10 @@ export async function GET(req: NextRequest) {
   const visibility = searchParams.get('visibility');
 
   if (mine && !session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  if (!mine && !(await featureEnabled('public_live_broadcasts')) && session?.user?.role !== 'CHURCH_ADMIN') {
+    return NextResponse.json({ rooms: [], rollout: { publicLiveBroadcasts: false, message: 'Public broadcasts are disabled until staged rollout is enabled by an admin.' } });
+  }
 
   const rooms = mine
     ? await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
