@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { BookOpenText, Brain, Building2, Footprints, Globe2, Heart, HeartHandshake, LayoutDashboard, MessageCircleHeart, MonitorSmartphone, ShieldCheck, ShoppingBag, Users, UsersRound, WalletCards } from 'lucide-react';
+import { BookOpenText, Brain, Building2, Footprints, Globe2, Heart, HeartHandshake, LayoutDashboard, MessageCircleHeart, MonitorSmartphone, ShieldCheck, ShoppingBag, Ticket, Users, UsersRound, WalletCards } from 'lucide-react';
 
 const actions = [
   { title: 'AI Pastor', description: 'Receive guarded spiritual encouragement and next steps.', href: '/spiritual', icon: MessageCircleHeart },
@@ -13,6 +13,7 @@ const actions = [
   { title: 'Sanctuary Activities', description: 'Daily prayer, service, memory, outreach, and reflection challenges.', href: '/activities', icon: Heart },
   { title: 'Gift Pools', description: 'Conference, worker, transport, data, food, learning, and appreciation gifts.', href: '/gifts', icon: HeartHandshake },
   { title: 'Church Workers', description: 'Assign tasks, collect proof, award points, and track stipends.', href: '/workers', icon: Users },
+  { title: 'Conference Sponsorship', description: 'Registrations, tickets, gifts, worker allowances, certificates, and attendee support.', href: '/conference-sponsorship', icon: Ticket },
   { title: 'Bible Games', description: 'Children and youth scripture quizzes with scores and rewards.', href: '/bible-games', icon: BookOpenText },
   { title: 'Raizion Intelligence', description: 'See priorities, signals, care focus, and next ministry actions.', href: '/intelligence', icon: Brain },
   { title: 'Command Center', description: 'Generate weekly operating reports with health score, risks, and opportunities.', href: '/command-center', icon: Brain },
