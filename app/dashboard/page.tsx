@@ -1,10 +1,12 @@
 import Link from 'next/link';
-import { BookOpenText, Brain, Building2, Footprints, Globe2, Heart, HeartHandshake, LayoutDashboard, MessageCircleHeart, MonitorSmartphone, ShieldCheck, ShoppingBag, Ticket, Users, UsersRound, WalletCards } from 'lucide-react';
+import { BookOpenText, Brain, Building2, Footprints, Globe2, Heart, HeartHandshake, LayoutDashboard, MessageCircleHeart, MonitorSmartphone, Music2, Radio, ShieldCheck, ShoppingBag, Ticket, Users, UsersRound, WalletCards } from 'lucide-react';
 
 const actions = [
   { title: 'AI Pastor', description: 'Receive guarded spiritual encouragement and next steps.', href: '/spiritual', icon: MessageCircleHeart },
   { title: 'Scripture Intelligence', description: 'Search translations, save verse collections, and prepare scripture for sermons.', href: '/scripture', icon: BookOpenText },
   { title: 'Live Presentation', description: 'Create sermon slides, verse cards, lyrics, announcements, and screen mode decks.', href: '/presentation', icon: MonitorSmartphone },
+  { title: 'Live Broadcast', description: 'Host or join public/private devotion, prayer, worship, and event gatherings.', href: '/live-broadcast', icon: Radio },
+  { title: 'Worship Media', description: 'Use praise songs, worship videos, uploads, playlists, and rewarded listening sequences.', href: '/worship-media', icon: Music2 },
   { title: 'Prayer Room', description: 'Submit prayer requests and continue intercession.', href: '/prayer-room', icon: Heart },
   { title: 'Sermon Studio', description: 'Prepare teaching, slides, Bible studies, and sermon-to-everything packs.', href: '/sermons', icon: BookOpenText },
   { title: 'Spiritual Journey', description: 'Track private growth, rewards, notes, milestones, giving, journaling, and family activity.', href: '/journey', icon: Footprints },
@@ -40,7 +42,7 @@ export default function DashboardPage() {
               <LayoutDashboard className="mr-2 h-4 w-4" /> Member dashboard
             </div>
             <h1 className="text-4xl font-light leading-tight text-stone-800 md:text-6xl">Your living sanctuary command center.</h1>
-            <p className="mt-6 max-w-3xl text-lg leading-8 text-stone-600">Access scripture intelligence, presentations, care, rewards, workers, conferences, testimonies, church network, marketplace, AI operations, family discipleship, and global ministry tools from one organized route.</p>
+            <p className="mt-6 max-w-3xl text-lg leading-8 text-stone-600">Access live broadcasts, worship media, scripture intelligence, presentations, care, rewards, workers, conferences, testimonies, church network, marketplace, AI operations, family discipleship, and global ministry tools from one organized route.</p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
