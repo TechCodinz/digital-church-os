@@ -12,9 +12,20 @@ const PurchaseSchema = z.object({
   transactionId: z.string().trim().max(180).optional(),
 });
 
+async function featureEnabled(flagKey: string) {
+  const rows = await prisma.$queryRaw<Array<{ enabled: boolean; rollout_percent: number }>>(Prisma.sql`
+    SELECT enabled, rollout_percent FROM platform_feature_flags WHERE flag_key = ${flagKey} LIMIT 1
+  `);
+  return Boolean(rows[0]?.enabled && Number(rows[0]?.rollout_percent || 0) > 0);
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  if (!(await featureEnabled('marketplace_public_sales')) && session.user.role !== 'CHURCH_ADMIN') {
+    return NextResponse.json({ error: 'Marketplace public sales are not enabled yet. Complete payment/provider tests and enable the release flag first.' }, { status: 403 });
+  }
 
   const parsed = PurchaseSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: 'Invalid purchase payload', details: parsed.error.flatten() }, { status: 400 });
