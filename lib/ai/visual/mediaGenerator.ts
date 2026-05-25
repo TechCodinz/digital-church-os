@@ -56,7 +56,7 @@ export class MediaGenerator {
         quality: 'standard',
       });
 
-      return response.data[0]?.url || null;
+      return response.data?.[0]?.url || null;
     } catch (error) {
       console.error('Image generation error:', error);
       return null;
