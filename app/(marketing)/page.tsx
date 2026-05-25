@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Calendar, DollarSign, Heart, MessageCircle, Music, Radio, Users } from 'lucide-react';
 
