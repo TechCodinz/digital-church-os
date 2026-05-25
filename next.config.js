@@ -1,21 +1,59 @@
 /** @type {import('next').NextConfig} */
+const securityHeaders = [
+  { key: 'X-DNS-Prefetch-Control', value: 'on' },
+  { key: 'X-XSS-Protection', value: '0' },
+  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=(), payment=(self), interest-cohort=()' },
+  {
+    key: 'Content-Security-Policy',
+    value: [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+      "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.googleusercontent.com",
+      "font-src 'self' data:",
+      "style-src 'self' 'unsafe-inline'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "connect-src 'self' https://api.openai.com https://api.resend.com https://api.stripe.com https://*.sentry.io https://*.pinecone.io",
+      "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
+      "media-src 'self' blob: data:",
+      "object-src 'none'",
+      'upgrade-insecure-requests',
+    ].join('; '),
+  },
+]
+
 const nextConfig = {
-    images: {
-        domains: ['lh3.googleusercontent.com'], // For Google avatars
-    },
-    typescript: {
-        // TypeScript type-checker hits a stack overflow from deep Prisma generic inference
-        // under Next.js 14. Compilation itself succeeds cleanly. This is a known issue:
-        // https://github.com/prisma/prisma/issues/20434
-        ignoreBuildErrors: true,
-    },
-    eslint: {
-        ignoreDuringBuilds: true,
-    },
-    transpilePackages: ['undici', '@vercel/blob'],
-    experimental: {
-        serverComponentsExternalPackages: ['undici'],
-    },
+  reactStrictMode: true,
+  poweredByHeader: false,
+  compress: true,
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      { protocol: 'https', hostname: '*.googleusercontent.com' },
+    ],
+  },
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: false,
+  },
+  transpilePackages: ['undici', '@vercel/blob'],
+  experimental: {
+    serverComponentsExternalPackages: ['undici'],
+  },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: securityHeaders,
+      },
+    ]
+  },
 }
 
 module.exports = nextConfig

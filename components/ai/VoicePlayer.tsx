@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Play, Pause, Square, Volume2, VolumeX, Loader2,
-    Mic, Settings, ChevronDown, ChevronUp, Waveform
+    Mic, Settings, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 type VoiceContext = 'sermon' | 'prayer' | 'scripture' | 'pastoral' | 'children';

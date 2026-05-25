@@ -21,16 +21,18 @@ export default function RegisterPage() {
             const res = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify({ ...formData, email: formData.email.trim().toLowerCase() }),
             });
 
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.message || 'Failed to register');
+                const detail = data.details?.fieldErrors
+                  ? Object.values(data.details.fieldErrors).flat().join(' ')
+                  : '';
+                throw new Error(detail || data.message || 'Failed to register');
             }
 
-            // Success - redirect to signin
             router.push('/auth/signin?registered=true');
         } catch (err: any) {
             setError(err.message);
@@ -91,12 +93,13 @@ export default function RegisterPage() {
                             <input
                                 type="password"
                                 required
-                                minLength={6}
+                                minLength={8}
                                 value={formData.password}
                                 onChange={e => setFormData({ ...formData, password: e.target.value })}
-                                placeholder="••••••••"
+                                placeholder="At least 8 characters with letters and numbers"
                                 className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sage-200 text-sm"
                             />
+                            <p className="mt-1 text-xs text-stone-400">Use at least 8 characters with one letter and one number.</p>
                         </div>
 
                         <button
@@ -110,7 +113,7 @@ export default function RegisterPage() {
 
                     <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-stone-400">
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                        Your data is encrypted and secure.
+                        Your account uses protected password hashing and guarded sessions.
                     </div>
                 </motion.div>
 
