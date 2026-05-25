@@ -33,6 +33,8 @@ type SettingsState = {
   allowRegistration: boolean;
 };
 
+type ToggleKey = 'aiPastorEnabled' | 'voiceEnabled' | 'paymentsEnabled' | 'emailNotificationsEnabled' | 'rateLimitEnabled' | 'allowRegistration';
+
 const defaultSettings: SettingsState = {
   churchName: 'Digital Church OS',
   churchEmail: '',
@@ -57,6 +59,15 @@ const sections = [
   { title: 'Notifications', icon: Mail, text: 'Email, reminders, prayer digests, and follow-up messages.' },
   { title: 'Security', icon: Shield, text: 'Session, rate limit, and protected route settings.' },
   { title: 'Users', icon: Users, text: 'Registration, roles, onboarding, and approval settings.' },
+];
+
+const toggles: Array<{ key: ToggleKey; label: string }> = [
+  { key: 'aiPastorEnabled', label: 'AI Pastor Enabled' },
+  { key: 'voiceEnabled', label: 'Voice Engine Enabled' },
+  { key: 'paymentsEnabled', label: 'Payments Enabled' },
+  { key: 'emailNotificationsEnabled', label: 'Email Notifications' },
+  { key: 'rateLimitEnabled', label: 'Rate Limiting' },
+  { key: 'allowRegistration', label: 'Allow Registration' },
 ];
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
@@ -105,6 +116,10 @@ export default function AdminSettingsPage() {
 
   const update = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {
     setSettings((current) => ({ ...current, [key]: value }));
+  };
+
+  const toggleSetting = (key: ToggleKey) => {
+    setSettings((current) => ({ ...current, [key]: !current[key] }));
   };
 
   const saveSettings = async () => {
@@ -198,23 +213,10 @@ export default function AdminSettingsPage() {
             </div>
 
             <div className="mt-8 grid gap-4 md:grid-cols-2">
-              {[
-                ['aiPastorEnabled', 'AI Pastor Enabled', Zap],
-                ['voiceEnabled', 'Voice Engine Enabled', Volume2],
-                ['paymentsEnabled', 'Payments Enabled', CreditCard],
-                ['emailNotificationsEnabled', 'Email Notifications', Bell],
-                ['rateLimitEnabled', 'Rate Limiting', Shield],
-                ['allowRegistration', 'Allow Registration', Users],
-              ].map(([key, label, Icon]) => (
-                <div key={String(key)} className="flex items-center justify-between rounded-2xl border border-stone-100 bg-stone-50 p-4">
-                  <div className="flex items-center gap-3">
-                    <span className="rounded-xl bg-white p-2 text-sage-700 shadow-sm">
-                      {/* @ts-expect-error Icon is selected from lucide components above */}
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="font-medium text-stone-800">{String(label)}</span>
-                  </div>
-                  <Toggle checked={Boolean(settings[key as keyof SettingsState])} onChange={() => update(key as keyof SettingsState, !settings[key as keyof SettingsState] as never)} />
+              {toggles.map((item) => (
+                <div key={item.key} className="flex items-center justify-between rounded-2xl border border-stone-100 bg-stone-50 p-4">
+                  <span className="font-medium text-stone-800">{item.label}</span>
+                  <Toggle checked={settings[item.key]} onChange={() => toggleSetting(item.key)} />
                 </div>
               ))}
             </div>
