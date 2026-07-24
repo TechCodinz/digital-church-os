@@ -10,37 +10,59 @@
     --color-gold: 210 180 140;
   }
 
-  html.light body {
-    @apply bg-amber-50/40 text-slate-900;
+  html.theme-emerald body {
+    @apply bg-slate-950 text-slate-100;
+    background-image: 
+      radial-gradient(ellipse at 50% 0%, rgba(16, 185, 129, 0.15) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 50%, rgba(5, 150, 105, 0.08) 0%, transparent 50%),
+      linear-gradient(to bottom, #020617 0%, #064e3b 100%);
+    background-attachment: fixed;
   }
 
-  html.dark body {
+  html.theme-light body {
+    @apply bg-slate-50 text-slate-900;
+    background-image: 
+      radial-gradient(ellipse at 50% 0%, rgba(251, 191, 36, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse at 20% 40%, rgba(16, 185, 129, 0.06) 0%, transparent 50%),
+      linear-gradient(to bottom, #fffbeb 0%, #ffffff 50%, #f8fafc 100%);
+    background-attachment: fixed;
+  }
+
+  html.theme-dark body {
     @apply bg-slate-950 text-slate-100;
+    background-image: 
+      radial-gradient(ellipse at 50% 0%, rgba(99, 102, 241, 0.12) 0%, transparent 60%),
+      linear-gradient(to bottom, #020617 0%, #0f172a 100%);
+    background-attachment: fixed;
   }
 }
 
 @layer components {
   .sanctuary-card {
-    @apply bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-cream-200 p-6 transition-all duration-300 hover:shadow-xl;
+    @apply bg-slate-900/80 backdrop-blur-md rounded-3xl shadow-xl border border-slate-800 p-6 transition-all duration-300 hover:shadow-2xl hover:border-emerald-500/40;
+  }
+
+  .holy-spirit-glow {
+    box-shadow: 0 0 40px -10px rgba(16, 185, 129, 0.3);
   }
   
   .soft-input {
-    @apply w-full px-4 py-3 bg-white/60 border border-cream-200 rounded-xl focus:ring-2 focus:ring-sage-300 focus:border-transparent outline-none transition-all;
+    @apply w-full px-4 py-3 bg-slate-900/60 border border-slate-800 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all;
   }
   
   .prayer-button {
-    @apply px-6 py-3 bg-sage-500 text-white rounded-xl hover:bg-sage-600 transition-all duration-300 transform hover:scale-105 shadow-md;
+    @apply px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 transition-all duration-300 transform hover:scale-105 shadow-md shadow-emerald-600/20;
   }
   
   .glass-morphism {
-    @apply backdrop-blur-md bg-white/30 border border-white/20;
+    @apply backdrop-blur-md bg-slate-950/80 border border-slate-800/80;
   }
 }
 
 /* Custom animations */
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+  50% { transform: translateY(-8px); }
 }
 
 .float-animation {
@@ -53,14 +75,14 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #f5f0ea;
+  background: #020617;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c0b7ae;
+  background: #10b981;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a89f95;
+  background: #059669;
 }

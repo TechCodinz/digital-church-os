@@ -2,57 +2,51 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-type Theme = 'light' | 'dark';
+export type SanctuaryTheme = 'emerald' | 'light' | 'dark';
 
 interface ThemeContextType {
-    theme: Theme;
-    toggleTheme: () => void;
-    setTheme: (theme: Theme) => void;
+    theme: SanctuaryTheme;
+    setTheme: (theme: SanctuaryTheme) => void;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+const ThemeContext = createContext<ThemeContextType>({
+    theme: 'emerald',
+    setTheme: () => {}
+});
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-    const [theme, setThemeState] = useState<Theme>('dark');
+export function SanctuaryThemeProvider({ children }: { children: React.ReactNode }) {
+    const [theme, setThemeState] = useState<SanctuaryTheme>('emerald');
 
     useEffect(() => {
-        const savedTheme = localStorage.getItem('dc_os_theme') as Theme;
-        if (savedTheme === 'light' || savedTheme === 'dark') {
-            setThemeState(savedTheme);
-            document.documentElement.classList.toggle('dark', savedTheme === 'dark');
-            document.documentElement.classList.toggle('light', savedTheme === 'light');
+        const savedTheme = localStorage.getItem('dc_os_sanctuary_theme') as SanctuaryTheme;
+        if (savedTheme === 'emerald' || savedTheme === 'light' || savedTheme === 'dark') {
+            applyTheme(savedTheme);
         } else {
-            document.documentElement.classList.add('dark');
+            applyTheme('emerald');
         }
     }, []);
 
-    const setTheme = (newTheme: Theme) => {
+    const applyTheme = (newTheme: SanctuaryTheme) => {
         setThemeState(newTheme);
-        localStorage.setItem('dc_os_theme', newTheme);
-        if (newTheme === 'dark') {
-            document.documentElement.classList.add('dark');
-            document.documentElement.classList.remove('light');
-        } else {
+        localStorage.setItem('dc_os_sanctuary_theme', newTheme);
+        
+        document.documentElement.classList.remove('theme-emerald', 'theme-light', 'theme-dark', 'light', 'dark');
+        document.documentElement.classList.add(`theme-${newTheme}`);
+        
+        if (newTheme === 'light') {
             document.documentElement.classList.add('light');
-            document.documentElement.classList.remove('dark');
+        } else {
+            document.documentElement.classList.add('dark');
         }
     };
 
-    const toggleTheme = () => {
-        setTheme(theme === 'dark' ? 'light' : 'dark');
-    };
-
     return (
-        <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+        <ThemeContext.Provider value={{ theme, setTheme: applyTheme }}>
             {children}
         </ThemeContext.Provider>
     );
 }
 
-export function useTheme() {
-    const context = useContext(ThemeContext);
-    if (!context) {
-        throw new Error('useTheme must be used within a ThemeProvider');
-    }
-    return context;
+export function useSanctuaryTheme() {
+    return useContext(ThemeContext);
 }
