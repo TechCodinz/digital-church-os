@@ -82,7 +82,7 @@ export const Navbar = () => {
             ref={dropdownRef}
             className={`fixed w-full z-50 transition-colors duration-300 border-b ${
                 isLight
-                    ? 'bg-cream-50/95 backdrop-blur-xl border-cream-200/80 text-stone-800 shadow-md'
+                    ? 'bg-white/80 backdrop-blur-md border-cream-200/80 text-stone-800 shadow-sm'
                     : activeTheme === 'emerald'
                     ? 'bg-slate-950/90 backdrop-blur-xl border-emerald-500/30 text-white shadow-2xl'
                     : 'bg-slate-950/90 backdrop-blur-xl border-slate-800 text-white shadow-2xl'
@@ -90,26 +90,22 @@ export const Navbar = () => {
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-20 items-center">
-                    {/* Logo with Holy Spirit Dove Badge */}
+                    {/* Initial Logo Style: ✝ Digital Church OS */}
                     <div className="flex items-center shrink-0">
                         <Link href="/" className="flex items-center space-x-2.5 group">
-                            <div
-                                className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg font-bold group-hover:scale-105 transition-transform shadow-lg ${
-                                    isLight
-                                        ? 'bg-sage-500/20 border border-sage-300 text-sage-700'
-                                        : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
-                                }`}
-                            >
+                            <span className={`text-2xl font-light transition-transform group-hover:scale-110 ${
+                                isLight ? 'text-sage-600' : 'text-emerald-400'
+                            }`}>
                                 ✝
-                            </div>
+                            </span>
                             <div className="flex items-center space-x-2 whitespace-nowrap">
-                                <span className={`text-base font-extrabold tracking-tight ${isLight ? 'text-stone-800' : 'text-white'}`}>
+                                <span className={`text-xl font-light tracking-wide ${isLight ? 'text-stone-700' : 'text-white'}`}>
                                     Digital Church OS
                                 </span>
                                 {/* Holy Spirit Dove Badge */}
-                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 border shadow-sm ${
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-medium tracking-wide flex items-center gap-1 border shadow-xs ${
                                     isLight
-                                        ? 'bg-sage-100 text-sage-800 border-sage-300'
+                                        ? 'bg-sage-50 text-sage-700 border-sage-200'
                                         : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
                                 }`}>
                                     <Feather className="w-3 h-3 text-sage-600 dark:text-emerald-400" />
@@ -123,8 +119,8 @@ export const Navbar = () => {
                     <div className="hidden lg:flex items-center space-x-6">
                         <Link
                             href="/"
-                            className={`text-xs font-bold uppercase tracking-wider transition-colors ${
-                                isLight ? 'text-stone-700 hover:text-sage-600' : 'text-slate-200 hover:text-emerald-400'
+                            className={`text-sm font-medium tracking-wide transition-colors ${
+                                isLight ? 'text-stone-600 hover:text-sage-600' : 'text-slate-200 hover:text-emerald-400'
                             }`}
                         >
                             Home
@@ -137,10 +133,10 @@ export const Navbar = () => {
                                     <button
                                         onClick={() => setActiveDropdown(isCatOpen ? null : cat.id)}
                                         onMouseEnter={() => setActiveDropdown(cat.id)}
-                                        className={`flex items-center space-x-1 text-xs font-bold uppercase tracking-wider py-2 transition-colors ${
+                                        className={`flex items-center space-x-1 text-sm font-medium tracking-wide py-2 transition-colors ${
                                             isCatOpen
                                                 ? isLight ? 'text-sage-600' : 'text-emerald-400'
-                                                : isLight ? 'text-stone-700 hover:text-sage-600' : 'text-slate-200 hover:text-emerald-400'
+                                                : isLight ? 'text-stone-600 hover:text-sage-600' : 'text-slate-200 hover:text-emerald-400'
                                         }`}
                                     >
                                         <span>{cat.label}</span>
@@ -151,12 +147,12 @@ export const Navbar = () => {
                                     <AnimatePresence>
                                         {isCatOpen && (
                                             <motion.div
-                                                initial={{ opacity: 0, y: 8 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                exit={{ opacity: 0, y: 8 }}
+                                                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                exit={{ opacity: 0, y: 8, scale: 0.98 }}
                                                 onMouseLeave={() => setActiveDropdown(null)}
-                                                className={`absolute left-0 mt-2 w-72 rounded-2xl p-3 border shadow-2xl z-50 ${
-                                                    isLight ? 'bg-cream-50 border-cream-200 text-stone-800' : 'bg-slate-900 border-slate-800 text-white'
+                                                className={`absolute left-0 mt-2 w-72 rounded-2xl p-3 border shadow-xl z-50 ${
+                                                    isLight ? 'bg-white border-cream-200 text-stone-800' : 'bg-slate-900 border-slate-800 text-white'
                                                 }`}
                                             >
                                                 <div className="space-y-1">
@@ -168,16 +164,16 @@ export const Navbar = () => {
                                                                 href={item.href}
                                                                 onClick={() => setActiveDropdown(null)}
                                                                 className={`flex items-start space-x-3 p-2.5 rounded-xl transition-all ${
-                                                                    isLight ? 'hover:bg-cream-100 text-stone-800' : 'hover:bg-slate-800/80 text-slate-200'
+                                                                    isLight ? 'hover:bg-cream-100/70 text-stone-800' : 'hover:bg-slate-800/80 text-slate-200'
                                                                 }`}
                                                             >
                                                                 <div className={`p-2 rounded-lg shrink-0 ${
-                                                                    isLight ? 'bg-sage-100 text-sage-700' : 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
+                                                                    isLight ? 'bg-sage-50 text-sage-600' : 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
                                                                 }`}>
                                                                     <Icon className="w-4 h-4" />
                                                                 </div>
                                                                 <div className="space-y-0.5">
-                                                                    <div className="text-xs font-bold">{item.name}</div>
+                                                                    <div className="text-xs font-semibold">{item.name}</div>
                                                                     <div className={`text-[10px] leading-tight ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>
                                                                         {item.desc}
                                                                     </div>
@@ -202,13 +198,13 @@ export const Navbar = () => {
                             <div className="relative">
                                 <button
                                     onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                                    className={`flex items-center space-x-2 text-xs font-bold px-3.5 py-2 rounded-xl border transition-all ${
+                                    className={`flex items-center space-x-2 text-xs font-medium px-3.5 py-2 rounded-full border transition-all ${
                                         isLight
-                                            ? 'text-stone-800 hover:text-sage-600 bg-cream-100 border-cream-200 shadow-sm'
+                                            ? 'text-stone-700 hover:text-sage-600 bg-white border-cream-200 shadow-xs'
                                             : 'text-slate-200 hover:text-emerald-400 bg-slate-900 border-slate-800'
                                     }`}
                                 >
-                                    <div className="w-6 h-6 rounded-full bg-sage-600 text-white flex items-center justify-center text-xs font-bold">
+                                    <div className="w-6 h-6 rounded-full bg-sage-500 text-white flex items-center justify-center text-xs font-bold">
                                         {session.user?.name?.[0] || 'U'}
                                     </div>
                                     <span>{session.user?.name || 'Believer'}</span>
@@ -218,38 +214,38 @@ export const Navbar = () => {
                                 <AnimatePresence>
                                     {userDropdownOpen && (
                                         <motion.div
-                                            initial={{ opacity: 0, y: 8 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: 8 }}
-                                            className={`absolute right-0 mt-2 w-48 border rounded-2xl shadow-2xl py-2 z-50 text-xs ${
-                                                isLight ? 'bg-cream-50 border-cream-200 text-stone-800' : 'bg-slate-900 border-slate-800 text-white'
+                                            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                                            className={`absolute right-0 mt-2 w-48 border rounded-2xl shadow-xl py-2 z-50 text-xs ${
+                                                isLight ? 'bg-white border-cream-200 text-stone-800' : 'bg-slate-900 border-slate-800 text-white'
                                             }`}
                                         >
                                             <Link
                                                 href="/profile"
                                                 className={`flex items-center space-x-2 px-4 py-2 ${
-                                                    isLight ? 'text-stone-700 hover:bg-cream-100' : 'text-slate-300 hover:bg-slate-800'
+                                                    isLight ? 'text-stone-700 hover:bg-cream-100/70' : 'text-slate-300 hover:bg-slate-800'
                                                 }`}
                                             >
-                                                <User className="w-4 h-4" />
+                                                <User className="w-4 h-4 text-stone-400" />
                                                 <span>My Profile</span>
                                             </Link>
                                             {isAdmin && (
                                                 <Link
                                                     href="/admin"
-                                                    className={`flex items-center space-x-2 px-4 py-2 font-bold ${
-                                                        isLight ? 'text-sage-700 hover:bg-cream-100' : 'text-emerald-400 hover:bg-slate-800'
+                                                    className={`flex items-center space-x-2 px-4 py-2 font-medium ${
+                                                        isLight ? 'text-amber-700 hover:bg-amber-50' : 'text-emerald-400 hover:bg-slate-800'
                                                     }`}
                                                 >
-                                                    <Shield className="w-4 h-4" />
+                                                    <Shield className="w-4 h-4 text-amber-500" />
                                                     <span>Admin Dashboard</span>
                                                 </Link>
                                             )}
                                             <button
                                                 onClick={() => signOut()}
-                                                className="w-full flex items-center space-x-2 px-4 py-2 text-rose-500 hover:bg-slate-800 text-left"
+                                                className="w-full flex items-center space-x-2 px-4 py-2 text-rose-600 hover:bg-rose-50 text-left"
                                             >
-                                                <LogOut className="w-4 h-4" />
+                                                <LogOut className="w-4 h-4 text-rose-400" />
                                                 <span>Sign Out</span>
                                             </button>
                                         </motion.div>
@@ -259,9 +255,9 @@ export const Navbar = () => {
                         ) : (
                             <Link
                                 href="/auth/signin"
-                                className={`px-5 py-2 font-bold text-xs rounded-xl transition-all shadow-md ${
+                                className={`px-6 py-2.5 font-medium text-xs rounded-full transition-all shadow-md ${
                                     isLight
-                                        ? 'bg-sage-600 hover:bg-sage-700 text-white shadow-sage-600/20'
+                                        ? 'bg-sage-500 hover:bg-sage-600 text-white shadow-sage-500/20'
                                         : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
                                 }`}
                             >
@@ -275,7 +271,7 @@ export const Navbar = () => {
                         <ThemeToggle />
                         <button
                             onClick={() => setIsOpen(!isOpen)}
-                            className={`p-2 focus:outline-none ${isLight ? 'text-stone-800 hover:text-sage-600' : 'text-slate-300 hover:text-white'}`}
+                            className={`p-2 focus:outline-none ${isLight ? 'text-stone-600 hover:text-sage-600' : 'text-slate-300 hover:text-white'}`}
                         >
                             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </button>
@@ -291,13 +287,13 @@ export const Navbar = () => {
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         className={`lg:hidden px-4 pt-2 pb-6 space-y-4 text-xs border-t overflow-y-auto max-h-[80vh] ${
-                            isLight ? 'bg-cream-50 border-cream-200 text-stone-800' : 'bg-slate-900 border-slate-800 text-white'
+                            isLight ? 'bg-white border-cream-200 text-stone-800' : 'bg-slate-900 border-slate-800 text-white'
                         }`}
                     >
                         <Link
                             href="/"
                             onClick={() => setIsOpen(false)}
-                            className="block font-bold text-sm py-2 border-b border-cream-200/60"
+                            className="block font-medium text-sm py-2 border-b border-cream-200/60"
                         >
                             Home
                         </Link>
@@ -305,18 +301,18 @@ export const Navbar = () => {
                         {navCategories.map((cat) => (
                             <div key={cat.id} className="space-y-2">
                                 <div className={`font-mono text-[10px] uppercase font-bold tracking-widest ${
-                                    isLight ? 'text-sage-700' : 'text-emerald-400'
+                                    isLight ? 'text-sage-600' : 'text-emerald-400'
                                 }`}>
                                     {cat.label}
                                 </div>
-                                <div className="pl-2 space-y-1 border-l-2 border-sage-300/50">
+                                <div className="pl-2 space-y-1 border-l-2 border-sage-200">
                                     {cat.items.map((item) => (
                                         <Link
                                             key={item.name}
                                             href={item.href}
                                             onClick={() => setIsOpen(false)}
                                             className={`block py-1.5 font-medium ${
-                                                isLight ? 'text-stone-700 hover:text-sage-600' : 'text-slate-300 hover:text-white'
+                                                isLight ? 'text-stone-600 hover:text-sage-600' : 'text-slate-300 hover:text-white'
                                             }`}
                                         >
                                             {item.name}
