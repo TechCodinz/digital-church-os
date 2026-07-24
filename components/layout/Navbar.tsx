@@ -5,7 +5,11 @@ import { useSession, signOut } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useEffect } from 'react';
-import { Menu, X, User, LogOut, ChevronDown, Shield, Sparkles } from 'lucide-react';
+import {
+    Menu, X, User, LogOut, ChevronDown, Shield, Sparkles,
+    Heart, Flame, Moon, BookOpen, Activity, Compass, Users,
+    Globe, Building2, Music, GraduationCap, DollarSign, Radio
+} from 'lucide-react';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
 export const Navbar = () => {
@@ -13,33 +17,20 @@ export const Navbar = () => {
     const { theme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
-    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+    const [userDropdownOpen, setUserDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    const navItems = [
-        { name: 'Home', href: '/' },
-        { name: 'Global Network', href: '/churches' },
-        { name: 'Family Altar', href: '/family/devotional' },
-        { name: 'Fasting Companion', href: '/spiritual/fasting' },
-        { name: 'Dream Discernment', href: '/spiritual/dreams' },
-        { name: 'Prayer Watch', href: '/prayer-watch' },
-        { name: 'Minister Portal', href: '/minister/onboard' },
-        { name: 'Growth DNA', href: '/profile/growth-dna' },
-        { name: 'Pastoral Hub', href: '/pastoral/hub' },
-        { name: 'Sunday School', href: '/children/sunday-school' },
-        { name: 'Denominations', href: '/worship/traditions' },
-        { name: 'Give', href: '/offering' },
-    ];
-
-    // Close dropdown on outside click
+    // Close dropdowns on click outside
     useEffect(() => {
         const handler = (e: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-                setDropdownOpen(false);
+                setActiveDropdown(null);
+                setUserDropdownOpen(false);
             }
         };
         document.addEventListener('mousedown', handler);
@@ -49,18 +40,56 @@ export const Navbar = () => {
     const isAdmin = (session?.user as any)?.role === 'CHURCH_ADMIN';
     const isDark = mounted ? theme === 'dark' : true;
 
+    // Structured Navigation Categories
+    const navCategories = [
+        {
+            id: 'growth',
+            label: 'Spiritual Growth',
+            items: [
+                { name: 'Family Altar', href: '/family/devotional', desc: 'Family peace guide & worry patterns', icon: Heart },
+                { name: 'Fasting Companion', href: '/spiritual/fasting', desc: 'Hour-by-hour Isaiah 58 coaching', icon: Flame },
+                { name: 'Dream Discernment', href: '/spiritual/dreams', desc: 'Biblical symbol & 1 John 4 testing', icon: Moon },
+                { name: 'Growth DNA', href: '/profile/growth-dna', desc: 'Adaptive AI maturity index (1-100)', icon: Activity },
+                { name: 'Scripture Immersion', href: '/scripture/immersion', desc: 'Exegetical depth & audio memorization', icon: BookOpen },
+            ]
+        },
+        {
+            id: 'ministry',
+            label: 'Ministry & Worship',
+            items: [
+                { name: 'Minister Portal', href: '/minister/onboard', desc: 'Multi-denominational evangelical hub', icon: Compass },
+                { name: 'Pastoral Hub', href: '/pastoral/hub', desc: 'AI triage & human escalation', icon: Shield },
+                { name: 'Sunday School', href: '/children/sunday-school', desc: 'Interactive lessons & stories for kids', icon: GraduationCap },
+                { name: 'Denominations', href: '/worship/traditions', desc: 'Tailored worship traditions & liturgies', icon: Building2 },
+                { name: 'Choir Studio', href: '/choir/studio', desc: 'AI music composition & multi-part vocals', icon: Music },
+            ]
+        },
+        {
+            id: 'community',
+            label: 'Global Community',
+            items: [
+                { name: 'Global Network', href: '/churches', desc: 'Explore churches & live streams worldwide', icon: Globe },
+                { name: 'Prayer Watch', href: '/prayer-watch', desc: '24/7 continuous global intercession wall', icon: Radio },
+                { name: 'Give & Offering', href: '/offering', desc: 'Unified gateway & transparency ledger', icon: DollarSign },
+                { name: 'Community Wall', href: '/community-wall', desc: 'Share testimony & pray for believers', icon: Users },
+            ]
+        }
+    ];
+
     return (
         <nav
+            ref={dropdownRef}
             className={`fixed w-full z-50 transition-colors duration-300 ${
                 isDark
-                    ? 'bg-slate-950/95 backdrop-blur-xl border-b border-slate-800/80 shadow-2xl text-white'
-                    : 'bg-amber-50/95 backdrop-blur-xl border-b border-amber-200/80 shadow-md text-slate-900'
+                    ? 'bg-slate-950/90 backdrop-blur-xl border-b border-slate-800/80 shadow-2xl text-white'
+                    : 'bg-white/90 backdrop-blur-xl border-b border-slate-200/80 shadow-md text-slate-900'
             }`}
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-20 items-center">
-                    <div className="flex items-center space-x-3">
-                        <Link href="/" className="flex items-center space-x-2 group">
+                    {/* Logo - Single Line guaranteed */}
+                    <div className="flex items-center shrink-0">
+                        <Link href="/" className="flex items-center space-x-2.5 group">
                             <div
                                 className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg font-bold group-hover:scale-105 transition-transform shadow-lg ${
                                     isDark
@@ -70,46 +99,106 @@ export const Navbar = () => {
                             >
                                 ✝
                             </div>
-                            <div className="flex flex-col">
-                                <span className={`text-base font-bold tracking-tight flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                    Digital Church OS <Sparkles className={`w-3.5 h-3.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+                            <div className="flex items-center space-x-1.5 whitespace-nowrap">
+                                <span className={`text-base font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                    Digital Church OS
                                 </span>
-                                <span className={`text-[10px] font-mono uppercase tracking-widest ${isDark ? 'text-amber-400/80' : 'text-amber-700'}`}>
-                                    Global Sanctuary
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider ${
+                                    isDark ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-amber-100 text-amber-900 border border-amber-300'
+                                }`}>
+                                    Global
                                 </span>
                             </div>
                         </Link>
                     </div>
 
-                    {/* Desktop Navigation Links */}
-                    <div className="hidden lg:flex items-center space-x-4">
-                        {navItems.map((item) => (
-                            <Link
-                                key={item.name}
-                                href={item.href}
-                                className={`font-semibold transition-all duration-200 text-xs tracking-wider uppercase py-1 ${
-                                    isDark
-                                        ? 'text-slate-300 hover:text-amber-400'
-                                        : 'text-slate-800 hover:text-amber-700 font-bold'
-                                }`}
-                            >
-                                {item.name}
-                            </Link>
-                        ))}
+                    {/* Categorized Desktop Navigation Dropdowns */}
+                    <div className="hidden lg:flex items-center space-x-6">
+                        <Link
+                            href="/"
+                            className={`text-xs font-bold uppercase tracking-wider transition-colors ${
+                                isDark ? 'text-slate-300 hover:text-amber-400' : 'text-slate-700 hover:text-amber-700'
+                            }`}
+                        >
+                            Home
+                        </Link>
+
+                        {navCategories.map((cat) => {
+                            const isCatOpen = activeDropdown === cat.id;
+                            return (
+                                <div key={cat.id} className="relative">
+                                    <button
+                                        onClick={() => setActiveDropdown(isCatOpen ? null : cat.id)}
+                                        onMouseEnter={() => setActiveDropdown(cat.id)}
+                                        className={`flex items-center space-x-1 text-xs font-bold uppercase tracking-wider py-2 transition-colors ${
+                                            isCatOpen
+                                                ? isDark ? 'text-amber-400' : 'text-amber-700'
+                                                : isDark ? 'text-slate-300 hover:text-amber-400' : 'text-slate-700 hover:text-amber-700'
+                                        }`}
+                                    >
+                                        <span>{cat.label}</span>
+                                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isCatOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+
+                                    {/* Dropdown Menu */}
+                                    <AnimatePresence>
+                                        {isCatOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: 8 }}
+                                                onMouseLeave={() => setActiveDropdown(null)}
+                                                className={`absolute left-0 mt-2 w-72 rounded-2xl p-3 border shadow-2xl z-50 ${
+                                                    isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+                                                }`}
+                                            >
+                                                <div className="space-y-1">
+                                                    {cat.items.map((item) => {
+                                                        const Icon = item.icon;
+                                                        return (
+                                                            <Link
+                                                                key={item.name}
+                                                                href={item.href}
+                                                                onClick={() => setActiveDropdown(null)}
+                                                                className={`flex items-start space-x-3 p-2.5 rounded-xl transition-all ${
+                                                                    isDark ? 'hover:bg-slate-800/80 text-slate-200' : 'hover:bg-amber-50 text-slate-800'
+                                                                }`}
+                                                            >
+                                                                <div className={`p-2 rounded-lg shrink-0 ${
+                                                                    isDark ? 'bg-slate-800 text-amber-400' : 'bg-amber-100 text-amber-800'
+                                                                }`}>
+                                                                    <Icon className="w-4 h-4" />
+                                                                </div>
+                                                                <div className="space-y-0.5">
+                                                                    <div className="text-xs font-bold">{item.name}</div>
+                                                                    <div className={`text-[10px] leading-tight ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                                                        {item.desc}
+                                                                    </div>
+                                                                </div>
+                                                            </Link>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            );
+                        })}
                     </div>
 
-                    {/* Right Theme Toggle & Session Controls */}
+                    {/* Right Controls */}
                     <div className="hidden md:flex items-center space-x-3">
                         <ThemeToggle />
 
                         {session ? (
-                            <div className="relative" ref={dropdownRef}>
+                            <div className="relative">
                                 <button
-                                    onClick={() => setDropdownOpen(!dropdownOpen)}
-                                    className={`flex items-center space-x-2 text-xs font-bold px-3 py-2 rounded-xl border transition-all ${
+                                    onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                                    className={`flex items-center space-x-2 text-xs font-bold px-3.5 py-2 rounded-xl border transition-all ${
                                         isDark
                                             ? 'text-slate-200 hover:text-amber-400 bg-slate-900 border-slate-800'
-                                            : 'text-slate-800 hover:text-amber-700 bg-white border-amber-200'
+                                            : 'text-slate-800 hover:text-amber-700 bg-white border-slate-200 shadow-sm'
                                     }`}
                                 >
                                     <div className="w-6 h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center text-xs font-bold">
@@ -120,19 +209,19 @@ export const Navbar = () => {
                                 </button>
 
                                 <AnimatePresence>
-                                    {dropdownOpen && (
+                                    {userDropdownOpen && (
                                         <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
+                                            initial={{ opacity: 0, y: 8 }}
                                             animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: 10 }}
+                                            exit={{ opacity: 0, y: 8 }}
                                             className={`absolute right-0 mt-2 w-48 border rounded-2xl shadow-2xl py-2 z-50 text-xs ${
-                                                isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200'
+                                                isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
                                             }`}
                                         >
                                             <Link
                                                 href="/profile"
                                                 className={`flex items-center space-x-2 px-4 py-2 ${
-                                                    isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-white' : 'text-slate-700 hover:bg-amber-50 hover:text-slate-900'
+                                                    isDark ? 'text-slate-300 hover:bg-slate-800 hover:text-white' : 'text-slate-700 hover:bg-amber-50'
                                                 }`}
                                             >
                                                 <User className="w-4 h-4" />
@@ -151,7 +240,7 @@ export const Navbar = () => {
                                             )}
                                             <button
                                                 onClick={() => signOut()}
-                                                className={`w-full flex items-center space-x-2 px-4 py-2 text-rose-500 hover:bg-slate-800 text-left`}
+                                                className="w-full flex items-center space-x-2 px-4 py-2 text-rose-500 hover:bg-slate-800 text-left"
                                             >
                                                 <LogOut className="w-4 h-4" />
                                                 <span>Sign Out</span>
@@ -174,7 +263,7 @@ export const Navbar = () => {
                         )}
                     </div>
 
-                    {/* Mobile Controls */}
+                    {/* Mobile Menu Button */}
                     <div className="lg:hidden flex items-center space-x-2">
                         <ThemeToggle />
                         <button
@@ -187,30 +276,47 @@ export const Navbar = () => {
                 </div>
             </div>
 
-            {/* Mobile Navigation Menu */}
+            {/* Mobile Accordion Menu */}
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className={`lg:hidden px-4 pt-2 pb-6 space-y-2 text-xs font-semibold border-t ${
-                            isDark ? 'bg-slate-900 border-slate-800' : 'bg-amber-50 border-amber-200'
+                        className={`lg:hidden px-4 pt-2 pb-6 space-y-4 text-xs border-t overflow-y-auto max-h-[80vh] ${
+                            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
                         }`}
                     >
-                        {navItems.map((item) => (
-                            <Link
-                                key={item.name}
-                                href={item.href}
-                                onClick={() => setIsOpen(false)}
-                                className={`block py-2 border-b ${
-                                    isDark
-                                        ? 'text-slate-300 hover:text-amber-400 border-slate-800/50'
-                                        : 'text-slate-800 hover:text-amber-700 border-amber-200/50'
-                                }`}
-                            >
-                                {item.name}
-                            </Link>
+                        <Link
+                            href="/"
+                            onClick={() => setIsOpen(false)}
+                            className="block font-bold text-sm py-2 border-b border-slate-800/40"
+                        >
+                            Home
+                        </Link>
+
+                        {navCategories.map((cat) => (
+                            <div key={cat.id} className="space-y-2">
+                                <div className={`font-mono text-[10px] uppercase font-bold tracking-widest ${
+                                    isDark ? 'text-amber-400' : 'text-amber-700'
+                                }`}>
+                                    {cat.label}
+                                </div>
+                                <div className="pl-2 space-y-1 border-l-2 border-slate-700/50">
+                                    {cat.items.map((item) => (
+                                        <Link
+                                            key={item.name}
+                                            href={item.href}
+                                            onClick={() => setIsOpen(false)}
+                                            className={`block py-1.5 font-medium ${
+                                                isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-900'
+                                            }`}
+                                        >
+                                            {item.name}
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
                         ))}
                     </motion.div>
                 )}
