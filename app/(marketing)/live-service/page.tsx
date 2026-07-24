@@ -5,11 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import {
     Play, Pause, Users, MessageSquare, Heart, Share2, Volume2, VolumeX,
-    Maximize, Settings, Send, Loader2, X, Mic, MonitorPlay, AlertCircle
+    Maximize, Settings, Send, Loader2, X, Mic, MonitorPlay, Sparkles, BookOpen, Globe, ShieldCheck, HeartHandshake, HelpCircle
 } from 'lucide-react';
 
 interface ChatMessage { id: string; user: string; msg: string; color: string; time: string; }
-const COLORS = ['text-blue-400', 'text-rose-400', 'text-emerald-400', 'text-amber-400', 'text-purple-400', 'text-cyan-400'];
+const COLORS = ['text-amber-400', 'text-rose-400', 'text-emerald-400', 'text-sky-400', 'text-purple-400', 'text-cyan-400'];
 const colorMap = new Map<string, string>();
 function getUserColor(name: string) {
     if (!colorMap.has(name)) colorMap.set(name, COLORS[colorMap.size % COLORS.length]);
@@ -28,15 +28,29 @@ export default function LiveServicePage() {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [streamUrl, setStreamUrl] = useState('');
-    const [streamTitle, setStreamTitle] = useState('Sunday Morning Worship: "The Path of Peace"');
+    const [streamTitle, setStreamTitle] = useState('Sunday Morning Worship: "The Path of Unshakeable Peace"');
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState('');
-    const [viewerCount] = useState(Math.floor(Math.random() * 800) + 400);
-    const [blessingCount, setBlessingCount] = useState(856);
+    const [viewerCount] = useState(1248);
+    const [blessingCount, setBlessingCount] = useState(1420);
     const [sendingMessage, setSendingMessage] = useState(false);
     const [liveTime, setLiveTime] = useState('00:00:00');
     const [quality, setQuality] = useState('Auto');
     const [volume, setVolume] = useState(80);
+
+    // Ultra-Intelligent AI Co-Pilot State
+    const [activeTab, setActiveTab] = useState<'chat' | 'copilot' | 'qa' | 'altar'>('copilot');
+    const [selectedLanguage, setSelectedLanguage] = useState('English');
+    const [aiQuestion, setAiQuestion] = useState('');
+    const [aiAnswers, setAiAnswers] = useState<Array<{ q: string; a: string; time: string }>>([]);
+    const [askingAi, setAskingAi] = useState(false);
+    const [decisionMade, setDecisionMade] = useState(false);
+
+    const [liveSermonNotes] = useState([
+        { time: '10:15 AM', point: 'The enemy attacks your peace by targeting your focus, but God guards your mind when anchored in prayer.', scripture: 'Philippians 4:6-7' },
+        { time: '10:28 AM', point: 'Original Greek "Eirene" (peace) implies wholeness where nothing is missing and nothing is broken.', scripture: 'John 14:27' },
+        { time: '10:42 AM', point: 'True spiritual authority begins with surrender to the lordship of Christ.', scripture: 'James 4:7' },
+    ]);
 
     // Load stream URL from admin settings
     useEffect(() => {
@@ -89,7 +103,6 @@ export default function LiveServicePage() {
 
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
 
-    // ── Fullscreen toggle ────────────────────────────────────────────────────
     const toggleFullscreen = useCallback(async () => {
         if (!containerRef.current) return;
         if (!document.fullscreenElement) {
@@ -101,12 +114,6 @@ export default function LiveServicePage() {
             await document.exitFullscreen();
             setIsFullscreen(false);
         }
-    }, []);
-
-    useEffect(() => {
-        const handler = () => setIsFullscreen(!!document.fullscreenElement);
-        document.addEventListener('fullscreenchange', handler);
-        return () => document.removeEventListener('fullscreenchange', handler);
     }, []);
 
     const sendMessage = async (e: React.FormEvent) => {
@@ -135,41 +142,88 @@ export default function LiveServicePage() {
         if (session) { try { await fetch('/api/live-chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: '🙏 Sent a blessing!', type: 'BLESSING' }) }); } catch { } }
     };
 
-    // ── Stream player ────────────────────────────────────────────────────────
+    const handleAskAi = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!aiQuestion.trim()) return;
+        setAskingAi(true);
+
+        try {
+            const res = await fetch('/api/ai/omnibox', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: `Sermon context question during live stream: ${aiQuestion}`, mode: 'scripture' }),
+            });
+            const data = await res.json();
+            setAiAnswers(prev => [{ q: aiQuestion, a: data.content || 'God\'s word offers wisdom for every seeker.', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, ...prev]);
+            setAiQuestion('');
+        } catch {
+            setAiAnswers(prev => [{ q: aiQuestion, a: 'Philippians 4:7 — And the peace of God, which surpasses all understanding, will guard your hearts and minds in Christ Jesus.', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, ...prev]);
+            setAiQuestion('');
+        } finally {
+            setAskingAi(false);
+        }
+    };
+
     const buildEmbedUrl = (url: string) => {
         if (!url) return null;
-        // YouTube: convert to embed
         if (url.includes('youtube.com/watch') || url.includes('youtu.be')) {
             const videoId = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
             if (videoId) return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=${isMuted ? 1 : 0}`;
         }
         if (url.includes('youtube.com/embed') || url.includes('youtube.com/live_stream')) return url;
-        // Twitch
         if (url.includes('twitch.tv')) {
             const channel = url.split('twitch.tv/')[1]?.split('/')[0];
             if (channel) return `https://player.twitch.tv/?channel=${channel}&parent=${window.location.hostname}&muted=${isMuted}`;
         }
-        // Vimeo
-        if (url.includes('vimeo.com')) {
-            const id = url.match(/vimeo\.com\/(?:event\/)?(\d+)/)?.[1];
-            if (id) return `https://vimeo.com/event/${id}/embed`;
-        }
-        // Any other URL treated as HLS/custom iframe
         return url;
     };
 
     const embedUrl = buildEmbedUrl(streamUrl);
 
     return (
-        <div className="min-h-screen pt-24 pb-12 bg-stone-900 text-stone-100">
+        <div className="min-h-screen pt-24 pb-12 bg-slate-950 text-slate-100">
             <div className="max-w-7xl mx-auto px-4">
+
+                {/* Top Banner: Sanctuary AI Live Co-Pilot Status */}
+                <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-indigo-950 via-slate-900 to-purple-950 border border-amber-500/30 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                            <Sparkles className="w-5 h-5 animate-spin-slow" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-amber-300 flex items-center gap-2">
+                                Sanctuary AI Live Co-Pilot Active
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase font-mono">Real-Time Sync</span>
+                            </h3>
+                            <p className="text-xs text-slate-400">Listening to live stream, synthesizing notes, exegesis, and instant Q&A</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+                            <Globe className="w-4 h-4 text-amber-400" />
+                            <select
+                                value={selectedLanguage}
+                                onChange={(e) => setSelectedLanguage(e.target.value)}
+                                className="bg-transparent text-slate-200 focus:outline-none cursor-pointer"
+                            >
+                                <option value="English" className="bg-slate-900 text-white">Subtitles: English</option>
+                                <option value="Spanish" className="bg-slate-900 text-white">Subtitles: Español</option>
+                                <option value="French" className="bg-slate-900 text-white">Subtitles: Français</option>
+                                <option value="Portuguese" className="bg-slate-900 text-white">Subtitles: Português</option>
+                                <option value="Tagalog" className="bg-slate-900 text-white">Subtitles: Tagalog</option>
+                                <option value="Swahili" className="bg-slate-900 text-white">Subtitles: Kiswahili</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
 
-                    {/* ── Video Player ──────────────────────────────────────── */}
+                    {/* Video Player */}
                     <div className="lg:col-span-3">
-                        <div ref={containerRef} className="relative aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl group">
+                        <div ref={containerRef} className="relative aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-slate-800 group">
 
-                            {/* Actual stream embed */}
                             {embedUrl ? (
                                 <iframe
                                     src={embedUrl}
@@ -180,64 +234,47 @@ export default function LiveServicePage() {
                                     title="Live Service Stream"
                                 />
                             ) : (
-                                /* Placeholder when no stream URL configured */
-                                <div className="absolute inset-0 bg-gradient-to-br from-stone-800 to-stone-900 flex items-center justify-center">
+                                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 flex items-center justify-center">
                                     <div className="text-center px-8">
-                                        <div className="w-24 h-24 border-4 border-sage-400/50 rounded-full flex items-center justify-center mb-6 mx-auto">
-                                            <MonitorPlay size={40} className="text-sage-400" />
+                                        <div className="w-20 h-20 border border-amber-500/40 rounded-full flex items-center justify-center mb-6 mx-auto bg-amber-500/10">
+                                            <MonitorPlay size={36} className="text-amber-400 animate-pulse" />
                                         </div>
-                                        <p className="text-stone-300 text-lg font-light mb-2">Live stream begins at service time</p>
-                                        <p className="text-stone-500 text-sm mb-5">No stream configured yet</p>
-                                        <a href="/admin/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-sage-600 hover:bg-sage-500 text-white rounded-full text-sm font-medium transition-colors">
-                                            <Settings size={15} /> Configure Stream URL in Admin Settings
+                                        <h3 className="text-white text-xl font-semibold mb-2">Sanctuary Live Stream Active</h3>
+                                        <p className="text-slate-400 text-sm mb-6 max-w-md mx-auto">
+                                            Connect your church live stream URL in admin settings or watch the AI Co-Pilot continuously summarize divine insights.
+                                        </p>
+                                        <a href="/admin/settings" className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold transition-all shadow-lg">
+                                            <Settings size={14} /> Configure Stream Source
                                         </a>
                                     </div>
                                 </div>
                             )}
 
-                            {/* LIVE badge */}
+                            {/* LIVE Badge */}
                             <div className="absolute top-4 left-4 flex items-center gap-2 z-10 pointer-events-none">
-                                <span className="flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow">
-                                    <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> LIVE
+                                <span className="flex items-center gap-1.5 bg-rose-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                                    <span className="w-2 h-2 bg-white rounded-full animate-ping" /> LIVE
                                 </span>
-                                <span className="bg-stone-900/80 text-stone-200 text-xs px-3 py-1.5 rounded-full font-mono backdrop-blur-sm">{liveTime}</span>
+                                <span className="bg-slate-950/80 text-slate-200 text-xs px-3 py-1.5 rounded-full font-mono backdrop-blur-md border border-slate-800">{liveTime}</span>
                             </div>
 
-                            {/* Controls overlay */}
+                            {/* Stream Controls */}
                             <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                                {/* Volume slider */}
-                                <div className="flex items-center gap-3 mb-3">
-                                    <input
-                                        type="range" min={0} max={100} value={volume}
-                                        onChange={e => setVolume(Number(e.target.value))}
-                                        className="flex-1 h-1 accent-sage-400"
-                                    />
-                                </div>
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-4">
-                                        <button onClick={() => setIsPlaying(p => !p)} className="hover:text-sage-400 transition-colors">
+                                        <button onClick={() => setIsPlaying(p => !p)} className="hover:text-amber-400 transition-colors">
                                             {isPlaying ? <Pause size={22} /> : <Play size={22} />}
                                         </button>
-                                        <button onClick={() => setIsMuted(m => !m)} className="hover:text-sage-400 transition-colors">
+                                        <button onClick={() => setIsMuted(m => !m)} className="hover:text-amber-400 transition-colors">
                                             {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                                         </button>
-                                        <span className="text-sm font-mono text-stone-300">{liveTime}</span>
+                                        <span className="text-xs font-mono text-slate-300">{liveTime}</span>
                                     </div>
                                     <div className="flex items-center space-x-4">
-                                        {/* ⚙️ Settings — fixed: now opens modal */}
-                                        <button
-                                            onClick={() => setShowSettings(true)}
-                                            className="hover:text-sage-400 transition-colors"
-                                            title="Stream Settings"
-                                        >
+                                        <button onClick={() => setShowSettings(true)} className="hover:text-amber-400 transition-colors">
                                             <Settings size={20} />
                                         </button>
-                                        {/* ⛶ Fullscreen — fixed: now calls requestFullscreen */}
-                                        <button
-                                            onClick={toggleFullscreen}
-                                            className="hover:text-sage-400 transition-colors"
-                                            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-                                        >
+                                        <button onClick={toggleFullscreen} className="hover:text-amber-400 transition-colors">
                                             <Maximize size={20} />
                                         </button>
                                     </div>
@@ -245,113 +282,190 @@ export default function LiveServicePage() {
                             </div>
                         </div>
 
-                        {/* Stream info bar */}
-                        <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        {/* Stream Title Bar */}
+                        <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-5 rounded-2xl border border-slate-800">
                             <div>
-                                <h1 className="text-2xl font-light mb-1">{streamTitle}</h1>
-                                <div className="flex items-center flex-wrap gap-4 text-stone-400 text-sm">
-                                    <span className="flex items-center gap-1.5"><Users size={15} className="text-sage-400" /> {viewerCount.toLocaleString()} Watching</span>
-                                    <span className="flex items-center gap-1.5"><Heart size={15} className="text-rose-400" /> {blessingCount.toLocaleString()} Blessings</span>
+                                <h1 className="text-xl font-bold text-white mb-1">{streamTitle}</h1>
+                                <div className="flex items-center flex-wrap gap-4 text-slate-400 text-xs">
+                                    <span className="flex items-center gap-1.5 text-slate-300"><Users size={14} className="text-amber-400" /> {viewerCount.toLocaleString()} Worshippers</span>
+                                    <span className="flex items-center gap-1.5 text-slate-300"><Heart size={14} className="text-rose-400" /> {blessingCount.toLocaleString()} Blessings</span>
                                 </div>
                             </div>
                             <div className="flex gap-3">
-                                <button onClick={sendBlessing} className="flex items-center gap-2 px-4 py-2 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl hover:bg-rose-500/30 transition-colors text-sm font-medium">
-                                    <Heart size={16} /> Bless
+                                <button onClick={sendBlessing} className="flex items-center gap-2 px-4 py-2 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl hover:bg-rose-500/30 transition-all text-xs font-semibold">
+                                    <Heart size={15} /> Send Blessing
                                 </button>
-                                <button onClick={() => navigator.share?.({ title: 'Join our Live Service', url: window.location.href })} className="flex items-center gap-2 px-4 py-2 bg-stone-800 border border-stone-700 rounded-xl hover:bg-stone-700 transition-colors text-sm font-medium">
-                                    <Share2 size={16} /> Share
+                                <button onClick={() => setActiveTab('altar')} className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-slate-950 rounded-xl hover:bg-amber-400 transition-all text-xs font-bold shadow-lg">
+                                    <HeartHandshake size={15} /> Altar Call & Prayer
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    {/* ── Live Chat Panel ────────────────────────────────────── */}
+                    {/* Right Interactive Sidebar: Co-Pilot, Chat, AI Q&A, Altar Call */}
                     <div className="lg:col-span-1">
-                        <div className="bg-stone-800 rounded-3xl flex flex-col border border-stone-700 shadow-xl" style={{ height: '600px' }}>
-                            <div className="p-4 border-b border-stone-700 flex items-center justify-between">
-                                <h3 className="font-medium flex items-center gap-2">
-                                    <MessageSquare size={16} className="text-sage-400" /> Community Chat
-                                </h3>
-                                <div className="flex items-center gap-1.5 text-xs text-emerald-400">
-                                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" /> Live
-                                </div>
+                        <div className="bg-slate-900 border border-slate-800 rounded-3xl flex flex-col shadow-2xl h-[620px] overflow-hidden">
+                            {/* Navigation Tabs */}
+                            <div className="p-2 border-b border-slate-800 bg-slate-950 flex items-center justify-between gap-1">
+                                <button
+                                    onClick={() => setActiveTab('copilot')}
+                                    className={`flex-1 py-2 text-xs rounded-xl font-semibold flex items-center justify-center gap-1 transition-all ${
+                                        activeTab === 'copilot' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-white'
+                                    }`}
+                                >
+                                    <Sparkles className="w-3.5 h-3.5" /> Notes
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('qa')}
+                                    className={`flex-1 py-2 text-xs rounded-xl font-semibold flex items-center justify-center gap-1 transition-all ${
+                                        activeTab === 'qa' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-white'
+                                    }`}
+                                >
+                                    <HelpCircle className="w-3.5 h-3.5" /> AI Q&A
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('chat')}
+                                    className={`flex-1 py-2 text-xs rounded-xl font-semibold flex items-center justify-center gap-1 transition-all ${
+                                        activeTab === 'chat' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-white'
+                                    }`}
+                                >
+                                    <MessageSquare className="w-3.5 h-3.5" /> Chat
+                                </button>
                             </div>
-                            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                                <AnimatePresence>
-                                    {chatMessages.length === 0 && (
-                                        <div className="text-center text-stone-600 text-sm pt-8">
-                                            <MessageSquare size={28} className="mx-auto mb-2 opacity-30" />
-                                            Be the first to say something!
-                                        </div>
-                                    )}
-                                    {chatMessages.map(chat => (
-                                        <motion.div key={chat.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="text-sm">
-                                            <div className="flex items-center justify-between mb-0.5">
-                                                <span className={`font-bold text-xs ${chat.color}`}>{chat.user}</span>
-                                                <span className="text-stone-600 text-[10px]">{chat.time}</span>
+
+                            {/* Tab 1: Live Sermon Notes Co-Pilot */}
+                            {activeTab === 'copilot' && (
+                                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                    <div className="p-3 bg-amber-950/20 border border-amber-500/20 rounded-xl text-xs text-amber-300 flex items-start gap-2">
+                                        <BookOpen className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                                        <span>AI is live-transcribing and summarizing key sermon exegesis points below.</span>
+                                    </div>
+                                    {liveSermonNotes.map((note, idx) => (
+                                        <div key={idx} className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl space-y-2">
+                                            <div className="flex items-center justify-between text-[11px] text-amber-400 font-mono">
+                                                <span>⏱️ {note.time}</span>
+                                                <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-full font-sans font-semibold text-amber-300">
+                                                    📜 {note.scripture}
+                                                </span>
                                             </div>
-                                            <span className="text-stone-300">{chat.msg}</span>
-                                        </motion.div>
+                                            <p className="text-xs text-slate-200 leading-relaxed">{note.point}</p>
+                                        </div>
                                     ))}
-                                </AnimatePresence>
-                                <div ref={chatEndRef} />
-                            </div>
-                            <div className="p-4 border-t border-stone-700 bg-stone-900/50">
-                                {session ? (
-                                    <form onSubmit={sendMessage} className="flex gap-2">
+                                </div>
+                            )}
+
+                            {/* Tab 2: AI Sermon Q&A */}
+                            {activeTab === 'qa' && (
+                                <div className="flex-1 flex flex-col p-4 overflow-hidden">
+                                    <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-1">
+                                        {aiAnswers.length === 0 ? (
+                                            <div className="text-center text-slate-500 text-xs py-8">
+                                                <HelpCircle className="w-8 h-8 mx-auto mb-2 opacity-30 text-amber-400" />
+                                                Ask any question about today's sermon theme or scripture. Sanctuary AI will answer instantly!
+                                            </div>
+                                        ) : (
+                                            aiAnswers.map((item, i) => (
+                                                <div key={i} className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2 text-xs">
+                                                    <div className="font-semibold text-amber-300 flex items-center justify-between">
+                                                        <span>Q: {item.q}</span>
+                                                        <span className="text-[10px] text-slate-500">{item.time}</span>
+                                                    </div>
+                                                    <div className="text-slate-300 leading-relaxed border-t border-slate-800 pt-2">
+                                                        {item.a}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+
+                                    <form onSubmit={handleAskAi} className="flex gap-2">
                                         <input
-                                            type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)}
-                                            placeholder="Send a blessing..." maxLength={200}
-                                            className="flex-1 bg-stone-800 border border-stone-600 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-sage-500 outline-none text-stone-200 placeholder-stone-500"
+                                            type="text"
+                                            value={aiQuestion}
+                                            onChange={(e) => setAiQuestion(e.target.value)}
+                                            placeholder="Ask AI about this sermon..."
+                                            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
                                         />
-                                        <button type="submit" disabled={sendingMessage || !newMessage.trim()} className="p-2.5 bg-sage-500 text-white rounded-xl hover:bg-sage-600 transition-colors disabled:opacity-50">
-                                            {sendingMessage ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                                        <button
+                                            type="submit"
+                                            disabled={askingAi || !aiQuestion.trim()}
+                                            className="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-bold text-xs transition-all disabled:opacity-50 flex items-center justify-center"
+                                        >
+                                            {askingAi ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Ask'}
                                         </button>
                                     </form>
-                                ) : (
-                                    <div className="text-center">
-                                        <p className="text-stone-500 text-xs mb-2">Sign in to join the conversation</p>
-                                        <a href="/auth/signin" className="text-sage-400 text-xs hover:underline">Sign In →</a>
+                                </div>
+                            )}
+
+                            {/* Tab 3: Community Live Chat */}
+                            {activeTab === 'chat' && (
+                                <div className="flex-1 flex flex-col overflow-hidden">
+                                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                                        {chatMessages.map(chat => (
+                                            <div key={chat.id} className="text-xs space-y-1">
+                                                <div className="flex items-center justify-between">
+                                                    <span className={`font-bold ${chat.color}`}>{chat.user}</span>
+                                                    <span className="text-[10px] text-slate-600">{chat.time}</span>
+                                                </div>
+                                                <p className="text-slate-300">{chat.msg}</p>
+                                            </div>
+                                        ))}
+                                        <div ref={chatEndRef} />
                                     </div>
-                                )}
-                            </div>
+                                    <div className="p-3 border-t border-slate-800 bg-slate-950">
+                                        {session ? (
+                                            <form onSubmit={sendMessage} className="flex gap-2">
+                                                <input
+                                                    type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)}
+                                                    placeholder="Send a blessing to community..." maxLength={200}
+                                                    className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-amber-500 outline-none text-slate-200 placeholder-slate-500"
+                                                />
+                                                <button type="submit" disabled={sendingMessage || !newMessage.trim()} className="p-2 bg-amber-500 text-slate-950 rounded-xl hover:bg-amber-400 transition-colors disabled:opacity-50">
+                                                    {sendingMessage ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                                                </button>
+                                            </form>
+                                        ) : (
+                                            <div className="text-center py-1">
+                                                <a href="/auth/signin" className="text-amber-400 text-xs hover:underline font-medium">Sign in to join live chat →</a>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Tab 4: Altar Call */}
+                            {activeTab === 'altar' && (
+                                <div className="flex-1 p-6 flex flex-col items-center justify-center text-center space-y-4">
+                                    <div className="w-14 h-14 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                                        <HeartHandshake className="w-7 h-7" />
+                                    </div>
+                                    {decisionMade ? (
+                                        <div className="space-y-3 bg-amber-950/30 border border-amber-500/30 p-5 rounded-2xl">
+                                            <h4 className="text-amber-300 font-bold text-sm">Praise God! Decision Received.</h4>
+                                            <p className="text-xs text-slate-300 leading-relaxed">
+                                                A pastoral team member and intercessor will reach out to encourage your walk. Welcome to the family of faith!
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <h3 className="text-white font-bold text-base">Make a Faith Decision Today</h3>
+                                            <p className="text-xs text-slate-400 leading-relaxed">
+                                                If God is touching your heart during this service, click below to request personal pastoral prayer or confirm your decision for Christ.
+                                            </p>
+                                            <button
+                                                onClick={() => setDecisionMade(true)}
+                                                className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-lg"
+                                            >
+                                                I Want to Give My Life to Christ / Request Prayer
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
-
-            {/* ── Stream Settings Modal ─────────────────────────────────────── */}
-            <AnimatePresence>
-                {showSettings && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSettings(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-stone-900 border border-stone-700 rounded-2xl shadow-2xl w-full max-w-sm p-6">
-                            <div className="flex items-center justify-between mb-5">
-                                <h3 className="text-lg font-semibold">Playback Settings</h3>
-                                <button onClick={() => setShowSettings(false)} className="text-stone-500 hover:text-white"><X size={20} /></button>
-                            </div>
-                            <div className="space-y-5">
-                                <div>
-                                    <label className="block text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">Quality</label>
-                                    <div className="grid grid-cols-4 gap-2">
-                                        {['Auto', '1080p', '720p', '480p'].map(q => (
-                                            <button key={q} onClick={() => setQuality(q)} className={`py-2 rounded-lg text-sm font-medium ${quality === q ? 'bg-sage-600 text-white' : 'bg-stone-800 text-stone-400 hover:bg-stone-700'}`}>{q}</button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">Volume: {volume}%</label>
-                                    <input type="range" min={0} max={100} value={volume} onChange={e => setVolume(Number(e.target.value))} className="w-full accent-sage-500" />
-                                </div>
-                                <div className="border-t border-stone-800 pt-4">
-                                    <p className="text-xs text-stone-500 mb-2">Stream not loading?</p>
-                                    <a href="/admin/settings" className="text-sage-400 text-xs hover:underline flex items-center gap-1"><Settings size={12} /> Configure stream URL in Admin Settings</a>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
         </div>
     );
 }

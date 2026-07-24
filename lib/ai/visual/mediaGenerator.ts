@@ -71,11 +71,11 @@ export class MediaGenerator {
                 quality: "standard",
             });
 
-            return response.data[0].url || null;
+            return response.data?.[0]?.url || null;
         } catch (error) {
             console.error('DALL-E Generation error:', error);
             // Fallback to Unsplash on error
-            return `https://source.unsplash.com/featured/1024x1024/?spiritual,peace`;
+            return `https://images.unsplash.com/photo-1507692049790-de58290a4334?w=1024`;
         }
     }
 
@@ -103,7 +103,7 @@ export class MediaGenerator {
             if ('videos' in response && response.videos.length > 0) {
                 // Get the first video, find the HD quality link
                 const video = response.videos[0];
-                const hdFile = video.video_files.find(f => f.quality === 'hd') || video.video_files[0];
+                const hdFile = video.video_files.find((f: any) => f.quality === 'hd') || video.video_files[0];
 
                 if (hdFile?.link) {
                     videoCache.set(searchQuery, hdFile.link);

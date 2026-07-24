@@ -14,13 +14,15 @@ export const Navbar = () => {
 
     const navItems = [
         { name: 'Home', href: '/' },
-        { name: 'Conferences', href: '/conferences' },
-        { name: 'Live Service', href: '/live-service' },
-        { name: 'Prayer Room', href: '/prayer-room' },
-        { name: 'Community', href: '/community-wall' },
-        { name: 'Request Aid', href: '/aid-request' },
-        { name: 'Children', href: '/children' },
-        { name: 'Spiritual', href: '/spiritual' },
+        { name: 'Global Network', href: '/churches' },
+        { name: 'Pastoral Hub', href: '/pastoral/hub' },
+        { name: 'Sunday School', href: '/children/sunday-school' },
+        { name: 'Kids Stories', href: '/children/stories' },
+        { name: 'Choir Studio', href: '/choir/studio' },
+        { name: 'Multilingual', href: '/live-service/translate' },
+        { name: '3D Immersion', href: '/scripture/immersion' },
+        { name: 'Pastoral Radar', href: '/admin/pastoral-analytics' },
+        { name: 'Apologetics', href: '/evangelism/coach' },
         { name: 'Give', href: '/offering' },
     ];
 

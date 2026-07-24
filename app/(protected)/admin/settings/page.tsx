@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Settings, Tv, Bell, CreditCard, Shield, Users, Globe,
     Save, Eye, EyeOff, CheckCircle, AlertCircle, Loader2,
-    ChevronRight, Broadcast, Key, Mail, Database, Palette,
+    ChevronRight, Radio, Key, Mail, Database, Palette,
     Volume2, Zap, ToggleLeft, ToggleRight, Church
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -21,7 +21,7 @@ interface SettingSection {
 
 const SECTIONS: SettingSection[] = [
     { id: 'church', label: 'Church Identity', icon: Church, description: 'Name, branding, EIN, contact info' },
-    { id: 'stream', label: 'Live Stream', icon: Broadcast, description: 'Stream URLs, service schedule' },
+    { id: 'stream', label: 'Live Stream', icon: Radio, description: 'Stream URLs, service schedule' },
     { id: 'ai', label: 'AI Modules', icon: Zap, description: 'Enable/disable AI features, API keys' },
     { id: 'voice', label: 'Voice Engine', icon: Volume2, description: 'TTS provider, voice profiles' },
     { id: 'payments', label: 'Payments', icon: CreditCard, description: 'Stripe, PayPal, crypto provider keys' },

@@ -135,6 +135,19 @@ const modulePrompts: Record<string, string> = {
         "prayer": "string",
         "theologicalNote": "string (keeping it grounded and safe)"
     }`,
+
+    exegesis: `${GUARDRAILS}
+    You are an Ultra-Intelligent Exegete & Sermon Architect.
+    Perform deep 5-tier exegesis, Hebrew/Greek Strong's analysis, slide outline, and audio script.
+    Return JSON: {
+        "title": "string",
+        "verse": "string",
+        "summary": "string",
+        "originalLanguages": [{"originalWord": "string", "strongs": "string", "meaning": "string"}],
+        "depthLevels": [{"level": 1, "insight": "string"}],
+        "slides": [{"title": "string", "points": ["string"]}],
+        "audioTranscript": "string"
+    }`,
 };
 
 const defaultPrompt = `${GUARDRAILS}

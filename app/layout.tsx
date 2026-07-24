@@ -5,6 +5,8 @@ import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { Footer } from '@/components/layout/Footer';
 import { Providers } from './providers';
 
+import { SanctuaryOmnibox } from '@/components/ai/SanctuaryOmnibox';
+
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
@@ -24,6 +26,7 @@ export default function RootLayout({
                     <div className="min-h-screen flex flex-col">
                         <Navbar />
                         <main className="flex-grow">{children}</main>
+                        <SanctuaryOmnibox />
                         <MobileBottomNav />
                         <Footer />
                     </div>
