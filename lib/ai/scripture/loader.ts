@@ -68,7 +68,7 @@ export class ScriptureLoader {
                 };
             }));
 
-            await index.upsert(vectors);
+            await index.upsert(vectors as any);
             console.log(`Uploaded batch ${i / batchSize + 1} of ${Math.ceil(bibleData.length / batchSize)}`);
         }
     }
@@ -90,11 +90,19 @@ export class ScriptureLoader {
         }));
     }
 
+    async semanticSearch(query: string, topK: number = 5) {
+        return this.searchScripture(query, topK);
+    }
+
     async getVerse(reference: string): Promise<{ text: string; reference: string } | null> {
         // Simple mock verse lookup for demonstration if vector DB not populated
         return {
             reference,
             text: "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
         };
+    }
+
+    async getVerses(references: string[]): Promise<({ text: string; reference: string } | null)[]> {
+        return Promise.all(references.map(r => this.getVerse(r)));
     }
 }

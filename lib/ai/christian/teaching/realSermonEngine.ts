@@ -118,7 +118,7 @@ export class RealSermonEngine {
             const finalSermon: SermonResponse = {
                 title: sermonData.title,
                 theme: params.theme,
-                scriptureRefs: verifiedVerses.map(v => v.reference),
+                scriptureRefs: verifiedVerses.filter((v): v is { reference: string; text: string } => v !== null).map(v => v.reference),
                 outline: {
                     introduction: sermonData.introduction,
                     points: sermonData.points.map((p: any, i: number) => ({

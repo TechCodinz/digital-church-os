@@ -46,6 +46,7 @@ export class PersonalizedDepthDiscovery {
 
         if (!user) return { level: 1, interests: [] };
 
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [

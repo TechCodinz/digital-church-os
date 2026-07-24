@@ -83,7 +83,7 @@ export class RealCounselor {
             type: 'counseling',
             content: {
                 reflection: safeReflection,
-                scriptures: verifiedVerses.map(v => ({
+                scriptures: verifiedVerses.filter((v): v is { reference: string; text: string } => v !== null).map(v => ({
                     reference: v.reference,
                     text: v.text,
                     application: "This direct word from scripture speaks to the heart of your concern."

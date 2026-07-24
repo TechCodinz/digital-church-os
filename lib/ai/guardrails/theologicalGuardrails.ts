@@ -1,7 +1,7 @@
 import { OpenAI } from 'openai';
 
 export class TheologicalGuardrails {
-    private openai: OpenAI;
+    private openai: OpenAI | null = null;
 
     // Prohibited patterns
     private prohibitedPatterns = [

@@ -66,7 +66,7 @@ export class RealWorshipGenerator {
             title: worshipData.title || `${params.theme} (${params.style})`,
             lyrics: worshipData.lyrics,
             chords: worshipData.chordProgression || [],
-            scriptureBasis: verifiedVerses.map(v => ({ reference: v.reference, text: v.text })),
+            scriptureBasis: verifiedVerses.filter((v): v is { reference: string; text: string } => v !== null).map(v => ({ reference: v.reference, text: v.text })),
         };
     }
 }

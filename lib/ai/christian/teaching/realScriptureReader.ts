@@ -21,8 +21,8 @@ export class RealScriptureReader {
                 const searchResults = await this.scriptureLoader.semanticSearch(reference, 1);
                 if (searchResults.length > 0) {
                     return {
-                        reference: searchResults[0].reference,
-                        text: searchResults[0].text,
+                        reference: (searchResults[0].reference as string) || reference,
+                        text: (searchResults[0].text as string) || '',
                         context: "Provided based on thematic relevance to your search."
                     };
                 }
@@ -43,8 +43,8 @@ export class RealScriptureReader {
     async getThemedVerses(theme: string, count: number = 3): Promise<ScriptureReading[]> {
         const searchResults = await this.scriptureLoader.semanticSearch(theme, count);
         return searchResults.map(s => ({
-            reference: s.reference,
-            text: s.text,
+            reference: (s.reference as string) || theme,
+            text: (s.text as string) || '',
             context: "Semantically matched to your theme."
         }));
     }

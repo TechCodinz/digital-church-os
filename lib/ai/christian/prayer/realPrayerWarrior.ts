@@ -80,7 +80,7 @@ export class RealPrayerWarrior {
                 }))
             },
             themes,
-            suggestedScriptures: verifiedVerses.map(v => v.reference),
+            suggestedScriptures: verifiedVerses.filter((v): v is { reference: string; text: string } => v !== null).map(v => v.reference),
             encouragement: safeEncouragement
         };
 
