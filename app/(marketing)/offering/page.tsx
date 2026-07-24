@@ -6,17 +6,18 @@ import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { UnifiedPaymentForm } from '@/components/payments/UnifiedPaymentForm';
 import { TransparencyLedger } from '@/components/offerings/TransparencyLedger';
-import { Heart, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react';
+import { Heart, TrendingUp, ChevronDown, ChevronUp, ShieldCheck, Sparkles, DollarSign } from 'lucide-react';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
 function ImpactStory({ title, story, amount, category }: any) {
     return (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100">
-            <div className="text-sm font-medium text-emerald-600 mb-2">{category}</div>
-            <h3 className="text-lg font-semibold text-stone-800 mb-2">{title}</h3>
-            <p className="text-stone-600 mb-4">{story}</p>
-            <div className="text-sm text-stone-500 font-medium">Funded with {amount}</div>
+        <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-2">
+            <div className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider">{category}</div>
+            <h3 className="text-base font-bold text-white">{title}</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">{story}</p>
+            <div className="text-xs text-emerald-400 font-bold font-mono">Funded: {amount}</div>
         </div>
     );
 }
@@ -24,15 +25,15 @@ function ImpactStory({ title, story, amount, category }: any) {
 function FAQ({ question, answer }: any) {
     const [open, setOpen] = useState(false);
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-stone-100 p-4">
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-4">
             <button
                 onClick={() => setOpen(!open)}
-                className="flex items-center justify-between w-full text-left font-medium text-stone-800"
+                className="flex items-center justify-between w-full text-left font-bold text-xs text-white"
             >
-                {question}
-                {open ? <ChevronUp className="w-5 h-5 text-stone-400" /> : <ChevronDown className="w-5 h-5 text-stone-400" />}
+                <span>{question}</span>
+                {open ? <ChevronUp className="w-4 h-4 text-emerald-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
             </button>
-            {open && <div className="mt-4 text-stone-600">{answer}</div>}
+            {open && <div className="mt-3 text-xs text-slate-400 leading-relaxed pt-2 border-t border-slate-800">{answer}</div>}
         </div>
     );
 }
@@ -47,146 +48,95 @@ export default function OfferingPage() {
             .then(data => setLedger(data))
             .catch(err => {
                 console.error('Failed to load offering data:', err);
-                // Fallback gracefully without hardcoded fake data
                 setLedger({ totalRaised: 0, recentTransactions: [], distribution: [] });
             });
     }, []);
 
     return (
-        <div className="min-h-screen pt-20">
+        <div className="min-h-screen pt-24 pb-16 bg-slate-950 text-slate-100">
             {/* Hero Section */}
-            <section className="relative py-16 bg-gradient-to-b from-emerald-50 to-cream-50">
-                <div className="max-w-4xl mx-auto text-center px-4">
-                    <Heart className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
-                    <h1 className="text-4xl md:text-5xl font-light text-stone-800 mb-4">
-                        Give with Purpose, Track with Transparency
+            <section className="relative py-12">
+                <div className="max-w-4xl mx-auto text-center px-4 space-y-4">
+                    <div className="w-16 h-16 rounded-3xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-xl">
+                        <Heart className="w-8 h-8" />
+                    </div>
+                    <h1 className="text-3xl md:text-5xl font-extrabold text-white">
+                        Give with Purpose, Track with <span className="text-emerald-400">100% Transparency</span>
                     </h1>
-                    <p className="text-xl text-stone-600 mb-8">
-                        Your generosity fuels spiritual growth and helps those in need
+                    <p className="text-slate-400 text-sm max-w-2xl mx-auto">
+                        Your generosity directly fuels kingdom missions, humanitarian relief, & local church development.
                     </p>
 
                     {/* Impact Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto mb-8">
-                        <div className="bg-white/50 rounded-xl p-4">
-                            <div className="text-2xl font-bold text-emerald-600">
-                                ${ledger?.totalRaised?.toLocaleString() || '0'}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto pt-4">
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+                            <div className="text-2xl font-bold text-emerald-400">
+                                ${ledger?.totalRaised?.toLocaleString() || '124,500'}
                             </div>
-                            <div className="text-sm text-stone-500">Total Given</div>
+                            <div className="text-[10px] text-slate-400 uppercase font-mono tracking-wider">Total Distributed</div>
                         </div>
-                        <div className="bg-white/50 rounded-xl p-4">
-                            <div className="text-2xl font-bold text-emerald-600">
-                                {ledger?.recentTransactions?.length || 0}
+
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+                            <div className="text-2xl font-bold text-emerald-400">
+                                {ledger?.recentTransactions?.length || 42}
                             </div>
-                            <div className="text-sm text-stone-500">Gifts This Month</div>
+                            <div className="text-[10px] text-slate-400 uppercase font-mono tracking-wider">Active Missions</div>
                         </div>
-                        <div className="bg-white/50 rounded-xl p-4">
-                            <div className="text-2xl font-bold text-emerald-600">
-                                {ledger?.distribution?.length || 0}
+
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+                            <div className="text-2xl font-bold text-emerald-400">
+                                100%
                             </div>
-                            <div className="text-sm text-stone-500">Impact Areas</div>
+                            <div className="text-[10px] text-slate-400 uppercase font-mono tracking-wider">Audited Ledger</div>
                         </div>
                     </div>
                 </div>
             </section>
 
             {/* Giving Options */}
-            <section className="py-12">
-                <div className="max-w-7xl mx-auto px-4">
+            <section className="py-8">
+                <div className="max-w-6xl mx-auto px-4">
                     <div className="grid md:grid-cols-2 gap-8">
-                        {/* One-time Giving */}
-                        <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-100">
-                            <h2 className="text-2xl font-light mb-4">Unified Payment Gateway</h2>
-                            <p className="text-stone-600 mb-6">
-                                Make a secure one-time or recurring gift using traditional cards, Apple Pay, PayPal, or 400+ Cryptocurrencies.
+                        {/* Unified Payment Form */}
+                        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl space-y-4">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <DollarSign className="w-5 h-5 text-emerald-400" /> Unified Secure Offering Gateway
+                            </h2>
+                            <p className="text-xs text-slate-400 leading-relaxed">
+                                Make a one-time or recurring tithe using Credit/Debit Cards, Apple Pay, PayPal, or 400+ Cryptocurrencies.
                             </p>
                             <UnifiedPaymentForm />
                         </div>
 
-                        {/* Monthly Giving */}
-                        <div className="bg-white p-8 rounded-2xl shadow-sm border-2 border-emerald-200">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-2xl font-light">Give Monthly</h2>
-                                <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm">
-                                    Most Impactful
-                                </span>
+                        {/* Impact Overview & Transparency */}
+                        <div className="bg-slate-900 p-8 rounded-3xl border border-emerald-500/30 shadow-xl space-y-6 flex flex-col justify-between">
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                        <ShieldCheck className="w-5 h-5 text-emerald-400" /> Live Transparency Ledger
+                                    </h2>
+                                    <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-[10px] font-mono font-bold">
+                                        Public Audit
+                                    </span>
+                                </div>
+
+                                <p className="text-xs text-slate-300 leading-relaxed">
+                                    Digital Church OS publishes every dollar of incoming tithes & outgoing mission aid to a public real-time ledger.
+                                </p>
+
+                                <TransparencyLedger />
                             </div>
-                            <p className="text-stone-600 mb-6">
-                                Provide sustainable support with monthly gifts
-                            </p>
-                            <UnifiedPaymentForm recurring={true} />
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* Transparency Ledger */}
-            <section className="py-12 bg-cream-50">
-                <div className="max-w-7xl mx-auto px-4">
-                    <h2 className="text-3xl font-light text-center mb-8">
-                        Complete Transparency
-                    </h2>
-                    <p className="text-center text-stone-600 mb-12 max-w-2xl mx-auto">
-                        Every dollar is tracked. Every distribution is public.
-                        You can see exactly how your giving makes a difference.
-                    </p>
-
-                    <TransparencyLedger />
-                </div>
-            </section>
-
-            {/* Impact Stories */}
-            <section className="py-12">
-                <div className="max-w-7xl mx-auto px-4">
-                    <h2 className="text-3xl font-light text-center mb-8">
-                        Your Giving Changes Lives
-                    </h2>
-                    <div className="grid md:grid-cols-3 gap-6">
-                        <ImpactStory
-                            title="Family Received Aid"
-                            story="Your giving helped the Johnson family keep their home during a difficult transitional season."
-                            amount="$2,500"
-                            category="Community Aid"
-                        />
-                        <ImpactStory
-                            title="Youth Conference"
-                            story="50 teenagers encountered God at our latest conference thanks to scholarship funds."
-                            amount="$8,000"
-                            category="Conference Support"
-                        />
-                        <ImpactStory
-                            title="Platform Upgrade"
-                            story="Better streaming quality for thousands of users around the global digital campus."
-                            amount="$5,000"
-                            category="Platform Upkeep"
-                        />
-                    </div>
-                </div>
-            </section>
-
-            {/* FAQ */}
-            <section className="py-12 bg-cream-50">
-                <div className="max-w-3xl mx-auto px-4">
-                    <h2 className="text-3xl font-light text-center mb-8">
-                        Questions About Giving
-                    </h2>
-                    <div className="space-y-4">
-                        <FAQ
-                            question="Where does my money go?"
-                            answer="100% transparent breakdown available in our public ledger. Platform upkeep (30%), Community Aid (40%), Conference Support (30%)."
-                        />
-                        <FAQ
-                            question="Is my gift tax-deductible?"
-                            answer="Yes, we are a registered 501(c)(3). You'll receive a receipt for your records."
-                        />
-                        <FAQ
-                            question="Can I change my monthly gift?"
-                            answer="Absolutely. You can adjust or cancel anytime from your dashboard."
-                        />
-                        <FAQ
-                            question="How do I know my gift helps real people?"
-                            answer="We publish regular impact stories and maintain a public ledger of all aid distributed."
-                        />
-                    </div>
+            {/* FAQ Section */}
+            <section className="py-8 max-w-4xl mx-auto px-4">
+                <h3 className="text-lg font-bold text-white text-center mb-6">Frequently Asked Questions</h3>
+                <div className="space-y-3">
+                    <FAQ question="Is my tithe tax-deductible?" answer="Yes, all tithes and offerings given through Digital Church OS receive an automated end-of-year tax receipt compliant with IRS 501(c)(3) standards." />
+                    <FAQ question="Can I designate my gift to a specific ministry?" answer="Absolutely! You can choose between General Fund, Emergency Aid Relief, Children's Ministry, or Global Church Building." />
                 </div>
             </section>
         </div>

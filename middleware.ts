@@ -11,12 +11,6 @@ export default withAuth(
       return NextResponse.redirect(new URL('/dashboard', req.url));
     }
 
-    // AI department routes — Admin or AI_DEPARTMENT role only
-    if (path.startsWith('/ai') && !['CHURCH_ADMIN', 'AI_DEPARTMENT'].includes(token?.role as string)) {
-      return NextResponse.redirect(new URL('/dashboard', req.url));
-    }
-
-    // Authenticated page routes — any valid session passes
     const res = NextResponse.next();
 
     // Add security headers to all responses
@@ -38,18 +32,7 @@ export const config = {
   matcher: [
     '/dashboard/:path*',
     '/admin/:path*',
-    '/api/ai/:path*',
     '/api/admin/:path*',
     '/api/user/:path*',
-    '/api/offerings/:path*',
-    '/prayer-room',
-    '/offering',
-    '/community-wall',
-    '/profile/:path*',
-    '/children/:path*',
-    '/spiritual/:path*',
-    '/journal/:path*',
-    '/onboarding/:path*',
-    '/api/live-chat',
   ],
 };
