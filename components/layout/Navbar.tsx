@@ -38,7 +38,7 @@ export const Navbar = () => {
     }, []);
 
     const isAdmin = (session?.user as any)?.role === 'CHURCH_ADMIN';
-    const activeTheme = mounted ? theme : 'emerald';
+    const activeTheme = mounted ? theme : 'light';
     const isLight = activeTheme === 'light';
 
     // Structured Navigation Categories
@@ -82,7 +82,7 @@ export const Navbar = () => {
             ref={dropdownRef}
             className={`fixed w-full z-50 transition-colors duration-300 border-b ${
                 isLight
-                    ? 'bg-amber-50/95 backdrop-blur-xl border-amber-200/80 text-amber-950 shadow-md'
+                    ? 'bg-cream-50/95 backdrop-blur-xl border-cream-200/80 text-stone-800 shadow-md'
                     : activeTheme === 'emerald'
                     ? 'bg-slate-950/90 backdrop-blur-xl border-emerald-500/30 text-white shadow-2xl'
                     : 'bg-slate-950/90 backdrop-blur-xl border-slate-800 text-white shadow-2xl'
@@ -96,23 +96,23 @@ export const Navbar = () => {
                             <div
                                 className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg font-bold group-hover:scale-105 transition-transform shadow-lg ${
                                     isLight
-                                        ? 'bg-amber-600/10 border border-amber-600/30 text-amber-800'
+                                        ? 'bg-sage-500/20 border border-sage-300 text-sage-700'
                                         : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
                                 }`}
                             >
                                 ✝
                             </div>
                             <div className="flex items-center space-x-2 whitespace-nowrap">
-                                <span className={`text-base font-extrabold tracking-tight ${isLight ? 'text-amber-950' : 'text-white'}`}>
+                                <span className={`text-base font-extrabold tracking-tight ${isLight ? 'text-stone-800' : 'text-white'}`}>
                                     Digital Church OS
                                 </span>
                                 {/* Holy Spirit Dove Badge */}
                                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 border shadow-sm ${
                                     isLight
-                                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                        ? 'bg-sage-100 text-sage-800 border-sage-300'
                                         : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
                                 }`}>
-                                    <Feather className="w-3 h-3 text-emerald-400" />
+                                    <Feather className="w-3 h-3 text-sage-600 dark:text-emerald-400" />
                                     <span>Holy Spirit</span>
                                 </span>
                             </div>
@@ -124,7 +124,7 @@ export const Navbar = () => {
                         <Link
                             href="/"
                             className={`text-xs font-bold uppercase tracking-wider transition-colors ${
-                                isLight ? 'text-amber-900 hover:text-emerald-700' : 'text-slate-200 hover:text-emerald-400'
+                                isLight ? 'text-stone-700 hover:text-sage-600' : 'text-slate-200 hover:text-emerald-400'
                             }`}
                         >
                             Home
@@ -139,8 +139,8 @@ export const Navbar = () => {
                                         onMouseEnter={() => setActiveDropdown(cat.id)}
                                         className={`flex items-center space-x-1 text-xs font-bold uppercase tracking-wider py-2 transition-colors ${
                                             isCatOpen
-                                                ? isLight ? 'text-emerald-700' : 'text-emerald-400'
-                                                : isLight ? 'text-amber-900 hover:text-emerald-700' : 'text-slate-200 hover:text-emerald-400'
+                                                ? isLight ? 'text-sage-600' : 'text-emerald-400'
+                                                : isLight ? 'text-stone-700 hover:text-sage-600' : 'text-slate-200 hover:text-emerald-400'
                                         }`}
                                     >
                                         <span>{cat.label}</span>
@@ -156,7 +156,7 @@ export const Navbar = () => {
                                                 exit={{ opacity: 0, y: 8 }}
                                                 onMouseLeave={() => setActiveDropdown(null)}
                                                 className={`absolute left-0 mt-2 w-72 rounded-2xl p-3 border shadow-2xl z-50 ${
-                                                    isLight ? 'bg-white border-amber-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-white'
+                                                    isLight ? 'bg-cream-50 border-cream-200 text-stone-800' : 'bg-slate-900 border-slate-800 text-white'
                                                 }`}
                                             >
                                                 <div className="space-y-1">
@@ -168,17 +168,17 @@ export const Navbar = () => {
                                                                 href={item.href}
                                                                 onClick={() => setActiveDropdown(null)}
                                                                 className={`flex items-start space-x-3 p-2.5 rounded-xl transition-all ${
-                                                                    isLight ? 'hover:bg-amber-50 text-slate-900' : 'hover:bg-slate-800/80 text-slate-200'
+                                                                    isLight ? 'hover:bg-cream-100 text-stone-800' : 'hover:bg-slate-800/80 text-slate-200'
                                                                 }`}
                                                             >
                                                                 <div className={`p-2 rounded-lg shrink-0 ${
-                                                                    isLight ? 'bg-emerald-100 text-emerald-800' : 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
+                                                                    isLight ? 'bg-sage-100 text-sage-700' : 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
                                                                 }`}>
                                                                     <Icon className="w-4 h-4" />
                                                                 </div>
                                                                 <div className="space-y-0.5">
                                                                     <div className="text-xs font-bold">{item.name}</div>
-                                                                    <div className={`text-[10px] leading-tight ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                                                                    <div className={`text-[10px] leading-tight ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>
                                                                         {item.desc}
                                                                     </div>
                                                                 </div>
@@ -204,11 +204,11 @@ export const Navbar = () => {
                                     onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                                     className={`flex items-center space-x-2 text-xs font-bold px-3.5 py-2 rounded-xl border transition-all ${
                                         isLight
-                                            ? 'text-amber-950 hover:text-emerald-700 bg-white border-amber-200 shadow-sm'
+                                            ? 'text-stone-800 hover:text-sage-600 bg-cream-100 border-cream-200 shadow-sm'
                                             : 'text-slate-200 hover:text-emerald-400 bg-slate-900 border-slate-800'
                                     }`}
                                 >
-                                    <div className="w-6 h-6 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-xs font-bold">
+                                    <div className="w-6 h-6 rounded-full bg-sage-600 text-white flex items-center justify-center text-xs font-bold">
                                         {session.user?.name?.[0] || 'U'}
                                     </div>
                                     <span>{session.user?.name || 'Believer'}</span>
@@ -222,13 +222,13 @@ export const Navbar = () => {
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, y: 8 }}
                                             className={`absolute right-0 mt-2 w-48 border rounded-2xl shadow-2xl py-2 z-50 text-xs ${
-                                                isLight ? 'bg-white border-amber-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-white'
+                                                isLight ? 'bg-cream-50 border-cream-200 text-stone-800' : 'bg-slate-900 border-slate-800 text-white'
                                             }`}
                                         >
                                             <Link
                                                 href="/profile"
                                                 className={`flex items-center space-x-2 px-4 py-2 ${
-                                                    isLight ? 'text-slate-700 hover:bg-amber-50' : 'text-slate-300 hover:bg-slate-800'
+                                                    isLight ? 'text-stone-700 hover:bg-cream-100' : 'text-slate-300 hover:bg-slate-800'
                                                 }`}
                                             >
                                                 <User className="w-4 h-4" />
@@ -238,7 +238,7 @@ export const Navbar = () => {
                                                 <Link
                                                     href="/admin"
                                                     className={`flex items-center space-x-2 px-4 py-2 font-bold ${
-                                                        isLight ? 'text-emerald-700 hover:bg-amber-50' : 'text-emerald-400 hover:bg-slate-800'
+                                                        isLight ? 'text-sage-700 hover:bg-cream-100' : 'text-emerald-400 hover:bg-slate-800'
                                                     }`}
                                                 >
                                                     <Shield className="w-4 h-4" />
@@ -261,7 +261,7 @@ export const Navbar = () => {
                                 href="/auth/signin"
                                 className={`px-5 py-2 font-bold text-xs rounded-xl transition-all shadow-md ${
                                     isLight
-                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+                                        ? 'bg-sage-600 hover:bg-sage-700 text-white shadow-sage-600/20'
                                         : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
                                 }`}
                             >
@@ -275,7 +275,7 @@ export const Navbar = () => {
                         <ThemeToggle />
                         <button
                             onClick={() => setIsOpen(!isOpen)}
-                            className={`p-2 focus:outline-none ${isLight ? 'text-amber-900 hover:text-emerald-700' : 'text-slate-300 hover:text-white'}`}
+                            className={`p-2 focus:outline-none ${isLight ? 'text-stone-800 hover:text-sage-600' : 'text-slate-300 hover:text-white'}`}
                         >
                             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </button>
@@ -291,13 +291,13 @@ export const Navbar = () => {
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         className={`lg:hidden px-4 pt-2 pb-6 space-y-4 text-xs border-t overflow-y-auto max-h-[80vh] ${
-                            isLight ? 'bg-white border-amber-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-white'
+                            isLight ? 'bg-cream-50 border-cream-200 text-stone-800' : 'bg-slate-900 border-slate-800 text-white'
                         }`}
                     >
                         <Link
                             href="/"
                             onClick={() => setIsOpen(false)}
-                            className="block font-bold text-sm py-2 border-b border-slate-800/40"
+                            className="block font-bold text-sm py-2 border-b border-cream-200/60"
                         >
                             Home
                         </Link>
@@ -305,18 +305,18 @@ export const Navbar = () => {
                         {navCategories.map((cat) => (
                             <div key={cat.id} className="space-y-2">
                                 <div className={`font-mono text-[10px] uppercase font-bold tracking-widest ${
-                                    isLight ? 'text-emerald-800' : 'text-emerald-400'
+                                    isLight ? 'text-sage-700' : 'text-emerald-400'
                                 }`}>
                                     {cat.label}
                                 </div>
-                                <div className="pl-2 space-y-1 border-l-2 border-emerald-500/30">
+                                <div className="pl-2 space-y-1 border-l-2 border-sage-300/50">
                                     {cat.items.map((item) => (
                                         <Link
                                             key={item.name}
                                             href={item.href}
                                             onClick={() => setIsOpen(false)}
                                             className={`block py-1.5 font-medium ${
-                                                isLight ? 'text-slate-800 hover:text-emerald-700' : 'text-slate-300 hover:text-white'
+                                                isLight ? 'text-stone-700 hover:text-sage-600' : 'text-slate-300 hover:text-white'
                                             }`}
                                         >
                                             {item.name}
