@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const PostSchema = z.object({
   title: z.string().min(3).max(100),
   content: z.string().min(10).max(5000),

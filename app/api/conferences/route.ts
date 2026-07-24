@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { prisma, checkDbConnection } from '@/lib/prisma';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const ConferenceSchema = z.object({
   title: z.string().min(3),
   theme: z.string().min(3),
