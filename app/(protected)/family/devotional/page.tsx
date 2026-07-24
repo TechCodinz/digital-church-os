@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useSanctuaryTheme } from '@/components/theme/ThemeContext';
 import { Heart, Sparkles, BookOpen, Volume2, RefreshCw, Plus, CheckCircle2, ShieldCheck, Users, Sun, Moon } from 'lucide-react';
 import { VoicePlayer } from '@/components/ai/VoicePlayer';
 
@@ -14,6 +15,8 @@ interface FamilyPrayerItem {
 }
 
 export default function FamilyDevotionalPage() {
+    const { theme } = useSanctuaryTheme();
+    const [mounted, setMounted] = useState(false);
     const [familyName, setFamilyName] = useState('The Johnson Family');
     const [culturalTradition, setCulturalTradition] = useState('Evangelical / Contemporary');
     const [doctrinalStyle, setDoctrinalStyle] = useState('Scripture-Anchored & Grace-Filled');
@@ -41,6 +44,13 @@ export default function FamilyDevotionalPage() {
         ],
         audioDevotionalScript: 'Welcome to the Johnson Family Evening Prayer Altar. Peace be to this home. Lord Jesus, we invite Your Holy Presence into our living room right now...'
     });
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    const activeTheme = mounted ? theme : 'light';
+    const isLight = activeTheme === 'light';
 
     const handleAddPrayer = (e: React.FormEvent) => {
         e.preventDefault();
@@ -93,52 +103,68 @@ export default function FamilyDevotionalPage() {
             <div className="max-w-5xl mx-auto px-4">
                 {/* Header */}
                 <div className="text-center mb-10">
-                    <div className="w-16 h-16 rounded-3xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center mx-auto mb-4 text-rose-400 shadow-xl">
+                    <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl border ${
+                        isLight ? 'bg-sage-50 border-sage-200 text-sage-600' : 'bg-rose-500/20 border border-rose-500/30 text-rose-400'
+                    }`}>
                         <Heart className="w-8 h-8" />
                     </div>
-                    <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Family Devotional Altar & Peace Guide</h1>
-                    <p className="text-slate-400 text-sm">Build an unshakeable spiritual altar for your household, track family prayers, & receive custom peace roadmaps</p>
+                    <h1 className={`text-3xl md:text-4xl font-light mb-2 ${isLight ? 'text-stone-800' : 'text-white'}`}>
+                        Family Devotional Altar & Peace Guide
+                    </h1>
+                    <p className={`text-sm ${isLight ? 'text-stone-600' : 'text-slate-400'}`}>
+                        Build an unshakeable spiritual altar for your household, track family prayers, & receive custom peace roadmaps
+                    </p>
                 </div>
 
                 {/* Family Configuration Bar */}
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl mb-8 space-y-4">
+                <div className={`border rounded-3xl p-6 shadow-md mb-8 space-y-4 ${
+                    isLight ? 'bg-white border-cream-200' : 'bg-slate-900 border-slate-800 shadow-2xl'
+                }`}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Family Household Name</label>
+                            <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1 ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>Family Household Name</label>
                             <input
                                 type="text"
                                 value={familyName}
                                 onChange={e => setFamilyName(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white focus:outline-none focus:border-rose-500/50"
+                                className={`w-full border rounded-xl p-2.5 focus:outline-none focus:border-rose-500/50 ${
+                                    isLight ? 'bg-cream-50 border-cream-200 text-stone-800' : 'bg-slate-950 border-slate-800 text-white'
+                                }`}
                             />
                         </div>
 
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Culture / Tradition</label>
+                            <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1 ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>Culture / Tradition</label>
                             <input
                                 type="text"
                                 value={culturalTradition}
                                 onChange={e => setCulturalTradition(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white focus:outline-none focus:border-rose-500/50"
+                                className={`w-full border rounded-xl p-2.5 focus:outline-none focus:border-rose-500/50 ${
+                                    isLight ? 'bg-cream-50 border-cream-200 text-stone-800' : 'bg-slate-950 border-slate-800 text-white'
+                                }`}
                             />
                         </div>
 
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Doctrinal Style</label>
+                            <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1 ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>Doctrinal Style</label>
                             <input
                                 type="text"
                                 value={doctrinalStyle}
                                 onChange={e => setDoctrinalStyle(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white focus:outline-none focus:border-rose-500/50"
+                                className={`w-full border rounded-xl p-2.5 focus:outline-none focus:border-rose-500/50 ${
+                                    isLight ? 'bg-cream-50 border-cream-200 text-stone-800' : 'bg-slate-950 border-slate-800 text-white'
+                                }`}
                             />
                         </div>
 
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Daily Lifestyle Rhythm</label>
+                            <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1 ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>Daily Lifestyle Rhythm</label>
                             <select
                                 value={lifestyleRhythm}
                                 onChange={e => setLifestyleRhythm(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white focus:outline-none focus:border-rose-500/50"
+                                className={`w-full border rounded-xl p-2.5 focus:outline-none focus:border-rose-500/50 ${
+                                    isLight ? 'bg-cream-50 border-cream-200 text-stone-800' : 'bg-slate-950 border-slate-800 text-white'
+                                }`}
                             >
                                 <option>10-Min Evening Dinner Altar</option>
                                 <option>Morning Breakfast Prayer</option>
@@ -152,38 +178,46 @@ export default function FamilyDevotionalPage() {
                 {/* Family Prayer Altar & Worry Log */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     {/* Add Prayer Input */}
-                    <div className="p-6 bg-slate-900 border border-slate-800 rounded-3xl space-y-4 shadow-xl">
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                            <Plus className="w-4 h-4 text-rose-400" /> Record Family Prayer / Worry
+                    <div className={`p-6 border rounded-3xl space-y-4 shadow-md ${
+                        isLight ? 'bg-white border-cream-200' : 'bg-slate-900 border-slate-800 shadow-xl'
+                    }`}>
+                        <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isLight ? 'text-stone-800' : 'text-white'}`}>
+                            <Plus className="w-4 h-4 text-rose-500" /> Record Family Prayer / Worry
                         </h3>
 
                         <form onSubmit={handleAddPrayer} className="space-y-3">
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Family Member</label>
+                                <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1 ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>Family Member</label>
                                 <input
                                     type="text"
                                     value={newPerson}
                                     onChange={e => setNewPerson(e.target.value)}
                                     placeholder="e.g. Caleb / Mom / All of us"
-                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500/50"
+                                    className={`w-full border rounded-xl p-2.5 text-xs focus:outline-none focus:border-rose-500/50 ${
+                                        isLight ? 'bg-cream-50 border-cream-200 text-stone-800 placeholder-stone-400' : 'bg-slate-950 border-slate-800 text-white placeholder-slate-500'
+                                    }`}
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Specific Need / Battle / Praise</label>
+                                <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1 ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>Specific Need / Battle / Praise</label>
                                 <textarea
                                     value={newBattle}
                                     onChange={e => setNewBattle(e.target.value)}
                                     placeholder="Describe what your family is trusting God for..."
                                     rows={3}
-                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500/50"
+                                    className={`w-full border rounded-xl p-2.5 text-xs focus:outline-none focus:border-rose-500/50 ${
+                                        isLight ? 'bg-cream-50 border-cream-200 text-stone-800 placeholder-stone-400' : 'bg-slate-950 border-slate-800 text-white placeholder-slate-500'
+                                    }`}
                                     required
                                 />
                             </div>
 
                             <button
                                 type="submit"
-                                className="w-full py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5"
+                                className={`w-full py-2.5 font-bold rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-1.5 ${
+                                    isLight ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/20' : 'bg-rose-600 hover:bg-rose-500 text-white'
+                                }`}
                             >
                                 <Plus className="w-4 h-4" /> Add to Family Altar Log
                             </button>
@@ -191,16 +225,22 @@ export default function FamilyDevotionalPage() {
                     </div>
 
                     {/* Prayer Altar Log List */}
-                    <div className="md:col-span-2 p-6 bg-slate-900 border border-slate-800 rounded-3xl space-y-4 shadow-xl flex flex-col justify-between">
+                    <div className={`md:col-span-2 p-6 border rounded-3xl space-y-4 shadow-md flex flex-col justify-between ${
+                        isLight ? 'bg-white border-cream-200' : 'bg-slate-900 border-slate-800 shadow-xl'
+                    }`}>
                         <div>
-                            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
-                                <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                                    <ShieldCheck className="w-4 h-4 text-rose-400" /> Family Altar Prayer Ledger
+                            <div className={`flex items-center justify-between border-b pb-3 mb-3 ${isLight ? 'border-cream-100' : 'border-slate-800'}`}>
+                                <h3 className={`text-sm font-bold uppercase tracking-wider flex items-center gap-2 ${isLight ? 'text-stone-800' : 'text-white'}`}>
+                                    <ShieldCheck className="w-4 h-4 text-rose-500" /> Family Altar Prayer Ledger
                                 </h3>
                                 <button
                                     onClick={handleGenerateGuide}
                                     disabled={loading}
-                                    className="px-4 py-1.5 bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                                    className={`px-4 py-1.5 border rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                                        isLight
+                                            ? 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-700'
+                                            : 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border-rose-500/40'
+                                    }`}
                                 >
                                     {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                                     <span>Analyze & Generate Peace Guide</span>
@@ -214,20 +254,22 @@ export default function FamilyDevotionalPage() {
                                         onClick={() => toggleAnswered(p.id)}
                                         className={`p-3 rounded-2xl border text-xs cursor-pointer transition-all flex items-start justify-between gap-3 ${
                                             p.isAnswered
-                                                ? 'bg-emerald-950/30 border-emerald-500/30 opacity-80'
-                                                : 'bg-slate-950 border-slate-800 hover:border-rose-500/30'
+                                                ? isLight ? 'bg-emerald-50 border-emerald-200 opacity-80' : 'bg-emerald-950/30 border-emerald-500/30 opacity-80'
+                                                : isLight ? 'bg-cream-50 border-cream-200 hover:border-rose-400' : 'bg-slate-950 border-slate-800 hover:border-rose-500/30'
                                         }`}
                                     >
                                         <div className="space-y-0.5">
-                                            <div className="flex items-center gap-2 font-bold text-slate-200">
+                                            <div className={`flex items-center gap-2 font-bold ${isLight ? 'text-stone-800' : 'text-slate-200'}`}>
                                                 <span>{p.person}</span>
-                                                <span className="text-[10px] text-slate-500 font-mono">({p.date})</span>
+                                                <span className={`text-[10px] font-mono ${isLight ? 'text-stone-400' : 'text-slate-500'}`}>({p.date})</span>
                                             </div>
-                                            <p className="text-slate-300">{p.battle}</p>
+                                            <p className={isLight ? 'text-stone-600' : 'text-slate-300'}>{p.battle}</p>
                                         </div>
 
                                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 ${
-                                            p.isAnswered ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900 text-amber-400 border border-amber-500/20'
+                                            p.isAnswered
+                                                ? isLight ? 'bg-emerald-600 text-white' : 'bg-emerald-500 text-slate-950'
+                                                : isLight ? 'bg-cream-100 text-stone-600 border border-cream-200' : 'bg-slate-900 text-amber-400 border border-amber-500/20'
                                         }`}>
                                             {p.isAnswered ? '✓ Answered Prayer!' : 'Interceding...'}
                                         </span>
@@ -242,13 +284,17 @@ export default function FamilyDevotionalPage() {
                 {familyGuide && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
                         {/* Title Bar & Audio Player */}
-                        <div className="p-6 bg-gradient-to-r from-rose-950/40 via-slate-900 to-indigo-950/40 border border-rose-500/30 rounded-3xl shadow-2xl space-y-4">
+                        <div className={`p-6 border rounded-3xl shadow-xl space-y-4 ${
+                            isLight
+                                ? 'bg-white border-cream-200'
+                                : 'bg-gradient-to-r from-rose-950/40 via-slate-900 to-indigo-950/40 border-rose-500/30 shadow-2xl'
+                        }`}>
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="text-xs uppercase font-mono tracking-widest text-rose-400 font-bold">Family Audio Broadcast</span>
-                                <span className="text-xs font-semibold text-amber-300">📖 {familyGuide.familyScriptureAnchor}</span>
+                                <span className={`text-xs uppercase font-mono tracking-widest font-bold ${isLight ? 'text-rose-600' : 'text-rose-400'}`}>Family Audio Broadcast</span>
+                                <span className={`text-xs font-semibold ${isLight ? 'text-amber-700' : 'text-amber-300'}`}>📖 {familyGuide.familyScriptureAnchor}</span>
                             </div>
 
-                            <h2 className="text-2xl font-bold text-white">{familyGuide.title}</h2>
+                            <h2 className={`text-2xl font-bold ${isLight ? 'text-stone-800' : 'text-white'}`}>{familyGuide.title}</h2>
 
                             <VoicePlayer
                                 text={familyGuide.audioDevotionalScript || familyGuide.familyPrayerScript}
@@ -260,36 +306,44 @@ export default function FamilyDevotionalPage() {
                         {/* Worry Pattern Analysis & Prayer Script */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Pattern Insight */}
-                            <div className="p-6 bg-slate-900 border border-slate-800 rounded-3xl space-y-2 shadow-xl">
-                                <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                            <div className={`p-6 border rounded-3xl space-y-2 shadow-md ${isLight ? 'bg-white border-cream-200' : 'bg-slate-900 border-slate-800 shadow-xl'}`}>
+                                <h3 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>
                                     <Sparkles className="w-4 h-4" /> AI Family Pattern Analysis
                                 </h3>
-                                <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                                <p className={`text-xs leading-relaxed p-4 rounded-2xl border ${
+                                    isLight ? 'bg-cream-50 border-cream-200 text-stone-700' : 'bg-slate-950 border-slate-800 text-slate-300'
+                                }`}>
                                     {familyGuide.worryPatternAnalysis}
                                 </p>
                             </div>
 
                             {/* Family Prayer Script */}
-                            <div className="p-6 bg-slate-900 border border-slate-800 rounded-3xl space-y-2 shadow-xl">
-                                <h3 className="text-xs font-bold uppercase tracking-wider text-rose-400 flex items-center gap-2">
+                            <div className={`p-6 border rounded-3xl space-y-2 shadow-md ${isLight ? 'bg-white border-cream-200' : 'bg-slate-900 border-slate-800 shadow-xl'}`}>
+                                <h3 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${isLight ? 'text-rose-700' : 'text-rose-400'}`}>
                                     🙏 Family Guided Prayer Script
                                 </h3>
-                                <p className="text-xs text-slate-200 italic leading-relaxed bg-rose-950/20 p-4 rounded-2xl border border-rose-500/20">
+                                <p className={`text-xs italic leading-relaxed p-4 rounded-2xl border ${
+                                    isLight ? 'bg-rose-50 border-rose-200 text-stone-800' : 'bg-rose-950/20 border-rose-500/20 text-slate-200'
+                                }`}>
                                     "{familyGuide.familyPrayerScript}"
                                 </p>
                             </div>
                         </div>
 
                         {/* Peace Roadmap Steps */}
-                        <div className="p-6 bg-slate-900 border border-emerald-500/30 rounded-3xl space-y-3 shadow-xl">
-                            <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                        <div className={`p-6 border rounded-3xl space-y-3 shadow-md ${
+                            isLight ? 'bg-white border-cream-200' : 'bg-slate-900 border-emerald-500/30 shadow-xl'
+                        }`}>
+                            <h3 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${isLight ? 'text-sage-700' : 'text-emerald-400'}`}>
                                 🕊️ Step-by-Step Family Peace Roadmap
                             </h3>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 {familyGuide.peaceRoadmapSteps?.map((step: string, i: number) => (
-                                    <div key={i} className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-1 text-xs">
-                                        <span className="font-bold text-emerald-400">Step {i + 1}</span>
-                                        <p className="text-slate-300 leading-relaxed">{step}</p>
+                                    <div key={i} className={`p-4 border rounded-2xl space-y-1 text-xs ${
+                                        isLight ? 'bg-cream-50 border-cream-200' : 'bg-slate-950 border-slate-800'
+                                    }`}>
+                                        <span className={`font-bold ${isLight ? 'text-sage-600' : 'text-emerald-400'}`}>Step {i + 1}</span>
+                                        <p className={isLight ? 'text-stone-600' : 'text-slate-300'}>{step}</p>
                                     </div>
                                 ))}
                             </div>

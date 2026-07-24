@@ -113,14 +113,14 @@ export default function HomePage() {
             }`}>
                 <div className="relative max-w-7xl mx-auto px-4 text-center">
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                        {/* Holy Spirit Anointed Badge */}
-                        <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium border shadow-sm ${
+                        {/* Holy Spirit Dove Badge */}
+                        <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold border shadow-sm ${
                             isLight
                                 ? 'bg-white/90 border-cream-200 text-stone-700'
                                 : 'bg-emerald-950/80 border-emerald-500/40 text-emerald-300 shadow-2xl holy-spirit-glow'
                         }`}>
-                            <Feather className={`w-4 h-4 ${isLight ? 'text-sage-600' : 'text-emerald-400 animate-bounce'}`} />
-                            <span>A Sanctuary for Digital Worship & Spiritual Community</span>
+                            <span className="text-base animate-bounce">🕊️</span>
+                            <span>Holy Spirit Dove Operating System for the Global Church</span>
                         </div>
 
                         <h1 className={`text-4xl md:text-6xl font-light tracking-tight leading-tight max-w-5xl mx-auto ${

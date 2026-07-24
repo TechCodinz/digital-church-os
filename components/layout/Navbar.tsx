@@ -108,7 +108,7 @@ export const Navbar = () => {
                                         ? 'bg-sage-50 text-sage-700 border-sage-200'
                                         : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
                                 }`}>
-                                    <Feather className="w-3 h-3 text-sage-600 dark:text-emerald-400" />
+                                    <span>🕊️</span>
                                     <span>Holy Spirit</span>
                                 </span>
                             </div>
