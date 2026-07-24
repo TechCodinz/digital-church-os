@@ -1,7 +1,6 @@
 import { OpenAI } from 'openai';
 import { TranslationIntelligenceEngine } from '../../scripture/translationEngine';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const translationEngine = new TranslationIntelligenceEngine();
 
 export interface ExegesisSlide {
@@ -31,6 +30,7 @@ export class DepthSermonGenerator {
 
         if (process.env.OPENAI_API_KEY) {
             try {
+                const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
                 const response = await openai.chat.completions.create({
                     model: "gpt-4o",
                     messages: [
@@ -100,6 +100,7 @@ export class DepthSermonGenerator {
         }
 
         try {
+            const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
             const response = await openai.chat.completions.create({
                 model: "gpt-4o",
                 messages: [

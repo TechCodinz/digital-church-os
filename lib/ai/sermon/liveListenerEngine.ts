@@ -1,8 +1,6 @@
 import { OpenAI } from 'openai';
 import { prisma } from '@/lib/prisma';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export interface LiveSermonChunk {
     timestamp: string;
     speakerName?: string;
@@ -29,6 +27,7 @@ export class LiveListenerEngine {
 
         if (process.env.OPENAI_API_KEY) {
             try {
+                const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
                 const response = await openai.chat.completions.create({
                     model: 'gpt-4o',
                     messages: [

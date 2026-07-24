@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export async function POST(req: Request) {
     try {
         const body = await req.json();
@@ -12,6 +10,7 @@ export async function POST(req: Request) {
 
         if (process.env.OPENAI_API_KEY) {
             try {
+                const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
                 const response = await openai.chat.completions.create({
                     model: 'gpt-4o',
                     messages: [

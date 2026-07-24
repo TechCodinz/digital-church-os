@@ -5,8 +5,6 @@ import { OpenAI } from 'openai';
 import { aiRateLimit, validateAIRequest } from '@/lib/ai-middleware';
 import { MediaGenerator } from '@/lib/ai/visual/mediaGenerator';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 const GUARDRAILS = `IMPORTANT THEOLOGICAL GUARDRAILS: Always stay strictly within orthodox Christian doctrine. 
 Ground all responses in Scripture. Reject occult practices, New Age spirituality, or anything contradicting 
 the Bible. Flag any unsafe spiritual territory. Emphasize the Holy Spirit, Jesus Christ, and Scripture.`;
@@ -181,6 +179,7 @@ export async function POST(req: NextRequest) {
 
         const systemPrompt = modulePrompts[slug] || defaultPrompt;
 
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         const completion = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [
