@@ -16,14 +16,14 @@ export const Navbar = () => {
         { name: 'Home', href: '/' },
         { name: 'Global Network', href: '/churches' },
         { name: 'Family Altar', href: '/family/devotional' },
+        { name: 'Fasting Companion', href: '/spiritual/fasting' },
+        { name: 'Dream Discernment', href: '/spiritual/dreams' },
+        { name: 'Prayer Watch', href: '/prayer-watch' },
         { name: 'Minister Portal', href: '/minister/onboard' },
         { name: 'Growth DNA', href: '/profile/growth-dna' },
         { name: 'Pastoral Hub', href: '/pastoral/hub' },
         { name: 'Sunday School', href: '/children/sunday-school' },
-        { name: 'Kids Stories', href: '/children/stories' },
         { name: 'Denominations', href: '/worship/traditions' },
-        { name: 'Choir Studio', href: '/choir/studio' },
-        { name: 'Multilingual', href: '/live-service/translate' },
         { name: 'Give', href: '/offering' },
     ];
 
