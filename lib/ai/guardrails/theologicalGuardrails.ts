@@ -28,10 +28,11 @@ export class TheologicalGuardrails {
         'In the Christian tradition',
     ];
 
-    constructor() {
-        this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
+    private getOpenAI(): OpenAI {
+        if (!this.openai) {
+            this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        }
+        return this.openai;
     }
 
     async apply(text: string): Promise<string> {
@@ -94,7 +95,7 @@ export class TheologicalGuardrails {
     }
 
     private async verifyWithAI(text: string): Promise<string> {
-        const completion = await this.openai.chat.completions.create({
+        const completion = await this.getOpenAI().chat.completions.create({
             model: 'gpt-3.5-turbo',
             messages: [
                 {

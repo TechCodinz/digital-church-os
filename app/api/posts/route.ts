@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { TheologicalGuardrails } from '@/lib/ai/guardrails/theologicalGuardrails';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,11 +38,6 @@ export async function POST(req: NextRequest) {
         status: moderationResult.approved ? 'APPROVED' : 'PENDING',
       },
     });
-
-    // If auto-approved, send notification
-    if (moderationResult.approved) {
-      // Notify community
-    }
 
     return NextResponse.json({
       post,
@@ -110,10 +106,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-import { TheologicalGuardrails } from '@/lib/ai/guardrails/theologicalGuardrails';
-
-const guardrails = new TheologicalGuardrails();
-
 async function moderateContent(content: string) {
   // 1. Basic prohibited word check
   const prohibited = ['spam', 'scam', 'inappropriate', 'offensive'];
@@ -129,11 +121,12 @@ async function moderateContent(content: string) {
 
   // 2. Theological guardrails check
   try {
+    const guardrails = new TheologicalGuardrails();
     const safeContent = await guardrails.apply(content);
     const isModified = safeContent !== content;
 
     return {
-      approved: true, // We auto-approve if we can fix it or if it's safe
+      approved: true,
       reason: isModified ? 'Theologically refined' : null,
       safeContent
     };
