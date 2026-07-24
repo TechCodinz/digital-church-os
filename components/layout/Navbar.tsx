@@ -15,6 +15,7 @@ export const Navbar = () => {
     const navItems = [
         { name: 'Home', href: '/' },
         { name: 'Global Network', href: '/churches' },
+        { name: 'Family Altar', href: '/family/devotional' },
         { name: 'Minister Portal', href: '/minister/onboard' },
         { name: 'Growth DNA', href: '/profile/growth-dna' },
         { name: 'Pastoral Hub', href: '/pastoral/hub' },
