@@ -4,8 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { TranslationIntelligenceEngine } from '@/lib/scripture/translationEngine';
 import { MindBlowingRevelationEngine } from '@/lib/scripture/revelationEngine';
 
-const translationEngine = new TranslationIntelligenceEngine();
-const revelationEngine = new MindBlowingRevelationEngine();
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
     try {
@@ -18,6 +17,9 @@ export async function POST(req: NextRequest) {
 
         const userLevel = level || 'beginner';
         const revealLayer = layer || 'surface';
+
+        const translationEngine = new TranslationIntelligenceEngine();
+        const revelationEngine = new MindBlowingRevelationEngine();
 
         // 1. Get translations
         const translations = await translationEngine.getVerseWithAllTranslations(reference);
