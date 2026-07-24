@@ -1,13 +1,12 @@
 import { OpenAI } from 'openai';
 import { prisma } from '../prisma';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export class PersonalizedDepthDiscovery {
     async discoverPersonalDepths(userId: string) {
         // 1. Analyze user's spiritual profile
         const spiritualProfile = await this.analyzeSpiritualProfile(userId);
 
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         // 2. Identify gaps and find tailored verses via AI
         const response = await openai.chat.completions.create({
             model: "gpt-4o",

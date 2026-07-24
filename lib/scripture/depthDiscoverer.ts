@@ -1,7 +1,5 @@
 import { OpenAI } from 'openai';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export class MindBlowingVerseDiscoverer {
     async discoverMindBlowingVerses(params: {
         userId: string;
@@ -10,6 +8,7 @@ export class MindBlowingVerseDiscoverer {
         favoriteThemes: string[];
         recentStruggles: string[];
     }) {
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [

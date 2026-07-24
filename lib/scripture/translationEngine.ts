@@ -1,8 +1,6 @@
 import { OpenAI } from 'openai';
 import { ScriptureLoader } from '@/lib/ai/scripture/loader';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export class TranslationIntelligenceEngine {
     private scriptureLoader = new ScriptureLoader();
 
@@ -22,13 +20,10 @@ export class TranslationIntelligenceEngine {
     };
 
     async getVerseWithAllTranslations(reference: string) {
-        const verses: Record<string, string> = {};
-
-        // In a real production app, we would fetch from a Bible API (e.g. API.Bible)
-        // For this demo/implementation, we simulate translations using the local KJV as base
         const baseVerse = await this.scriptureLoader.getVerse(reference);
         if (!baseVerse) return null;
 
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
@@ -56,7 +51,7 @@ export class TranslationIntelligenceEngine {
     }
 
     private async excavateDepths(reference: string, translations: any) {
-        // Deep excavation powered by AI
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [

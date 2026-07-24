@@ -4,8 +4,6 @@ import { authOptions } from '@/lib/auth';
 import { OpenAI } from 'openai';
 import { aiRateLimit, validateAIRequest } from '@/lib/ai-middleware';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 const modulePrompts: Record<string, string> = {
     prayer: `You are a compassionate children's ministry leader helping a child pray. 
     Generate a warm, simple, and encouraging prayer guide for a child based on their input.
@@ -114,6 +112,7 @@ export async function POST(req: NextRequest) {
 
         const systemPrompt = modulePrompts[slug] || defaultPrompt;
 
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         const completion = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [

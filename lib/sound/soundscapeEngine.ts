@@ -5,11 +5,10 @@ const prisma = new PrismaClient();
 
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-
 async function analyzeWithAI(params: any) {
+    const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+    });
     const prompt = `Analyze the spiritual soundscape request:
 Moment: ${params.momentType}
 Content: ${params.content || 'None'}
