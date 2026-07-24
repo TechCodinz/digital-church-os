@@ -135,7 +135,7 @@ export default function PastoralCareHubPage() {
     const ActiveIcon = currentConfig.icon;
 
     return (
-        <div className="min-h-screen pt-24 pb-12 bg-slate-950 text-slate-100">
+        <div className="min-h-screen pt-24 pb-12 transition-colors duration-300">
             <div className="max-w-5xl mx-auto px-4">
                 {/* Header */}
                 <div className="text-center mb-8">

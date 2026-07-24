@@ -35,7 +35,7 @@ export default function BiblicalDreamInterpreterPage() {
     };
 
     return (
-        <div className="min-h-screen pt-24 pb-16 bg-slate-950 text-slate-100">
+        <div className="min-h-screen pt-24 pb-16 transition-colors duration-300">
             <div className="max-w-4xl mx-auto px-4">
                 {/* Header */}
                 <div className="text-center mb-10">
