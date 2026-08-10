@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertTriangle, BellRing, HeartHandshake, ShieldCheck, Users, ArrowRight } from 'lucide-react';
+import { AlertTriangle, BellRing, HeartHandshake, ShieldCheck, Users, ArrowRight, Rocket } from 'lucide-react';
 
 const attentionItems = [
   {
@@ -26,6 +26,13 @@ const attentionItems = [
     tone: 'bg-blue-50 text-blue-700 border-blue-100',
   },
   {
+    title: 'Church launch setup',
+    description: 'Walk through identity, care, streaming, stewardship, team coverage, and launch preparation.',
+    href: '/admin/onboarding',
+    icon: Rocket,
+    tone: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  },
+  {
     title: 'Release readiness',
     description: 'See launch blockers, feature-flag posture, rights holds, and operational warnings.',
     href: '/release-readiness',
@@ -44,7 +51,7 @@ export function LeaderAttentionPanel() {
           </div>
           <h2 className="text-2xl font-light text-stone-900">What needs pastoral attention now?</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-500">
-            A focused operating view for care, moderation, people coverage, and release readiness. AI recommendations stay advisory and sensitive ministry actions remain human-led.
+            A focused operating view for care, moderation, people coverage, launch setup, and release readiness. AI recommendations stay advisory and sensitive ministry actions remain human-led.
           </p>
         </div>
         <Link href="/intelligence" className="inline-flex items-center gap-2 text-sm font-medium text-sage-700 hover:text-sage-800">
@@ -52,7 +59,7 @@ export function LeaderAttentionPanel() {
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {attentionItems.map((item) => {
           const Icon = item.icon;
           return (
