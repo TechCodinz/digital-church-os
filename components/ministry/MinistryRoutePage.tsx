@@ -1,5 +1,14 @@
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, ShieldCheck, Sparkles, Activity, LockKeyhole } from 'lucide-react';
+import {
+  Activity,
+  ArrowRight,
+  CheckCircle2,
+  ChevronRight,
+  Home,
+  LockKeyhole,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react';
 
 type Feature = {
   title: string;
@@ -33,24 +42,40 @@ export function MinistryRoutePage({
   intelligence,
   safeguards,
 }: MinistryRoutePageProps) {
+  const featureCount = features.length;
+  const intelligenceCount = intelligence.length;
+
   return (
-    <div className="min-h-screen bg-cream-50 pt-20 sm:pt-24">
-      <section className="relative overflow-hidden px-4 pb-14 pt-10 sm:px-6 sm:pb-16 sm:pt-12 lg:px-8">
+    <main className="min-h-screen bg-cream-50 pb-8 pt-20 sm:pt-24">
+      <section className="px-4 pt-5 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl items-center gap-2 overflow-x-auto pb-2 text-xs font-medium text-stone-500">
+          <Link href="/dashboard" className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1.5 transition hover:border-sage-200 hover:text-sage-700">
+            <Home className="h-3.5 w-3.5" /> Sanctuary
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-stone-300" />
+          <span className="shrink-0 rounded-full bg-sage-50 px-3 py-1.5 text-sage-700">{badge}</span>
+        </div>
+      </section>
+
+      <section className="relative overflow-hidden px-4 pb-14 pt-7 sm:px-6 sm:pb-16 sm:pt-9 lg:px-8">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(120,155,100,0.18),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(210,180,140,0.24),_transparent_35%)]" />
-        <div className="mx-auto grid max-w-7xl items-center gap-8 lg:grid-cols-[1fr_0.8fr] lg:gap-10">
+        <div className="mx-auto grid max-w-7xl items-center gap-8 lg:grid-cols-[1fr_0.82fr] lg:gap-10">
           <div>
-            <div className="mb-5 inline-flex items-center rounded-full border border-sage-200 bg-white/80 px-4 py-2 text-sm font-medium text-sage-700 shadow-sm backdrop-blur">
+            <div className="mb-5 inline-flex items-center rounded-full border border-sage-200 bg-white/85 px-4 py-2 text-sm font-medium text-sage-700 shadow-sm backdrop-blur">
               <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />
               {badge}
             </div>
-            <h1 className="max-w-4xl text-4xl font-light leading-tight tracking-tight text-stone-800 md:text-6xl">
-              {title}
-            </h1>
+            <h1 className="max-w-4xl text-4xl font-light leading-tight tracking-tight text-stone-800 md:text-6xl">{title}</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">{description}</p>
 
             <div className="mt-7 flex flex-wrap items-center gap-2 text-xs font-medium text-stone-500">
               <span className="inline-flex items-center rounded-full border border-stone-200 bg-white/80 px-3 py-1.5">
-                <Activity className="mr-1.5 h-3.5 w-3.5 text-sage-600" aria-hidden="true" /> Live ministry workflow
+                <Activity className="mr-1.5 h-3.5 w-3.5 text-sage-600" aria-hidden="true" />
+                {featureCount} ministry workflows
+              </span>
+              <span className="inline-flex items-center rounded-full border border-stone-200 bg-white/80 px-3 py-1.5">
+                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-sage-600" aria-hidden="true" />
+                {intelligenceCount} intelligence signals
               </span>
               <span className="inline-flex items-center rounded-full border border-stone-200 bg-white/80 px-3 py-1.5">
                 <LockKeyhole className="mr-1.5 h-3.5 w-3.5 text-sage-600" aria-hidden="true" /> Guarded by role & policy
@@ -67,13 +92,13 @@ export function MinistryRoutePage({
             </div>
           </div>
 
-          <div className="sanctuary-card overflow-hidden p-0 shadow-2xl">
+          <aside className="sanctuary-card overflow-hidden p-0 shadow-2xl">
             <div className="border-b border-cream-200 bg-gradient-to-br from-white to-sage-50/70 p-6 sm:p-8">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-sage-600">Route intelligence</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-sage-600">Ministry intelligence</p>
                   <h2 className="mt-2 text-2xl text-stone-800">{badge}</h2>
-                  <p className="mt-2 text-sm text-stone-500">Actionable ministry guidance for this workspace.</p>
+                  <p className="mt-2 text-sm text-stone-500">A focused view of what matters, what is protected, and what to do next.</p>
                 </div>
                 <div className="rounded-3xl border border-sage-100 bg-white p-4 text-4xl shadow-sm" aria-hidden="true">{emoji}</div>
               </div>
@@ -91,7 +116,7 @@ export function MinistryRoutePage({
                 </div>
               ))}
             </div>
-          </div>
+          </aside>
         </div>
       </section>
 
@@ -103,15 +128,16 @@ export function MinistryRoutePage({
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sage-600">Execution layer</p>
-              <h2 className="mt-1 text-3xl font-light text-stone-800">Professional workflow</h2>
+              <h2 className="mt-1 text-3xl font-light text-stone-800">Professional ministry workflow</h2>
             </div>
           </div>
           <div className="grid gap-5 md:grid-cols-3">
-            {features.map((feature) => (
-              <div key={feature.title} className="sanctuary-card group p-6 transition hover:-translate-y-1 hover:shadow-lg">
-                <CheckCircle2 className="mb-4 h-6 w-6 text-sage-600" aria-hidden="true" />
-                <h3 className="text-xl font-medium text-stone-800">{feature.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-stone-600">{feature.description}</p>
+            {features.map((feature, index) => (
+              <div key={feature.title} className="sanctuary-card group relative overflow-hidden p-6 transition hover:-translate-y-1 hover:shadow-lg">
+                <div className="absolute right-4 top-4 text-5xl font-light text-sage-100">{String(index + 1).padStart(2, '0')}</div>
+                <CheckCircle2 className="relative mb-4 h-6 w-6 text-sage-600" aria-hidden="true" />
+                <h3 className="relative text-xl font-medium text-stone-800">{feature.title}</h3>
+                <p className="relative mt-3 text-sm leading-6 text-stone-600">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -124,6 +150,9 @@ export function MinistryRoutePage({
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sage-200">Trust and safety</p>
               <h2 className="mt-3 text-3xl font-light leading-tight">Designed to serve people with dignity, clarity, and accountable intelligence.</h2>
+              <Link href="/care" className="mt-6 inline-flex items-center text-sm font-semibold text-sage-200 transition hover:text-white">
+                Human care remains available <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {safeguards.map((item) => (
@@ -135,6 +164,6 @@ export function MinistryRoutePage({
           </div>
         </div>
       </section>
-    </div>
+    </main>
   );
 }
