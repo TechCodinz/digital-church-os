@@ -20,6 +20,7 @@ import { useState, useEffect } from 'react';
 import { AIPastorModal } from '@/components/ai/AIPastorModal';
 import { ScriptureDepthExperience } from '@/components/scripture/ScriptureDepthExperience';
 import { LivingSanctuaryMissionControl } from '@/components/ministry/LivingSanctuaryMissionControl';
+import { DailyMinistryFlow } from '@/components/ministry/DailyMinistryFlow';
 
 export default function DashboardPage() {
     const { data: session } = useSession();
@@ -74,6 +75,7 @@ export default function DashboardPage() {
                 </header>
 
                 <LivingSanctuaryMissionControl />
+                <DailyMinistryFlow />
 
                 <div className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                     {[
