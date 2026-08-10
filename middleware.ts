@@ -41,6 +41,8 @@ export default withAuth(
 export const config = {
   matcher: [
     '/dashboard/:path*',
+    '/ministry-command-center/:path*',
+    '/leader-onboarding/:path*',
     '/admin/:path*',
     '/api/admin/:path*',
     '/api/ai/:path*',
