@@ -5,6 +5,7 @@ import {
   Activity,
   BookOpenText,
   Church,
+  HandHeart,
   HeartHandshake,
   Radio,
   Sparkles,
@@ -16,9 +17,15 @@ import {
 const primaryActions = [
   {
     title: 'Join Live Worship',
-    description: 'Enter the live sanctuary, respond in prayer, take notes, and follow the service flow.',
+    description: 'Enter the live sanctuary, participate in worship, and stay connected to the service flow.',
     href: '/live-service',
     icon: Radio,
+  },
+  {
+    title: 'Respond to the Service',
+    description: 'Move directly into prayer, pastoral care, discipleship, church connection, service, or transparent support.',
+    href: '/service-response',
+    icon: HandHeart,
   },
   {
     title: 'Pray & Receive Care',
@@ -60,10 +67,10 @@ export function LivingSanctuaryMissionControl() {
                 <Sparkles className="mr-2 h-3.5 w-3.5" /> Living Sanctuary Mission Control
               </div>
               <h2 className="max-w-2xl text-3xl font-light leading-tight text-stone-900 md:text-4xl">
-                One place to worship, grow, serve, connect, and move ministry forward.
+                One place to worship, respond, grow, serve, connect, and move ministry forward.
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600 sm:text-base">
-                Digital Church OS now organizes your most meaningful spiritual and ministry actions into one focused daily flow instead of making you search through disconnected modules.
+                Digital Church OS organizes meaningful spiritual and ministry actions into one focused daily flow instead of making people search through disconnected modules.
               </p>
             </div>
             <Link
