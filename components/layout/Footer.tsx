@@ -8,6 +8,7 @@ export const Footer = () => {
     {
       label: 'Ministry',
       items: [
+        { href: '/ministry-command-center', label: 'Ministry Command Center' },
         { href: '/scripture', label: 'Scripture Intelligence' },
         { href: '/presentation', label: 'Live Presentation' },
         { href: '/live-broadcast', label: 'Live Broadcast' },
