@@ -21,7 +21,7 @@ const attentionItems = [
   {
     title: 'People & ministry coverage',
     description: 'Check member growth, volunteer coverage, assignments, and upcoming ministry load.',
-    href: '/admin/crm',
+    href: '/command-center',
     icon: Users,
     tone: 'bg-blue-50 text-blue-700 border-blue-100',
   },
