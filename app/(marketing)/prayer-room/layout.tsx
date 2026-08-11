@@ -1,19 +1,24 @@
 import type { ReactNode } from 'react';
 import { PrayerIntelligenceWorkspace } from '@/components/prayers/PrayerIntelligenceWorkspace';
-import { JourneyCarryForward } from '@/components/journey/JourneyCarryForward';
+import { JourneyContinuityComposer } from '@/components/journey/JourneyContinuityComposer';
 
 export default function PrayerRoomLayout({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
       <PrayerIntelligenceWorkspace />
-      <JourneyCarryForward
-        source="Prayer"
-        title="Carry one prayer insight into your private Journey."
-        description="After community prayer, private prayer, or AI-assisted prayer drafting, save only the part you intentionally want to remember. The Prayer Room itself remains separate from your private formation history."
-        placeholder="What prayer theme, Scripture anchor, gratitude, lament, or answered-prayer reflection do you want to remember?"
-        nextStepPlaceholder="Pray again, study a passage, reconcile, ask for care, or follow through on one action…"
-      />
+      <section className="bg-cream-50 px-4 pb-12 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <JourneyContinuityComposer
+            source="Prayer"
+            title="Carry one prayer insight into your private Journey"
+            prompt="After community prayer, private prayer, or AI-assisted prayer drafting, save only the theme, Scripture anchor, gratitude, lament, answered-prayer reflection, or next step you intentionally want to remember."
+            nextHref="/daily-guide"
+            nextLabel="Carry into Daily Guide"
+            privacyNote="Prayer requests, AI inputs, community-wall details, and care records are not copied automatically. Only what you type into this continuity composer is saved to Journey."
+          />
+        </div>
+      </section>
     </>
   );
 }
