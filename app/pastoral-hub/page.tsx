@@ -1,9 +1,22 @@
 import { AdvancedMinistryWorkspace } from '@/components/ministry/AdvancedMinistryWorkspace';
+import { ChurchWorkspaceSelector } from '@/components/ministry/ChurchWorkspaceSelector';
 import { PastoralCareCoordinationBoard } from '@/components/ministry/PastoralCareCoordinationBoard';
+import { requireChurchWorkspace } from '@/lib/church-ops/server';
 
-export default function PastoralHubPage() {
+export default async function PastoralHubPage() {
+  await requireChurchWorkspace(['OWNER', 'ADMIN', 'PASTOR', 'STAFF']);
+
   return (
     <>
+      <section className="bg-cream-50 px-4 pt-24 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl pt-6">
+          <ChurchWorkspaceSelector
+            allowedRoles={['OWNER', 'ADMIN', 'PASTOR', 'STAFF']}
+            emptyMessage="No church workspace with pastoral-coordination access is attached to this account."
+          />
+        </div>
+      </section>
+
       <AdvancedMinistryWorkspace
         eyebrow="Pastoral Hub"
         title="Keep pastoral care compassionate, confidential, organized, and unmistakably human-led."
@@ -27,6 +40,7 @@ export default function PastoralHubPage() {
         ]}
         privacyNote="Pastoral care data should be treated as sensitive. AI assistance can organize or summarize authorized context, but confidential notes, safeguarding decisions, diagnosis, and crisis response remain human responsibilities."
         safeguards={[
+          'This route requires an active church workspace with OWNER, ADMIN, PASTOR, or STAFF access.',
           'Confidential case details are restricted to authorized care roles and should not appear in general dashboards or team feeds.',
           'AI does not diagnose mental or physical conditions, provide emergency response, or replace pastors, counselors, clinicians, safeguarding leads, or emergency services.',
           'Members should retain clear pathways to request human care, correct context, and understand how sensitive information is being used.',
