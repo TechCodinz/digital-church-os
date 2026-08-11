@@ -14,6 +14,7 @@ export type ConferenceTenantScope = {
   status: string;
   startDate: Date;
   endDate: Date;
+  maxAttendees: number | null;
 };
 
 export type ChurchProfileScope = {
@@ -29,7 +30,8 @@ export async function getConferenceTenantScope(conferenceId: string): Promise<Co
       cp.visibility AS "churchVisibility",
       c.status,
       c."startDate" AS "startDate",
-      c."endDate" AS "endDate"
+      c."endDate" AS "endDate",
+      c."maxAttendees" AS "maxAttendees"
     FROM "Conference" c
     LEFT JOIN church_profiles cp ON cp.id = c.church_profile_id
     WHERE c.id = ${conferenceId}
