@@ -76,6 +76,9 @@ export function JourneyContinuityAction({
       }
       setSaved(true);
       setStatus(data.operation === 'updated' ? 'Private Journey moment updated.' : 'Saved privately to your Journey.');
+      window.dispatchEvent(new CustomEvent('digital-church:journey-updated', {
+        detail: { source, sourceKey: data.sourceKey || sourceKey || '', operation: data.operation || 'created' },
+      }));
     } catch {
       setStatus('Journey sync is temporarily unavailable. Nothing else was shared.');
     } finally {
