@@ -80,3 +80,32 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to load journey' }, { status: 500 });
   }
 }
+
+export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  try {
+    const body = await request.json().catch(() => ({}));
+    const content = typeof body?.content === 'string' ? body.content.trim() : '';
+    const source = typeof body?.source === 'string' ? body.source.trim().slice(0, 60) : 'Journey';
+
+    if (!content) return NextResponse.json({ error: 'Reflection is required.' }, { status: 400 });
+    if (content.length > 2500) return NextResponse.json({ error: 'Reflection is too long.' }, { status: 400 });
+
+    const entry = await prisma.journalEntry.create({
+      data: {
+        userId: session.user.id,
+        title: `${source || 'Journey'} reflection`,
+        content,
+        mood: 'Private reflection',
+      },
+      select: { id: true, title: true, mood: true, createdAt: true },
+    });
+
+    return NextResponse.json({ entry }, { status: 201 });
+  } catch (error) {
+    console.error('Journey reflection save failed:', error);
+    return NextResponse.json({ error: 'Unable to save private reflection.' }, { status: 500 });
+  }
+}
