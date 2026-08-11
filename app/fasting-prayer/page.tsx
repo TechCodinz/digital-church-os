@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
   Check,
   HeartHandshake,
+  Loader2,
   NotebookPen,
   ShieldCheck,
   Sparkles,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 
 const focusOptions = ['Repentance & renewal', 'Family', 'Church', 'Healing & comfort', 'Wisdom', 'Outreach & mission', 'Justice & mercy', 'Gratitude'];
+const storageKey = 'digital-church-fasting-prayer-plan';
 
 export default function FastingPrayerPage() {
   const [purpose, setPurpose] = useState('');
@@ -23,17 +25,82 @@ export default function FastingPrayerPage() {
   const [practice, setPractice] = useState<'food' | 'media' | 'other'>('media');
   const [days, setDays] = useState(3);
   const [completedDays, setCompletedDays] = useState<number[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('');
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      if (!stored) return;
+      const data = JSON.parse(stored);
+      setPurpose(typeof data.purpose === 'string' ? data.purpose : '');
+      setFocuses(Array.isArray(data.focuses) ? data.focuses.filter((item: unknown): item is string => typeof item === 'string') : []);
+      setScriptureRefs(typeof data.scriptureRefs === 'string' ? data.scriptureRefs : '');
+      setNotes(typeof data.notes === 'string' ? data.notes : '');
+      setPractice(data.practice === 'food' || data.practice === 'other' ? data.practice : 'media');
+      setDays([1, 3, 7, 14, 21].includes(Number(data.days)) ? Number(data.days) : 3);
+      setCompletedDays(Array.isArray(data.completedDays) ? data.completedDays.filter((item: unknown): item is number => Number.isInteger(item)) : []);
+    } catch {
+      // Private local plan remains optional.
+    }
+  }, []);
 
   const progress = useMemo(() => Math.round((completedDays.length / Math.max(days, 1)) * 100), [completedDays.length, days]);
 
-  const toggleFocus = (focus: string) => setFocuses((current) => current.includes(focus) ? current.filter((item) => item !== focus) : [...current, focus]);
-  const toggleDay = (day: number) => setCompletedDays((current) => current.includes(day) ? current.filter((item) => item !== day) : [...current, day]);
+  const markChanged = () => setSaveStatus('');
+  const toggleFocus = (focus: string) => {
+    markChanged();
+    setFocuses((current) => current.includes(focus) ? current.filter((item) => item !== focus) : [...current, focus]);
+  };
+  const toggleDay = (day: number) => {
+    markChanged();
+    setCompletedDays((current) => current.includes(day) ? current.filter((item) => item !== day) : [...current, day]);
+  };
 
-  const saveLocal = () => {
+  const savePlan = async () => {
+    if (saving) return;
+    setSaving(true);
+    setSaveStatus('');
+
+    let localSaved = false;
     try {
-      window.localStorage.setItem('digital-church-fasting-prayer-plan', JSON.stringify({ purpose, focuses, scriptureRefs, notes, practice, days, completedDays }));
+      window.localStorage.setItem(storageKey, JSON.stringify({ purpose, focuses, scriptureRefs, notes, practice, days, completedDays }));
+      localSaved = true;
     } catch {
-      // Local persistence is optional.
+      localSaved = false;
+    }
+
+    const content = [
+      purpose.trim() ? `Purpose: ${purpose.trim()}` : '',
+      notes.trim() ? `Reflection: ${notes.trim()}` : '',
+    ].filter(Boolean).join('\n\n');
+    const refs = scriptureRefs.split(/[\n,;]+/).map((item) => item.trim()).filter(Boolean);
+    const practiceLabel = practice === 'food' ? 'food-related fast' : practice === 'media' ? 'media / distraction fast' : 'custom discipline';
+    const nextStep = [
+      `${days}-day ${practiceLabel}`,
+      focuses.length ? `Prayer focuses: ${focuses.join(', ')}` : '',
+      completedDays.length ? `Days reflected: ${completedDays.sort((a, b) => a - b).join(', ')}` : '',
+    ].filter(Boolean).join('. ');
+
+    try {
+      const response = await fetch('/api/journey/continuity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: 'Fasting', title: 'Fasting & prayer plan', content, scriptureRefs: refs, nextStep }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok) {
+        setSaveStatus('Plan saved on this device and its reflection added to your private Journey timeline.');
+      } else if (response.status === 401 && localSaved) {
+        setSaveStatus('Plan saved privately on this device. Sign in to carry its reflection into your Journey timeline.');
+      } else {
+        setSaveStatus(localSaved ? `Plan saved on this device. ${data.error || 'Journey sync is temporarily unavailable.'}` : (data.error || 'Unable to save the fasting plan.'));
+      }
+    } catch {
+      setSaveStatus(localSaved ? 'Plan saved privately on this device. Journey sync is temporarily unavailable.' : 'Unable to save the fasting plan.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -57,11 +124,11 @@ export default function FastingPrayerPage() {
                 ].map((item) => {
                   const Icon = item.icon;
                   const active = practice === item.id;
-                  return <button key={item.id} type="button" onClick={() => setPractice(item.id as typeof practice)} className={`rounded-2xl border p-4 text-left transition ${active ? 'border-amber-300 bg-amber-50' : 'border-stone-200 bg-stone-50'}`}><Icon className="h-5 w-5 text-amber-700" /><p className="mt-3 font-semibold text-stone-900">{item.label}</p><p className="mt-1 text-xs text-stone-500">{item.note}</p></button>;
+                  return <button key={item.id} type="button" onClick={() => { markChanged(); setPractice(item.id as typeof practice); }} className={`rounded-2xl border p-4 text-left transition ${active ? 'border-amber-300 bg-amber-50' : 'border-stone-200 bg-stone-50'}`}><Icon className="h-5 w-5 text-amber-700" /><p className="mt-3 font-semibold text-stone-900">{item.label}</p><p className="mt-1 text-xs text-stone-500">{item.note}</p></button>;
                 })}
               </div>
 
-              <label className="mt-6 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Purpose</span><textarea value={purpose} onChange={(e) => setPurpose(e.target.value)} className="min-h-[110px] w-full rounded-2xl border border-stone-200 bg-stone-50 p-4 leading-6 outline-none focus:ring-2 focus:ring-amber-200" placeholder="Why are you setting apart this time? What do you want to seek God about?" /></label>
+              <label className="mt-6 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Purpose</span><textarea value={purpose} onChange={(e) => { setPurpose(e.target.value); markChanged(); }} maxLength={1600} className="min-h-[110px] w-full rounded-2xl border border-stone-200 bg-stone-50 p-4 leading-6 outline-none focus:ring-2 focus:ring-amber-200" placeholder="Why are you setting apart this time? What do you want to seek God about?" /></label>
 
               <div className="mt-6">
                 <p className="mb-3 text-xs font-bold uppercase tracking-wider text-stone-500">Prayer focuses</p>
@@ -69,15 +136,17 @@ export default function FastingPrayerPage() {
               </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <label><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Scripture references</span><textarea value={scriptureRefs} onChange={(e) => setScriptureRefs(e.target.value)} className="min-h-[120px] w-full rounded-2xl border border-stone-200 bg-stone-50 p-4 outline-none focus:ring-2 focus:ring-amber-200" placeholder="e.g. Isaiah 58, Matthew 6:16-18" /></label>
-                <label><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Private reflection</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-[120px] w-full rounded-2xl border border-stone-200 bg-stone-50 p-4 outline-none focus:ring-2 focus:ring-amber-200" placeholder="Prayer burdens, gratitude, insights, answered prayer..." /></label>
+                <label><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Scripture references</span><textarea value={scriptureRefs} onChange={(e) => { setScriptureRefs(e.target.value); markChanged(); }} maxLength={1200} className="min-h-[120px] w-full rounded-2xl border border-stone-200 bg-stone-50 p-4 outline-none focus:ring-2 focus:ring-amber-200" placeholder="e.g. Isaiah 58, Matthew 6:16-18" /></label>
+                <label><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Private reflection</span><textarea value={notes} onChange={(e) => { setNotes(e.target.value); markChanged(); }} maxLength={2200} className="min-h-[120px] w-full rounded-2xl border border-stone-200 bg-stone-50 p-4 outline-none focus:ring-2 focus:ring-amber-200" placeholder="Prayer burdens, gratitude, insights, answered prayer..." /></label>
               </div>
 
               <div className="mt-6 flex flex-wrap items-end gap-4">
-                <label><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Plan length</span><select value={days} onChange={(e) => { setDays(Number(e.target.value)); setCompletedDays([]); }} className="rounded-xl border border-stone-200 bg-white px-4 py-3"><option value={1}>1 day</option><option value={3}>3 days</option><option value={7}>7 days</option><option value={14}>14 days</option><option value={21}>21 days</option></select></label>
-                <button type="button" onClick={saveLocal} className="inline-flex items-center rounded-xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white"><NotebookPen className="mr-2 h-4 w-4" /> Save private plan</button>
+                <label><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Plan length</span><select value={days} onChange={(e) => { markChanged(); setDays(Number(e.target.value)); setCompletedDays([]); }} className="rounded-xl border border-stone-200 bg-white px-4 py-3"><option value={1}>1 day</option><option value={3}>3 days</option><option value={7}>7 days</option><option value={14}>14 days</option><option value={21}>21 days</option></select></label>
+                <button type="button" onClick={savePlan} disabled={saving} className="inline-flex items-center rounded-xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <NotebookPen className="mr-2 h-4 w-4" />}{saving ? 'Saving privately…' : 'Save private plan'}</button>
                 <Link href="/prayer-room" className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700">Open Prayer Room</Link>
               </div>
+              {saveStatus && <p className="mt-3 text-xs leading-5 text-stone-500" role="status">{saveStatus}</p>}
+              <Link href="/journey" className="mt-3 inline-flex text-sm font-semibold text-sage-700">View private Journey →</Link>
             </div>
 
             <aside className="bg-stone-950 p-7 text-white sm:p-9 lg:p-11">
