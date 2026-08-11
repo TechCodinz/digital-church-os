@@ -23,6 +23,10 @@ type ContinuityBody = {
   nextStep?: unknown;
 };
 
+type DeleteBody = {
+  id?: unknown;
+};
+
 function cleanString(value: unknown, max: number) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
@@ -175,5 +179,37 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Journey continuity save failed:', error);
     return NextResponse.json({ error: 'Unable to save this private journey moment.' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Sign in to manage your private journey.' }, { status: 401 });
+  }
+
+  try {
+    const body = (await request.json().catch(() => ({}))) as DeleteBody;
+    const id = cleanString(body.id, 120);
+    if (!id) return NextResponse.json({ error: 'Journey moment id is required.' }, { status: 400 });
+
+    const entry = await prisma.journalEntry.findFirst({
+      where: {
+        id,
+        userId: session.user.id,
+        mood: { startsWith: 'Continuity:' },
+      },
+      select: { id: true },
+    });
+
+    if (!entry) {
+      return NextResponse.json({ error: 'Private continuity moment not found.' }, { status: 404 });
+    }
+
+    await prisma.journalEntry.delete({ where: { id: entry.id } });
+    return NextResponse.json({ deleted: true, id: entry.id });
+  } catch (error) {
+    console.error('Journey continuity delete failed:', error);
+    return NextResponse.json({ error: 'Unable to remove this private journey moment.' }, { status: 500 });
   }
 }
