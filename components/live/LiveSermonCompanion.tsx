@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import {
   BookOpenText,
@@ -11,15 +12,28 @@ import {
   NotebookPen,
   Plus,
   Save,
-  Sparkles,
+  ShieldCheck,
   Square,
   X,
 } from 'lucide-react';
 
 type MarkedPoint = { id: string; text: string; at: string };
+type SavedDraft = { notes?: unknown; points?: unknown; scriptures?: unknown; takeaway?: unknown };
 
-function storageKey() {
-  return `digital-church-live-sermon:${new Date().toISOString().slice(0, 10)}`;
+function dayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function accountStorageKey(userId: string) {
+  return `digital-church-live-sermon:v2:${userId}:${dayKey()}`;
+}
+
+function sessionStorageKey() {
+  return `digital-church-live-sermon:session:${dayKey()}`;
+}
+
+function legacyStorageKey() {
+  return `digital-church-live-sermon:${dayKey()}`;
 }
 
 function formatElapsed(seconds: number) {
@@ -28,7 +42,22 @@ function formatElapsed(seconds: number) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+function safePoints(value: unknown): MarkedPoint[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+    .map((item) => ({
+      id: typeof item.id === 'string' ? item.id : `${Date.now()}-${Math.random()}`,
+      text: typeof item.text === 'string' ? item.text.slice(0, 500) : '',
+      at: typeof item.at === 'string' ? item.at.slice(0, 20) : '',
+    }))
+    .filter((item) => item.text)
+    .slice(0, 100);
+}
+
 export function LiveSermonCompanion() {
+  const { data: session } = useSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id || '';
   const startedAt = useRef(Date.now());
   const [open, setOpen] = useState(true);
   const [notes, setNotes] = useState('');
@@ -39,7 +68,38 @@ export function LiveSermonCompanion() {
   const [saved, setSaved] = useState(false);
   const [journeyStatus, setJourneyStatus] = useState('');
   const [listening, setListening] = useState(false);
+  const [legacyDraftPresent, setLegacyDraftPresent] = useState(false);
   const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    try {
+      if (userId) {
+        setLegacyDraftPresent(Boolean(window.localStorage.getItem(legacyStorageKey())));
+        const stored = window.localStorage.getItem(accountStorageKey(userId));
+        if (!stored) return;
+        const draft = JSON.parse(stored) as SavedDraft;
+        setNotes(typeof draft.notes === 'string' ? draft.notes.slice(0, 12000) : '');
+        setPoints(safePoints(draft.points));
+        setScriptures(typeof draft.scriptures === 'string' ? draft.scriptures.slice(0, 3000) : '');
+        setTakeaway(typeof draft.takeaway === 'string' ? draft.takeaway.slice(0, 3000) : '');
+        return;
+      }
+
+      const stored = window.sessionStorage.getItem(sessionStorageKey());
+      if (!stored) return;
+      const draft = JSON.parse(stored) as SavedDraft;
+      setNotes(typeof draft.notes === 'string' ? draft.notes.slice(0, 12000) : '');
+      setPoints(safePoints(draft.points));
+      setScriptures(typeof draft.scriptures === 'string' ? draft.scriptures.slice(0, 3000) : '');
+      setTakeaway(typeof draft.takeaway === 'string' ? draft.takeaway.slice(0, 3000) : '');
+    } catch {
+      setJourneyStatus('A previous browser draft could not be restored. You can continue with a new note.');
+    }
+  }, [userId]);
+
+  useEffect(() => () => {
+    recognitionRef.current?.stop?.();
+  }, []);
 
   const summary = useMemo(() => {
     const parts = [
@@ -53,26 +113,44 @@ export function LiveSermonCompanion() {
     const text = pointText.trim();
     if (!text) return;
     const elapsed = Math.max(0, Math.floor((Date.now() - startedAt.current) / 1000));
-    setPoints((current) => [...current, { id: `${Date.now()}`, text, at: formatElapsed(elapsed) }]);
+    setPoints((current) => [...current, { id: `${Date.now()}`, text: text.slice(0, 500), at: formatElapsed(elapsed) }].slice(-100));
     setPointText('');
   };
 
   const savePrivate = () => {
     try {
-      window.localStorage.setItem(storageKey(), JSON.stringify({ notes, points, scriptures, takeaway }));
+      const payload = JSON.stringify({ notes, points, scriptures, takeaway });
+      if (userId) {
+        window.localStorage.setItem(accountStorageKey(userId), payload);
+        setJourneyStatus('Saved to this signed-in account’s browser draft.');
+      } else {
+        window.sessionStorage.setItem(sessionStorageKey(), payload);
+        setJourneyStatus('Saved for this browser session only. Sign in to keep an account-scoped draft or save to Journey.');
+      }
       setSaved(true);
       window.setTimeout(() => setSaved(false), 1800);
     } catch {
       setSaved(false);
+      setJourneyStatus('Browser draft storage is unavailable. You can still copy your notes or save to Journey if signed in.');
+    }
+  };
+
+  const removeLegacyDraft = () => {
+    try {
+      window.localStorage.removeItem(legacyStorageKey());
+      setLegacyDraftPresent(false);
+      setJourneyStatus('Legacy unscoped sermon draft removed without importing it into this account.');
+    } catch {
+      setJourneyStatus('Legacy draft could not be removed from this browser.');
     }
   };
 
   const saveToJourney = async () => {
     if (!summary && !scriptures.trim() && !takeaway.trim()) return;
     savePrivate();
-    setJourneyStatus('Saving…');
+    setJourneyStatus('Saving to private Journey…');
     try {
-      const dateKey = new Date().toISOString().slice(0, 10);
+      const dateKey = dayKey();
       const res = await fetch('/api/journey/continuity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,10 +167,10 @@ export function LiveSermonCompanion() {
       if (res.ok) {
         setJourneyStatus(data.operation === 'updated' ? 'Updated in private Journey' : 'Saved to private Journey');
         window.dispatchEvent(new CustomEvent('digital-church:journey-updated'));
-      } else if (res.status === 401) setJourneyStatus('Sign in to save to Journey');
+      } else if (res.status === 401) setJourneyStatus('Sign in to save this sermon reflection to your private Journey.');
       else setJourneyStatus(data.error || 'Journey save unavailable');
     } catch {
-      setJourneyStatus('Journey save unavailable; your browser draft remains available');
+      setJourneyStatus(userId ? 'Journey save unavailable; your account-scoped browser draft remains available.' : 'Journey save unavailable; this session draft remains available until the browser session ends.');
     }
   };
 
@@ -112,7 +190,7 @@ export function LiveSermonCompanion() {
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
         if (event.results[i].isFinal) finalText += `${event.results[i][0].transcript} `;
       }
-      if (finalText) setNotes((current) => `${current}${current ? ' ' : ''}${finalText.trim()}`);
+      if (finalText) setNotes((current) => `${current}${current ? ' ' : ''}${finalText.trim()}`.slice(0, 12000));
     };
     recognition.onend = () => setListening(false);
     recognition.onerror = () => setListening(false);
@@ -156,6 +234,13 @@ export function LiveSermonCompanion() {
               <button onClick={() => setOpen(false)} aria-label="Collapse sermon companion" className="rounded-xl border border-white/10 p-2 text-stone-400 hover:text-white"><X className="h-5 w-5" /></button>
             </div>
 
+            {legacyDraftPresent && (
+              <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-xs leading-5 text-amber-100 sm:flex-row sm:items-center sm:justify-between">
+                <span><ShieldCheck className="mr-2 inline h-4 w-4" /> An older unscoped browser draft exists. It was not imported because this device may be shared.</span>
+                <button type="button" onClick={removeLegacyDraft} className="shrink-0 font-semibold underline">Remove legacy draft</button>
+              </div>
+            )}
+
             <div className="mt-7 grid gap-5 lg:grid-cols-[1fr_0.7fr]">
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
@@ -166,14 +251,14 @@ export function LiveSermonCompanion() {
                     <button onClick={stopVoiceJot} className="inline-flex items-center text-xs font-semibold text-rose-300"><Square className="mr-1.5 h-3.5 w-3.5" /> Stop listening</button>
                   )}
                 </div>
-                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-[260px] w-full resize-y rounded-2xl border border-white/10 bg-black/20 p-5 leading-7 text-stone-100 outline-none focus:ring-2 focus:ring-sage-500/40" placeholder="What stood out? What was explained? What question do you want to revisit?" />
+                <textarea value={notes} onChange={(e) => setNotes(e.target.value.slice(0, 12000))} maxLength={12000} className="min-h-[260px] w-full resize-y rounded-2xl border border-white/10 bg-black/20 p-5 leading-7 text-stone-100 outline-none focus:ring-2 focus:ring-sage-500/40" placeholder="What stood out? What was explained? What question do you want to revisit?" />
               </div>
 
               <div className="space-y-4">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <label className="text-xs font-bold uppercase tracking-wider text-stone-400">Mark a key moment</label>
                   <div className="mt-3 flex gap-2">
-                    <input value={pointText} onChange={(e) => setPointText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addPoint(); }} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm outline-none" placeholder="Key point…" />
+                    <input value={pointText} onChange={(e) => setPointText(e.target.value.slice(0, 500))} onKeyDown={(e) => { if (e.key === 'Enter') addPoint(); }} maxLength={500} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm outline-none" placeholder="Key point…" />
                     <button onClick={addPoint} aria-label="Add key point" className="rounded-xl bg-sage-500 p-2.5 text-white"><Plus className="h-4 w-4" /></button>
                   </div>
                   <div className="mt-3 max-h-40 space-y-2 overflow-y-auto">
@@ -186,7 +271,7 @@ export function LiveSermonCompanion() {
 
                 <label className="block rounded-2xl border border-white/10 bg-white/5 p-4">
                   <span className="text-xs font-bold uppercase tracking-wider text-stone-400">Scripture references</span>
-                  <textarea value={scriptures} onChange={(e) => setScriptures(e.target.value)} className="mt-3 min-h-[90px] w-full resize-y rounded-xl border border-white/10 bg-black/20 p-3 text-sm outline-none" placeholder="Romans 8:1-4, Psalm 23…" />
+                  <textarea value={scriptures} onChange={(e) => setScriptures(e.target.value.slice(0, 3000))} maxLength={3000} className="mt-3 min-h-[90px] w-full resize-y rounded-xl border border-white/10 bg-black/20 p-3 text-sm outline-none" placeholder="Romans 8:1-4, Psalm 23…" />
                 </label>
               </div>
             </div>
@@ -199,14 +284,14 @@ export function LiveSermonCompanion() {
 
             <label className="mt-6 block">
               <span className="text-xs font-bold uppercase tracking-wider text-stone-400">My next faithful action</span>
-              <textarea value={takeaway} onChange={(e) => setTakeaway(e.target.value)} className="mt-3 min-h-[150px] w-full resize-y rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 outline-none focus:ring-2 focus:ring-amber-400/30" placeholder="Pray about…, apologize to…, study…, serve…, ask a leader…, change one habit…" />
+              <textarea value={takeaway} onChange={(e) => setTakeaway(e.target.value.slice(0, 3000))} maxLength={3000} className="mt-3 min-h-[150px] w-full resize-y rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 outline-none focus:ring-2 focus:ring-amber-400/30" placeholder="Pray about…, apologize to…, study…, serve…, ask a leader…, change one habit…" />
             </label>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
               <button onClick={savePrivate} className="inline-flex items-center justify-center rounded-xl bg-sage-600 px-5 py-3 text-sm font-semibold text-white hover:bg-sage-500">{saved ? <Check className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}{saved ? 'Saved privately' : 'Save private notes'}</button>
               <button onClick={saveToJourney} disabled={!summary && !scriptures.trim() && !takeaway.trim()} className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-stone-100 disabled:opacity-40"><BookOpenText className="mr-2 h-4 w-4" /> Save to Journey</button>
             </div>
-            {journeyStatus && <p className="mt-3 text-xs text-stone-400">{journeyStatus}</p>}
+            {journeyStatus && <p className="mt-3 text-xs text-stone-400" role="status">{journeyStatus}</p>}
 
             <div className="mt-7 space-y-3 border-t border-white/10 pt-6">
               <Link href="/scripture" className="flex items-center text-sm font-semibold text-sage-300"><BookOpenText className="mr-2 h-4 w-4" /> Study the referenced passage</Link>
