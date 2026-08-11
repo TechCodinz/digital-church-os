@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Baby,
   CalendarCheck,
   Check,
-  Child,
   Church,
   CircleDollarSign,
   ClipboardCheck,
@@ -34,7 +34,7 @@ const areas: Area[] = [
   { id: 'worship', title: 'Worship & choir', description: 'Songs, hymns, rehearsals, keys, choir structure, playlists, and projection.', href: '/choir', icon: Music2 },
   { id: 'care', title: 'Prayer & pastoral care', description: 'Prayer requests, human care, follow-up, safeguarding, and sensitive escalations.', href: '/care', icon: HeartHandshake, critical: true },
   { id: 'people', title: 'Workers & volunteers', description: 'Coverage, roles, rota gaps, appreciation, onboarding, and ministry ownership.', href: '/workers', icon: UsersRound },
-  { id: 'children', title: 'Children & family', description: 'Age-aware teaching, guardian controls, family discipleship, and trusted-adult pathways.', href: '/children', icon: Child, critical: true },
+  { id: 'children', title: 'Children & family', description: 'Age-aware teaching, guardian controls, family discipleship, and trusted-adult pathways.', href: '/children', icon: Baby, critical: true },
   { id: 'giving', title: 'Giving & benevolence', description: 'Giving operations, aid requests, stewardship review, and accountable disbursement.', href: '/giving', icon: CircleDollarSign },
   { id: 'rights', title: 'Media & rights', description: 'Licensing, public-domain checks, distribution clearance, takedowns, and attribution.', href: '/media-rights', icon: Copyright, critical: true },
   { id: 'outreach', title: 'Outreach & communication', description: 'Invitations, follow-up, testimony/story review, community needs, and mission activity.', href: '/activities', icon: Megaphone },
