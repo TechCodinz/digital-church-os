@@ -1,5 +1,6 @@
 import { ScriptureStudyWorkspace } from '@/components/scripture/ScriptureStudyWorkspace';
 import { ScriptureInsightLab } from '@/components/scripture/ScriptureInsightLab';
+import { JourneyContinuityComposer } from '@/components/journey/JourneyContinuityComposer';
 import { BookOpenText, Languages, ShieldCheck, Sparkles } from 'lucide-react';
 
 export default function ScripturePage() {
@@ -41,8 +42,16 @@ export default function ScripturePage() {
       </section>
 
       <section className="px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-7xl space-y-8">
           <ScriptureStudyWorkspace />
+          <JourneyContinuityComposer
+            source="Scripture"
+            title="Carry one Scripture insight forward"
+            prompt="After reading the passage itself, save only the insight, question, prayer, or application you intentionally want to remember. Passage text is not copied into Journey automatically."
+            nextHref="/daily-guide"
+            nextLabel="Carry into Daily Guide"
+            privacyNote="Only your chosen reflection and next step are saved. Licensed Bible text, search results, and voice recordings are not copied into Journey automatically."
+          />
           <ScriptureInsightLab />
         </div>
       </section>
