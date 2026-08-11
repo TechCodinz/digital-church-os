@@ -11,6 +11,8 @@ interface AIInteractionLog {
   cost?: number;
 }
 
+const REDACTED_COUNSELING_CONCERN = '[REDACTED: sensitive counseling content is not stored in the generic audit log]';
+
 export class AILogger {
   static async logInteraction(data: AIInteractionLog) {
     try {
@@ -57,21 +59,26 @@ export class AILogger {
     responseType: string;
   }) {
     try {
+      // CounselingLog.concern is currently required by the legacy schema. Store a
+      // deliberate redaction marker rather than duplicating sensitive user text
+      // into a general-purpose audit table. A future restricted care-record model
+      // can handle explicit-consent case notes with dedicated retention controls.
       await prisma.counselingLog.create({
         data: {
           userId: data.userId,
-          concern: data.concern,
+          concern: REDACTED_COUNSELING_CONCERN,
           riskLevel: data.riskLevel,
           responseType: data.responseType,
         },
       });
 
       if (data.riskLevel === 'high') {
-        await this.flagForReview({
-          userId: data.userId,
-          module: 'AI Pastor',
-          input: { concern: data.concern },
-          output: { responseType: data.responseType },
+        await prisma.flagForReview.create({
+          data: {
+            userId: data.userId,
+            module: 'AI Pastor',
+            reason: 'High-risk care interaction detected; sensitive content was not copied into the review flag.',
+          },
         });
       }
     } catch (error) {
