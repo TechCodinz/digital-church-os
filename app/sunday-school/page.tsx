@@ -1,5 +1,6 @@
 import { AdvancedMinistryWorkspace } from '@/components/ministry/AdvancedMinistryWorkspace';
 import { SundaySchoolLessonBuilder } from '@/components/ministry/SundaySchoolLessonBuilder';
+import { SundaySchoolClassCommandBoard } from '@/components/ministry/SundaySchoolClassCommandBoard';
 
 export default function SundaySchoolPage() {
   return (
@@ -32,6 +33,7 @@ export default function SundaySchoolPage() {
         ]}
       />
       <SundaySchoolLessonBuilder />
+      <SundaySchoolClassCommandBoard />
     </>
   );
 }
