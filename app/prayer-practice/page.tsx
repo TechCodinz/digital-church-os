@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { PrayerPracticeCompanion } from '@/components/prayers/PrayerPracticeCompanion';
+import { JourneyContinuityComposer } from '@/components/journey/JourneyContinuityComposer';
 import { Heart, Sparkles } from 'lucide-react';
 
 export default function PrayerPracticePage() {
@@ -21,8 +22,16 @@ export default function PrayerPracticePage() {
       </section>
 
       <section className="px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-7xl space-y-8">
           <PrayerPracticeCompanion />
+          <JourneyContinuityComposer
+            source="Prayer"
+            title="Carry a prayer reflection forward"
+            prompt="Choose the part of this prayer time you want to remember: a Scripture reference, gratitude, question, discernment point, or practical next step."
+            nextHref="/daily-guide"
+            nextLabel="Continue in Daily Guide"
+            privacyNote="Prayer practice notes are not copied automatically. Only what you deliberately type into this handoff is stored in your private Journey. Crisis, counseling, medical, abuse, and safeguarding case details should stay with appropriate trusted human support rather than this formation timeline."
+          />
         </div>
       </section>
     </main>
