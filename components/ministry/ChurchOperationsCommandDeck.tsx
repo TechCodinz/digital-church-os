@@ -35,12 +35,12 @@ const areas: Area[] = [
   { id: 'service', title: 'Service & broadcast', description: 'Full run-of-show, owners, stream, presentation, response, accessibility, and fallback readiness.', href: '/service-planner', icon: Radio, critical: true },
   { id: 'sermon', title: 'Sermon & teaching', description: 'Scripture context, thesis, teaching flow, live cues, response, and follow-up.', href: '/sermons', icon: ClipboardCheck, critical: true },
   { id: 'worship', title: 'Worship & choir', description: 'Songs, hymns, rehearsals, keys, choir structure, playlists, and projection.', href: '/choir', icon: Music2 },
-  { id: 'care', title: 'Prayer & pastoral care', description: 'Prayer requests, human care, appointments, referrals, safeguarding, and accountable follow-up.', href: '/care', icon: HeartHandshake, critical: true },
+  { id: 'care', title: 'Prayer & pastoral care', description: 'Prayer requests, human care, appointments, referrals, safeguarding, and accountable follow-up.', href: '/admin/care-appointments', icon: HeartHandshake, critical: true },
   { id: 'follow-up', title: 'Discipleship follow-up', description: 'Consent-aware response ownership across contact, foundations, baptism, belonging, groups, and serving.', href: '/admin/follow-up', icon: UsersRound, critical: true },
   { id: 'attendance', title: 'Attendance & assimilation', description: 'Aggregate attendance, guest flow, response ownership, and connection signals without individual surveillance.', href: '/admin/attendance', icon: UsersRound },
-  { id: 'groups', title: 'Small groups & community', description: 'Group leadership depth, meeting rhythm, healthy capacity, and places for people to belong.', href: '/groups', icon: Church },
+  { id: 'groups', title: 'Small groups & community', description: 'Group leadership depth, meeting rhythm, healthy capacity, and places for people to belong.', href: '/admin/groups', icon: Church },
   { id: 'departments', title: 'Ministry departments', description: 'Purpose, leaders, deputies, meeting rhythm, active workers, open roles, and next ministry priorities.', href: '/departments', icon: Church },
-  { id: 'people', title: 'Workers & volunteers', description: 'Rota coverage, roles, primaries/backups, call times, gaps, appreciation, and ministry ownership.', href: '/workers', icon: UsersRound },
+  { id: 'people', title: 'Workers & volunteers', description: 'Rota coverage, roles, primaries/backups, call times, gaps, appreciation, and ministry ownership.', href: '/admin/workers', icon: UsersRound },
   { id: 'children', title: 'Children & family', description: 'Age-aware teaching, guardian controls, family discipleship, and trusted-adult pathways.', href: '/children', icon: Baby, critical: true },
   { id: 'facilities', title: 'Facilities & assets', description: 'Rooms, equipment, ownership, condition, next checks, critical outages, and operational follow-up.', href: '/facilities', icon: Building2, critical: true },
   { id: 'requests', title: 'Requests & forms', description: 'Baptism, membership, volunteer, event, facility, letter, care, and other requests with ownership and due dates.', href: '/requests', icon: ClipboardCheck },
@@ -50,7 +50,7 @@ const areas: Area[] = [
   { id: 'testimonies', title: 'Testimonies & stories', description: 'Pastoral review, public/media consent, anonymity, verification, and publication posture.', href: '/testimonies', icon: MessageSquare },
   { id: 'outreach', title: 'Outreach & mission CRM', description: 'Community contacts, initiatives, owners, consent, next actions, needs, and respectful connection outcomes.', href: '/outreach', icon: HandHeart },
   { id: 'network', title: 'Church network', description: 'Church discovery, collaboration, shared ministry opportunities, and belonging pathways.', href: '/church-network', icon: Church },
-  { id: 'calendar', title: 'Events & calendar', description: 'Services, rehearsals, meetings, conferences, registrations, campaigns, and readiness.', href: '/events', icon: CalendarCheck },
+  { id: 'calendar', title: 'Events & calendar', description: 'Services, rehearsals, meetings, conferences, registrations, campaigns, and readiness.', href: '/admin/events', icon: CalendarCheck },
 ];
 
 function storageKey() {
