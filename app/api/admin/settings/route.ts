@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import {
   SiteSettingsMigrationRequiredError,
+  normalizePublicHttpUrl,
   readSiteSettings,
   sanitizeSiteSettingsPatch,
   unwrapSettingsPayload,
@@ -11,8 +12,8 @@ import {
 } from '@/lib/site-settings';
 
 function environmentStreamFallback() {
-  const streamUrl = (process.env.LIVE_STREAM_URL || '').trim();
-  const streamTitle = (process.env.LIVE_STREAM_TITLE || '').trim();
+  const streamUrl = normalizePublicHttpUrl(process.env.LIVE_STREAM_URL);
+  const streamTitle = (process.env.LIVE_STREAM_TITLE || '').trim().slice(0, 180);
   return {
     ...(streamUrl ? { streamUrl } : {}),
     ...(streamTitle ? { streamTitle } : {}),
@@ -82,6 +83,16 @@ export async function POST(req: NextRequest) {
 
   if (JSON.stringify(unwrapped).length > 64_000) {
     return NextResponse.json({ error: 'Settings payload is too large.' }, { status: 413 });
+  }
+
+  for (const key of ['streamUrl', 'churchWebsite'] as const) {
+    if (!Object.prototype.hasOwnProperty.call(unwrapped, key)) continue;
+    const raw = unwrapped[key];
+    if (typeof raw !== 'string' || normalizePublicHttpUrl(raw) === null) {
+      return NextResponse.json({
+        error: `${key === 'streamUrl' ? 'Stream URL' : 'Website URL'} must be a public HTTP(S) URL without embedded credentials.`,
+      }, { status: 400 });
+    }
   }
 
   const patch = sanitizeSiteSettingsPatch(unwrapped);
