@@ -4,22 +4,21 @@ import { useState } from 'react';
 import { BookOpenText, CheckCircle2, Loader2, NotebookPen, Sparkles } from 'lucide-react';
 
 const sources = [
-  'Scripture',
-  'Prayer',
-  'Fasting & Prayer',
-  'Live Sermon',
-  'Sermon',
-  'Service Response',
-  'Daily Guide',
-  'Family Altar',
-  'Choir Studio',
-  'Pastoral Reflection',
+  { label: 'Scripture', value: 'Scripture' },
+  { label: 'Prayer', value: 'Prayer' },
+  { label: 'Fasting & Prayer', value: 'Fasting' },
+  { label: 'Live Sermon', value: 'Sermon' },
+  { label: 'Sermon Preparation', value: 'Sermon' },
+  { label: 'Service Response', value: 'Service Response' },
+  { label: 'Daily Guide', value: 'Daily Guide' },
+  { label: 'Family Altar', value: 'Family Altar' },
+  { label: 'Choir Studio', value: 'Choir' },
 ] as const;
 
-type Source = (typeof sources)[number];
+type SourceValue = (typeof sources)[number]['value'];
 
 export function QuickContinuityCapture() {
-  const [source, setSource] = useState<Source>('Scripture');
+  const [source, setSource] = useState<SourceValue>('Scripture');
   const [title, setTitle] = useState('');
   const [scriptureRefs, setScriptureRefs] = useState('');
   const [content, setContent] = useState('');
@@ -33,6 +32,12 @@ export function QuickContinuityCapture() {
     setSaving(true);
     setStatus('');
 
+    const refs = scriptureRefs
+      .split(/[\n,;]+/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 12);
+
     try {
       const response = await fetch('/api/journey/continuity', {
         method: 'POST',
@@ -41,7 +46,7 @@ export function QuickContinuityCapture() {
           source,
           title: title.trim() || undefined,
           content: trimmed,
-          scriptureRefs: scriptureRefs.trim() || undefined,
+          scriptureRefs: refs,
           nextStep: nextStep.trim() || undefined,
           sourceKey: `manual:${source.toLowerCase().replace(/[^a-z0-9]+/g, '-')}:${Date.now()}`,
         }),
@@ -70,7 +75,7 @@ export function QuickContinuityCapture() {
             <Sparkles className="mr-2 h-4 w-4" /> Journey quick capture
           </div>
           <h2 className="mt-5 text-3xl font-light leading-tight">Keep one meaningful ministry moment instead of losing it after the screen closes.</h2>
-          <p className="mt-4 text-sm leading-6 text-stone-300">Capture a Scripture insight, prayer reflection, fasting observation, sermon response, family worship note, choir rehearsal insight, or pastoral reflection. This is private continuity—not a spiritual score.</p>
+          <p className="mt-4 text-sm leading-6 text-stone-300">Capture a Scripture insight, prayer reflection, fasting observation, sermon response, family worship note, or choir rehearsal insight. This is private continuity—not a spiritual score.</p>
           <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-stone-300">
             Financial amounts, counseling/crisis case details, child activity, and private pastoral case notes should not be entered here. Sensitive care belongs in the appropriate human-led care workflow.
           </div>
@@ -80,8 +85,8 @@ export function QuickContinuityCapture() {
           <div className="grid gap-4 sm:grid-cols-2">
             <label>
               <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Ministry source</span>
-              <select value={source} onChange={(event) => setSource(event.target.value as Source)} className="min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm text-stone-800 outline-none focus:border-sage-300 focus:ring-2 focus:ring-sage-100">
-                {sources.map((item) => <option key={item}>{item}</option>)}
+              <select value={source} onChange={(event) => setSource(event.target.value as SourceValue)} className="min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm text-stone-800 outline-none focus:border-sage-300 focus:ring-2 focus:ring-sage-100">
+                {sources.map((item, index) => <option key={`${item.label}-${index}`} value={item.value}>{item.label}</option>)}
               </select>
             </label>
             <label>
@@ -97,16 +102,16 @@ export function QuickContinuityCapture() {
 
           <label className="mt-4 block">
             <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Private reflection</span>
-            <textarea value={content} onChange={(event) => { setContent(event.target.value); setStatus(''); }} maxLength={6000} rows={6} placeholder="What did you notice, learn, pray, question, or want to remember?" className="w-full rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm leading-6 outline-none focus:border-sage-300 focus:ring-2 focus:ring-sage-100" />
+            <textarea value={content} onChange={(event) => { setContent(event.target.value); setStatus(''); }} maxLength={3500} rows={6} placeholder="What did you notice, learn, pray, question, or want to remember?" className="w-full rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm leading-6 outline-none focus:border-sage-300 focus:ring-2 focus:ring-sage-100" />
           </label>
 
           <label className="mt-4 block">
             <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">One faithful next step · optional</span>
-            <input value={nextStep} onChange={(event) => setNextStep(event.target.value)} maxLength={1000} placeholder="Pray, study, reconcile, serve, rest, ask a leader…" className="min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm outline-none focus:border-sage-300 focus:ring-2 focus:ring-sage-100" />
+            <input value={nextStep} onChange={(event) => setNextStep(event.target.value)} maxLength={800} placeholder="Pray, study, reconcile, serve, rest, ask a leader…" className="min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm outline-none focus:border-sage-300 focus:ring-2 focus:ring-sage-100" />
           </label>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-stone-400">{content.length}/6000 · private to your signed-in account</p>
+            <p className="text-xs text-stone-400">{content.length}/3500 · private to your signed-in account</p>
             <button type="button" onClick={save} disabled={!content.trim() || saving} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-stone-900 px-5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50">
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <NotebookPen className="mr-2 h-4 w-4" />}
               {saving ? 'Saving privately…' : 'Save to Journey'}
