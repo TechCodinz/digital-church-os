@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import {
   ArrowRight,
   BookOpenText,
@@ -31,7 +32,17 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function studyInsightKey(userId: string, reference: string) {
+  return `digital-church-study-insight:v2:${userId}:${today()}:${encodeURIComponent(reference.trim().slice(0, 160))}`;
+}
+
+function dailySeedKey(userId: string) {
+  return `digital-church-daily-seed:v2:${userId}:${today()}`;
+}
+
 export function ScriptureInsightLab() {
+  const { data: session } = useSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id || '';
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
   const [result, setResult] = useState<StudyResult | null>(null);
@@ -72,9 +83,9 @@ export function ScriptureInsightLab() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug: 'study', input }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.status === 401) {
-        setStatus('Sign in to use AI-assisted study insights. Translation comparison and private notes above remain available.');
+        setStatus('Sign in to use AI-assisted study insights. Translation comparison and your current in-memory notes remain available.');
         return;
       }
       if (!res.ok) {
@@ -91,12 +102,19 @@ export function ScriptureInsightLab() {
 
   const savePrivate = () => {
     if (!result) return;
+    if (!userId) {
+      setStatus('Your signed-in session is still loading. Try saving again in a moment.');
+      return;
+    }
+
     try {
-      window.localStorage.setItem(`digital-church-study-insight:${today()}:${reference}`, JSON.stringify({ reference, notes, result, savedAt: new Date().toISOString() }));
+      window.localStorage.setItem(studyInsightKey(userId, reference), JSON.stringify({ reference, notes, result, savedAt: new Date().toISOString() }));
       setSaved(true);
+      setStatus('Saved to this signed-in account’s browser-scoped study draft.');
       window.setTimeout(() => setSaved(false), 1600);
     } catch {
       setSaved(false);
+      setStatus('This private study draft could not be saved in the browser.');
     }
   };
 
@@ -119,8 +137,13 @@ export function ScriptureInsightLab() {
 
   const handoffToDailyGuide = () => {
     if (!result) return;
+    if (!userId) {
+      setStatus('Your signed-in session is still loading. Try the Daily Guide handoff again in a moment.');
+      return;
+    }
+
     try {
-      window.localStorage.setItem(`digital-church-daily-seed:${today()}`, JSON.stringify({
+      window.localStorage.setItem(dailySeedKey(userId), JSON.stringify({
         reference,
         title: result.title || reference,
         dailyAlignment: result.dailyAlignment || result.application || '',
@@ -129,9 +152,11 @@ export function ScriptureInsightLab() {
         createdAt: new Date().toISOString(),
       }));
       setHandedOff(true);
+      setStatus('Sent to this signed-in account’s Daily Guide for today.');
       window.setTimeout(() => setHandedOff(false), 1800);
     } catch {
       setHandedOff(false);
+      setStatus('Daily Guide handoff could not be saved in this browser.');
     }
   };
 
@@ -145,8 +170,8 @@ export function ScriptureInsightLab() {
           <h2 className="mt-4 text-3xl font-light leading-tight text-stone-900 md:text-4xl">Move from translation comparison to context, questions, cross-references, prayer, and one daily alignment.</h2>
           <p className="mt-3 text-sm leading-6 text-stone-600">Write what you notice first. Then ask the study assistant to organize context and reflection prompts around the reference without inventing Bible translation wording.</p>
 
-          <label className="mt-6 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Passage reference</span><input value={reference} onChange={(e) => setReference(e.target.value)} className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. John 15:1-8" /></label>
-          <label className="mt-4 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">My observations before AI</span><textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-[180px] w-full rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm leading-7 outline-none focus:ring-2 focus:ring-blue-200" placeholder="What repeats? What surprises you? What question do you have? What is the immediate context?" /></label>
+          <label className="mt-6 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Passage reference</span><input value={reference} onChange={(e) => { setReference(e.target.value); setStatus(''); }} maxLength={160} className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-200" placeholder="e.g. John 15:1-8" /></label>
+          <label className="mt-4 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">My observations before AI</span><textarea value={notes} onChange={(e) => { setNotes(e.target.value); setStatus(''); }} maxLength={4000} className="min-h-[180px] w-full rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm leading-7 outline-none focus:ring-2 focus:ring-blue-200" placeholder="What repeats? What surprises you? What question do you have? What is the immediate context?" /></label>
           <button type="button" onClick={generate} disabled={loading || !reference.trim()} className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-blue-700 px-5 py-3.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50">
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookOpenText className="mr-2 h-4 w-4" />}{loading ? 'Building study insight…' : 'Build study insight'}
           </button>
@@ -163,7 +188,7 @@ export function ScriptureInsightLab() {
               <div>
                 <NotebookPen className="h-8 w-8 text-blue-600" />
                 <h3 className="mt-5 text-3xl font-light text-stone-900">Your study can become a reusable spiritual reference, not a forgotten note.</h3>
-                <p className="mt-4 text-sm leading-6 text-stone-600">After insight is generated, save it privately, move it into your Spiritual Journal, or seed today’s Daily Guide so Scripture, prayer, service, and reflection stay connected.</p>
+                <p className="mt-4 text-sm leading-6 text-stone-600">After insight is generated, save it to this account’s browser-scoped draft, move it into your Spiritual Journal, or seed today’s Daily Guide so Scripture, prayer, service, and reflection stay connected.</p>
               </div>
               <Link href="/daily-guide" className="mt-8 inline-flex items-center justify-center rounded-xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white">Open Daily Guide <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </div>
