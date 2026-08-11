@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import {
   BookOpenText,
   Check,
@@ -37,29 +38,57 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function dailySeedKey(userId: string) {
+  return `digital-church-daily-seed:v2:${userId}:${today()}`;
+}
+
+function dailyIntelligenceKey(userId: string) {
+  return `digital-church-daily-intelligence:v2:${userId}:${today()}`;
+}
+
+function legacyDailySeedKey() {
+  return `digital-church-daily-seed:${today()}`;
+}
+
+function legacyDailyIntelligenceKey() {
+  return `digital-church-daily-intelligence:${today()}`;
+}
+
 export function DailyAlignmentIntelligence() {
+  const { data: session } = useSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id || '';
   const [seed, setSeed] = useState<DailySeed | null>(null);
   const [focus, setFocus] = useState('');
   const [result, setResult] = useState<DailyResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
   const [completed, setCompleted] = useState<string[]>([]);
+  const [legacyDraftPresent, setLegacyDraftPresent] = useState(false);
 
   useEffect(() => {
+    if (!userId) return;
+
     try {
-      const raw = window.localStorage.getItem(`digital-church-daily-seed:${today()}`);
+      const raw = window.localStorage.getItem(dailySeedKey(userId));
       if (raw) setSeed(JSON.parse(raw));
-      const saved = window.localStorage.getItem(`digital-church-daily-intelligence:${today()}`);
+
+      const saved = window.localStorage.getItem(dailyIntelligenceKey(userId));
       if (saved) {
         const parsed = JSON.parse(saved);
         setResult(parsed.result || null);
         setCompleted(Array.isArray(parsed.completed) ? parsed.completed : []);
         setFocus(parsed.focus || '');
       }
+
+      // Never auto-import old account-agnostic daily material from a shared browser.
+      setLegacyDraftPresent(Boolean(
+        window.localStorage.getItem(legacyDailySeedKey())
+        || window.localStorage.getItem(legacyDailyIntelligenceKey())
+      ));
     } catch {
-      // Daily intelligence remains optional.
+      setStatus('Today’s private browser state could not be restored.');
     }
-  }, []);
+  }, [userId]);
 
   const steps = useMemo(() => [
     ['morning', 'Morning focus', result?.morningFocus],
@@ -69,7 +98,33 @@ export function DailyAlignmentIntelligence() {
     ['next', 'One next step', result?.oneNextStep],
   ].filter((item) => item[2]) as Array<[string, string, string]>, [result]);
 
+  const persistDaily = (nextResult: DailyResult | null, nextCompleted: string[], nextFocus = focus) => {
+    if (!userId) return false;
+    try {
+      window.localStorage.setItem(dailyIntelligenceKey(userId), JSON.stringify({ focus: nextFocus, result: nextResult, completed: nextCompleted, updatedAt: new Date().toISOString() }));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const removeLegacyDraft = () => {
+    try {
+      window.localStorage.removeItem(legacyDailySeedKey());
+      window.localStorage.removeItem(legacyDailyIntelligenceKey());
+      setLegacyDraftPresent(false);
+      setStatus('Legacy unscoped daily browser data removed.');
+    } catch {
+      setStatus('Legacy daily browser data could not be removed.');
+    }
+  };
+
   const generate = async () => {
+    if (!userId) {
+      setStatus('Your signed-in session is still loading. Try again in a moment.');
+      return;
+    }
+
     setLoading(true);
     setStatus('');
     try {
@@ -86,9 +141,9 @@ export function DailyAlignmentIntelligence() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug: 'daily', input: input || 'Create a balanced Scripture, prayer, service, reflection, and rest rhythm for today.' }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.status === 401) {
-        setStatus('Sign in to generate a Scripture-seeded daily alignment. The manual Daily Guide above still works privately.');
+        setStatus('Sign in to generate a Scripture-seeded daily alignment.');
         return;
       }
       if (!res.ok) {
@@ -98,10 +153,8 @@ export function DailyAlignmentIntelligence() {
       const next = data?.data || data;
       setResult(next);
       setCompleted([]);
-      try {
-        window.localStorage.setItem(`digital-church-daily-intelligence:${today()}`, JSON.stringify({ focus, result: next, completed: [] }));
-      } catch {
-        // Optional local persistence.
+      if (!persistDaily(next, [], focus)) {
+        setStatus('Daily alignment generated, but this browser could not save the account-scoped draft.');
       }
     } catch {
       setStatus('Daily alignment intelligence is unavailable right now.');
@@ -113,10 +166,8 @@ export function DailyAlignmentIntelligence() {
   const toggle = (id: string) => {
     setCompleted((current) => {
       const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-      try {
-        window.localStorage.setItem(`digital-church-daily-intelligence:${today()}`, JSON.stringify({ focus, result, completed: next }));
-      } catch {
-        // Optional local persistence.
+      if (!persistDaily(result, next, focus)) {
+        setStatus('This step changed for the current view, but the browser could not save the account-scoped draft.');
       }
       return next;
     });
@@ -155,7 +206,14 @@ export function DailyAlignmentIntelligence() {
         <div className="p-6 sm:p-8 lg:p-10">
           <div className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-amber-700"><Sunrise className="mr-2 h-4 w-4" /> Daily alignment intelligence</div>
           <h2 className="mt-4 text-3xl font-light leading-tight text-stone-900 md:text-4xl">Carry today’s Bible study into morning focus, midday pause, service, relationships, prayer, and evening reflection.</h2>
-          <p className="mt-3 text-sm leading-6 text-stone-600">If you sent a study insight here from the Scripture page, it becomes the seed. Otherwise you can name what needs your attention today and build a calm, non-competitive rhythm around it.</p>
+          <p className="mt-3 text-sm leading-6 text-stone-600">If you sent a study insight here from the Scripture page, it becomes the seed for this signed-in account. Otherwise you can name what needs your attention today and build a calm, non-competitive rhythm around it.</p>
+
+          {legacyDraftPresent && (
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+              Older unscoped daily browser data exists for today. It was <strong>not imported</strong> because this browser may be shared and its original owner cannot be verified.
+              <button type="button" onClick={removeLegacyDraft} className="ml-2 font-semibold underline">Remove legacy data</button>
+            </div>
+          )}
 
           {seed?.reference && (
             <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-4">
@@ -165,7 +223,7 @@ export function DailyAlignmentIntelligence() {
             </div>
           )}
 
-          <label className="mt-5 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">What needs alignment today? · optional</span><textarea value={focus} onChange={(e) => setFocus(e.target.value)} className="min-h-[130px] w-full rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm leading-6 outline-none focus:ring-2 focus:ring-amber-200" placeholder="A decision, relationship, responsibility, habit, burden, opportunity to serve..." /></label>
+          <label className="mt-5 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">What needs alignment today? · optional</span><textarea value={focus} onChange={(e) => { setFocus(e.target.value); setStatus(''); }} maxLength={2200} className="min-h-[130px] w-full rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm leading-6 outline-none focus:ring-2 focus:ring-amber-200" placeholder="A decision, relationship, responsibility, habit, burden, opportunity to serve..." /></label>
           <button type="button" onClick={generate} disabled={loading} className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-stone-950 px-5 py-3.5 text-sm font-semibold text-white hover:bg-stone-800 disabled:opacity-50">
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : result ? <RefreshCw className="mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4" />}{loading ? 'Preparing today’s rhythm…' : result ? 'Rebuild today’s rhythm' : 'Build today’s rhythm'}
           </button>
