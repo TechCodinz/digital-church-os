@@ -45,6 +45,22 @@ function isMissingSiteConfigTable(error: unknown) {
     || candidate.message?.includes('relation "site_config" does not exist') === true;
 }
 
+export function normalizePublicHttpUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.length > 2048) return null;
+
+  try {
+    const url = new URL(trimmed);
+    if (!['https:', 'http:'].includes(url.protocol)) return null;
+    if (url.username || url.password) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 function canonicalizeStoredValue(value: unknown): SafeSiteSettings {
   if (!isRecord(value)) return {};
 
@@ -68,8 +84,14 @@ export function sanitizeSiteSettingsPatch(value: unknown): SafeSiteSettings {
 
   for (const [key, raw] of Object.entries(value)) {
     if (!STRING_KEYS.has(key) || typeof raw !== 'string') continue;
-    const maxLength = key === 'streamUrl' || key === 'churchWebsite' ? 2048 : 240;
-    safe[key] = raw.trim().slice(0, maxLength);
+
+    if (key === 'streamUrl' || key === 'churchWebsite') {
+      const normalizedUrl = normalizePublicHttpUrl(raw);
+      if (normalizedUrl !== null) safe[key] = normalizedUrl;
+      continue;
+    }
+
+    safe[key] = raw.trim().slice(0, 240);
   }
 
   return safe;
