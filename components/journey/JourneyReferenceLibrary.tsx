@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { BookOpenText, Filter, Footprints, Loader2, Search, ShieldCheck } from 'lucide-react';
+import { BookOpenText, Filter, Footprints, Loader2, Search, ShieldCheck, Trash2 } from 'lucide-react';
 
 type Entry = {
   id: string;
@@ -43,6 +43,8 @@ export function JourneyReferenceLibrary() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionStatus, setActionStatus] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -67,6 +69,31 @@ export function JourneyReferenceLibrary() {
   }, [query, source]);
 
   const sources = useMemo(() => payload?.sources || ['Daily Guide', 'Scripture', 'Prayer', 'Fasting', 'Family Altar', 'Choir', 'Sermon', 'Service Response'], [payload]);
+
+  const removeEntry = async (entry: Entry) => {
+    if (deletingId) return;
+    const confirmed = window.confirm(`Remove “${entry.title}” from your private Journey reference library? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setDeletingId(entry.id);
+    setActionStatus('');
+    try {
+      const response = await fetch('/api/journey/continuity', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: entry.id }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Unable to remove this Journey moment.');
+      setPayload((current) => current ? { ...current, entries: current.entries.filter((item) => item.id !== entry.id) } : current);
+      setExpanded((current) => current === entry.id ? null : current);
+      setActionStatus('Removed from your private Journey.');
+    } catch (reason) {
+      setActionStatus(reason instanceof Error ? reason.message : 'Unable to remove this Journey moment.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -112,6 +139,7 @@ export function JourneyReferenceLibrary() {
           {loading && <Loader2 className="h-5 w-5 animate-spin text-sage-700" />}
         </div>
 
+        {actionStatus ? <p className={`mt-4 rounded-2xl p-4 text-sm ${actionStatus.startsWith('Removed') ? 'border border-emerald-200 bg-emerald-50 text-emerald-700' : 'border border-amber-200 bg-amber-50 text-amber-800'}`}>{actionStatus}</p> : null}
         {error ? <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{error}</p> : null}
 
         {!loading && payload?.entries.length === 0 ? (
@@ -139,6 +167,7 @@ export function JourneyReferenceLibrary() {
                       <div className="mt-5 flex flex-wrap gap-3">
                         <Link href={sourceHref[entry.source] || '/journey'} className="rounded-xl bg-sage-600 px-4 py-2.5 text-xs font-semibold text-white">Return to {entry.source}</Link>
                         <Link href="/journey" className="rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-xs font-semibold text-stone-700">Back to Journey</Link>
+                        <button type="button" onClick={() => removeEntry(entry)} disabled={deletingId === entry.id} className="inline-flex items-center rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50">{deletingId === entry.id ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-2 h-3.5 w-3.5" />}{deletingId === entry.id ? 'Removing…' : 'Remove from Journey'}</button>
                       </div>
                     </div>
                   )}
