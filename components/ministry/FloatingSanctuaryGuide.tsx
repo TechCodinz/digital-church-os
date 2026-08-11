@@ -83,6 +83,64 @@ function contextFor(pathname: string): GuideContext {
     };
   }
 
+  if (
+    pathname.startsWith('/global-network') ||
+    pathname.startsWith('/church-network') ||
+    pathname.startsWith('/churches') ||
+    pathname.startsWith('/community-wall') ||
+    pathname.startsWith('/denominations') ||
+    pathname.startsWith('/conferences')
+  ) {
+    return {
+      eyebrow: 'Church & community companion',
+      title: 'Discover, connect, participate, and follow up with discernment.',
+      description: 'Move between verified church discovery, gatherings, moderated community, prayer, and meaningful participation without ranking traditions or exposing private church records.',
+      actions: [
+        { label: 'Discover churches', href: '/church-network', description: 'Find church communities and inspect their published ministry information.', icon: Compass },
+        { label: 'Live worship', href: '/live-service', description: 'Join a live gathering and use the service response pathway.', icon: Radio },
+        { label: 'Community Wall', href: '/community-wall', description: 'Share or discover moderated testimonies and Scripture reflections.', icon: Sparkles },
+        { label: 'Prayer Room', href: '/prayer-room', description: 'Move a prayer need out of public discussion into an appropriate prayer pathway.', icon: HeartHandshake },
+      ],
+    };
+  }
+
+  if (pathname.startsWith('/offering') || pathname.startsWith('/give-offering') || pathname.startsWith('/transparency') || pathname.startsWith('/aid-request')) {
+    return {
+      eyebrow: 'Stewardship companion',
+      title: 'Keep giving purposeful, transparent, and human-governed.',
+      description: 'Review ministry purposes, published stewardship records, support pathways, and prayer without treating giving as a condition for spiritual care or belonging.',
+      actions: [
+        { label: 'Give & Offering', href: '/offering', description: 'Use the configured provider and choose an intended ministry purpose.', icon: HeartHandshake },
+        { label: 'Transparency', href: '/transparency', description: 'Review published stewardship and impact information.', icon: BookOpenText },
+        { label: 'Request support', href: '/aid-request', description: 'Use the assistance pathway if you need help rather than giving.', icon: Compass },
+        { label: 'Prayer & care', href: '/prayer-room', description: 'Prayer and pastoral care remain available regardless of giving.', icon: HeartHandshake },
+      ],
+    };
+  }
+
+  if (
+    pathname.startsWith('/minister-portal') ||
+    pathname.startsWith('/command-center') ||
+    pathname.startsWith('/service-planner') ||
+    pathname.startsWith('/workers/manage') ||
+    pathname.startsWith('/events/manage') ||
+    pathname.startsWith('/groups/manage') ||
+    pathname.startsWith('/follow-up/manage') ||
+    pathname.startsWith('/attendance/manage')
+  ) {
+    return {
+      eyebrow: 'Ministry leadership companion',
+      title: 'Move from readiness signals to accountable ministry action.',
+      description: 'Keep service preparation, workers, follow-up, events, groups, care, and weekly priorities connected to the active church workspace and human leadership.',
+      actions: [
+        { label: 'Command Center', href: '/command-center', description: 'Review church readiness, priorities, risks, and next actions.', icon: Compass },
+        { label: 'Service planner', href: '/service-planner', description: 'Coordinate the service flow, worship, response, and team handoffs.', icon: Radio },
+        { label: 'Minister Portal', href: '/minister-portal', description: 'Prepare Scripture, teaching objectives, congregation context, and follow-up.', icon: BookOpenText },
+        { label: 'Pastoral Hub', href: '/pastoral-hub', description: 'Move sensitive care coordination into the protected human-led pathway.', icon: HeartHandshake },
+      ],
+    };
+  }
+
   return {
     eyebrow: 'Sanctuary Guide',
     title: 'What would help you move forward faithfully?',
