@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import { Navbar } from '@/components/layout/Navbar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { Footer } from '@/components/layout/Footer';
+import { FloatingSanctuaryGuide } from '@/components/ministry/FloatingSanctuaryGuide';
 import { Providers } from './providers';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -24,6 +25,7 @@ export default function RootLayout({
                     <div className="min-h-screen flex flex-col">
                         <Navbar />
                         <main className="flex-grow">{children}</main>
+                        <FloatingSanctuaryGuide />
                         <MobileBottomNav />
                         <Footer />
                     </div>
