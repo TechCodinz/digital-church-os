@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { BookOpenText, Brain, HeartHandshake, MoonStar, RotateCcw, Save, ShieldCheck } from 'lucide-react';
 
 type DreamDraft = {
@@ -22,29 +23,46 @@ const emptyDraft: DreamDraft = {
   title: '', account: '', emotions: '', wakingContext: '', observations: '', assumptions: '', recurring: '', scriptureThemes: '', response: '', trustedPerson: false, updatedAt: '',
 };
 
+const LEGACY_STORAGE_KEY = 'digital-church-os:dream-discernment';
+
+function storageKey(userId: string) {
+  return `digital-church-os:dream-discernment:v2:${userId}`;
+}
+
 export function DreamDiscernmentJournal() {
+  const { data: session } = useSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id || '';
   const [draft, setDraft] = useState<DreamDraft>(emptyDraft);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [storageNotice, setStorageNotice] = useState('');
+  const [legacyDraftPresent, setLegacyDraftPresent] = useState(false);
 
   useEffect(() => {
+    if (!userId) return;
+
     try {
-      const raw = window.localStorage.getItem('digital-church-os:dream-discernment');
-      if (!raw) return;
-      const saved = { ...emptyDraft, ...(JSON.parse(raw) as Partial<DreamDraft>) };
+      const scopedRaw = window.localStorage.getItem(storageKey(userId));
+      const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+      setLegacyDraftPresent(Boolean(legacyRaw));
+
+      // Never auto-import the old unscoped dream draft. Its owner is ambiguous on a shared browser.
+      if (!scopedRaw) return;
+
+      const saved = { ...emptyDraft, ...(JSON.parse(scopedRaw) as Partial<DreamDraft>) };
       setDraft(saved);
       setSavedAt(saved.updatedAt || null);
     } catch {
-      // Private browser recovery is best-effort.
+      setStorageNotice('Private dream notes could not be restored from this browser.');
     }
-  }, []);
+  }, [userId]);
 
   const prompts = useMemo(() => {
     const emotion = draft.emotions.trim() || 'the strongest emotion you remember';
     const context = draft.wakingContext.trim() || 'what has been happening in waking life';
     return [
-      `What in the dream is directly observed, and what is an interpretation you added afterward?`,
+      'What in the dream is directly observed, and what is an interpretation you added afterward?',
       `How might ${emotion} relate to ${context}?`,
-      `Does any recurring theme point you toward prayer, rest, reconciliation, Scripture study, or a trusted conversation rather than a prediction?`,
+      'Does any recurring theme point you toward prayer, rest, reconciliation, Scripture study, or a trusted conversation rather than a prediction?',
     ];
   }, [draft.emotions, draft.wakingContext]);
 
@@ -53,17 +71,43 @@ export function DreamDiscernmentJournal() {
   }
 
   function save() {
-    const updatedAt = new Date().toISOString();
-    const next = { ...draft, updatedAt };
-    window.localStorage.setItem('digital-church-os:dream-discernment', JSON.stringify(next));
-    setDraft(next);
-    setSavedAt(updatedAt);
+    if (!userId) {
+      setStorageNotice('Sign in is required before private dream notes can be saved.');
+      return;
+    }
+
+    try {
+      const updatedAt = new Date().toISOString();
+      const next = { ...draft, updatedAt };
+      window.localStorage.setItem(storageKey(userId), JSON.stringify(next));
+      setDraft(next);
+      setSavedAt(updatedAt);
+      setStorageNotice('Saved to this signed-in account’s browser-scoped draft.');
+    } catch {
+      setStorageNotice('Private dream notes could not be saved in this browser.');
+    }
   }
 
   function reset() {
     setDraft(emptyDraft);
     setSavedAt(null);
-    window.localStorage.removeItem('digital-church-os:dream-discernment');
+    if (!userId) return;
+    try {
+      window.localStorage.removeItem(storageKey(userId));
+      setStorageNotice('This account’s dream draft was reset.');
+    } catch {
+      setStorageNotice('This dream draft could not be reset.');
+    }
+  }
+
+  function removeLegacyDraft() {
+    try {
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+      setLegacyDraftPresent(false);
+      setStorageNotice('Legacy unscoped dream draft removed.');
+    } catch {
+      setStorageNotice('Legacy dream draft could not be removed.');
+    }
   }
 
   return (
@@ -73,10 +117,18 @@ export function DreamDiscernmentJournal() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-sage-600">Private discernment journal</p>
             <h2 className="mt-2 text-3xl font-light text-stone-900 sm:text-4xl">Separate memory, observation, interpretation, and response.</h2>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">This workspace helps organize a dream without declaring what it means. Your notes stay in this browser unless you deliberately move context into another Church OS pathway.</p>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">This workspace helps organize a dream without declaring what it means. Your notes stay in this signed-in account’s browser-scoped draft unless you deliberately move context into another Church OS pathway.</p>
           </div>
           <div className="inline-flex items-center rounded-2xl border border-sage-200 bg-sage-50 px-4 py-3 text-sm font-semibold text-sage-800"><MoonStar className="mr-2 h-4 w-4" /> Observation first</div>
         </div>
+
+        {legacyDraftPresent && (
+          <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            An older unscoped dream draft exists. It was <strong>not imported</strong> because this browser may be shared and its original owner cannot be verified.
+            <button type="button" onClick={removeLegacyDraft} className="ml-2 font-semibold underline">Remove legacy draft</button>
+          </div>
+        )}
+        {storageNotice && <p className="mb-5 text-xs text-stone-500">{storageNotice}</p>}
 
         <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
           <div className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm sm:p-7">
@@ -97,7 +149,7 @@ export function DreamDiscernmentJournal() {
               <label className="flex items-start gap-3 rounded-2xl bg-stone-50 p-4 text-sm text-stone-700"><input type="checkbox" checked={draft.trustedPerson} onChange={(e) => update('trustedPerson', e.target.checked)} className="mt-1" /><span><strong className="block">I want to discuss this with a trusted human</strong><span className="mt-1 block text-xs leading-5 text-stone-500">Use this as a reminder only. It does not automatically send your notes to anyone.</span></span></label>
             </div>
             <div className="mt-5 flex flex-wrap gap-2"><button onClick={save} type="button" className="inline-flex min-h-11 items-center rounded-xl bg-sage-600 px-4 text-sm font-semibold text-white"><Save className="mr-2 h-4 w-4" /> Save private draft</button><button onClick={reset} type="button" className="inline-flex min-h-11 items-center rounded-xl border border-stone-200 px-4 text-sm font-semibold text-stone-600"><RotateCcw className="mr-2 h-4 w-4" /> Reset</button></div>
-            <p className="mt-3 text-xs text-stone-500">{savedAt ? `Private browser draft saved ${new Date(savedAt).toLocaleString()}.` : 'Private browser draft not yet saved.'}</p>
+            <p className="mt-3 text-xs text-stone-500">{savedAt ? `Account-scoped browser draft saved ${new Date(savedAt).toLocaleString()}.` : 'Private browser draft not yet saved for this account.'}</p>
           </div>
 
           <div className="space-y-5">
