@@ -12,36 +12,78 @@ type StreamConfig = {
   source: 'site-config' | 'environment' | 'none';
 };
 
-function providerName(url: string) {
-  if (url.includes('youtube.com') || url.includes('youtu.be')) return 'YouTube';
-  if (url.includes('twitch.tv')) return 'Twitch';
-  if (url.includes('vimeo.com')) return 'Vimeo';
-  return 'the configured stream provider';
+type StreamProvider = 'YouTube' | 'Twitch' | 'Vimeo' | 'external';
+
+function parseHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url : null;
+  } catch {
+    return null;
+  }
 }
 
-function buildEmbedUrl(url: string, hostname: string) {
+function providerName(value: string): StreamProvider {
+  const url = parseHttpUrl(value);
+  if (!url) return 'external';
+
+  const host = url.hostname.toLowerCase();
+  if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be', 'youtube-nocookie.com', 'www.youtube-nocookie.com'].includes(host)) return 'YouTube';
+  if (['twitch.tv', 'www.twitch.tv'].includes(host)) return 'Twitch';
+  if (['vimeo.com', 'www.vimeo.com'].includes(host)) return 'Vimeo';
+  return 'external';
+}
+
+function safePathSegment(value: string | undefined) {
+  if (!value) return '';
+  return /^[A-Za-z0-9_-]+$/.test(value) ? value : '';
+}
+
+function buildEmbedUrl(value: string, hostname: string) {
+  const url = parseHttpUrl(value);
   if (!url) return '';
 
-  if (url.includes('youtube.com/watch') || url.includes('youtu.be')) {
-    const videoId = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/)?.[1];
+  const host = url.hostname.toLowerCase();
+
+  if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtube-nocookie.com', 'www.youtube-nocookie.com'].includes(host)) {
+    const path = url.pathname.split('/').filter(Boolean);
+    const videoId = url.pathname === '/watch'
+      ? safePathSegment(url.searchParams.get('v') || undefined)
+      : path[0] === 'embed'
+        ? safePathSegment(path[1])
+        : path[0] === 'shorts'
+          ? safePathSegment(path[1])
+          : '';
+
+    if (videoId) return `https://www.youtube.com/embed/${encodeURIComponent(videoId)}`;
+
+    if (url.pathname === '/live_stream') {
+      const channel = safePathSegment(url.searchParams.get('channel') || undefined);
+      return channel ? `https://www.youtube.com/live_stream?channel=${encodeURIComponent(channel)}` : '';
+    }
+
+    return '';
+  }
+
+  if (host === 'youtu.be') {
+    const videoId = safePathSegment(url.pathname.split('/').filter(Boolean)[0]);
     return videoId ? `https://www.youtube.com/embed/${encodeURIComponent(videoId)}` : '';
   }
-  if (url.includes('youtube.com/embed') || url.includes('youtube.com/live_stream')) return url;
 
-  if (url.includes('twitch.tv') && hostname) {
-    const channel = url.split('twitch.tv/')[1]?.split(/[/?#]/)[0];
+  if (['twitch.tv', 'www.twitch.tv'].includes(host) && hostname) {
+    const channel = safePathSegment(url.pathname.split('/').filter(Boolean)[0]);
     return channel
       ? `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&parent=${encodeURIComponent(hostname)}`
       : '';
   }
 
-  if (url.includes('vimeo.com/event/')) {
-    const eventId = url.match(/vimeo\.com\/event\/(\d+)/)?.[1];
-    return eventId ? `https://vimeo.com/event/${eventId}/embed` : '';
-  }
+  if (['vimeo.com', 'www.vimeo.com'].includes(host)) {
+    const path = url.pathname.split('/').filter(Boolean);
+    if (path[0] === 'event' && /^\d+$/.test(path[1] || '')) {
+      return `https://vimeo.com/event/${path[1]}/embed`;
+    }
 
-  if (url.includes('vimeo.com')) {
-    const videoId = url.match(/vimeo\.com\/(\d+)/)?.[1];
+    const videoId = path.find((segment) => /^\d+$/.test(segment));
     return videoId ? `https://player.vimeo.com/video/${videoId}` : '';
   }
 
@@ -87,7 +129,12 @@ export default function LiveServicePage() {
           source: ['site-config', 'environment'].includes(data.source) ? data.source : 'none',
         };
         setStream(next);
-        setStreamNotice(next.configured ? `Playback is provided by ${providerName(next.streamUrl)}.` : 'No live-stream provider is configured for this service.');
+        const nextProvider = providerName(next.streamUrl);
+        setStreamNotice(next.configured
+          ? nextProvider === 'external'
+            ? 'A stream provider is configured and opens in a separate tab.'
+            : `Playback is provided by ${nextProvider}.`
+          : 'No live-stream provider is configured for this service.');
       } catch {
         if (active) setStreamNotice('Stream configuration could not be loaded.');
       } finally {
@@ -158,7 +205,7 @@ export default function LiveServicePage() {
                     <p className="text-lg font-light text-stone-200">{stream.configured ? 'This provider opens outside the Church OS player' : 'No stream is configured right now'}</p>
                     <p className="mt-2 text-sm leading-6 text-stone-500">This page does not label a service “live” or invent viewer, playback, quality, volume, or timer state without a provider source.</p>
                     {stream.configured && stream.streamUrl && (
-                      <a href={stream.streamUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex rounded-full bg-sage-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-sage-500">Open {provider}</a>
+                      <a href={stream.streamUrl} target="_blank" rel="noopener noreferrer" className="mt-5 inline-flex rounded-full bg-sage-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-sage-500">Open {provider === 'external' ? 'configured provider' : provider}</a>
                     )}
                     {!stream.configured && isProductAdmin && <a href="/admin/settings" className="mt-5 inline-flex rounded-full bg-sage-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-sage-500">Open Admin Settings</a>}
                   </div>
