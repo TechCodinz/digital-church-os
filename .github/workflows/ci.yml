@@ -2,17 +2,23 @@ name: Production Verification
 
 on:
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - production/ultra-route-hardening
   push:
-    branches: [main]
+    branches:
+      - main
+      - production/ultra-route-hardening
+      - phase11-ministry-experience-enhancements
+  workflow_dispatch:
 
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     env:
-      NODE_ENV: test
+      NODE_ENV: production
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: ci-secret-ci-secret-ci-secret-ci-secret
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/digital_church_os_test
@@ -51,6 +57,9 @@ jobs:
 
       - name: Validate Prisma schema
         run: npx prisma validate
+
+      - name: Apply migrations to fresh CI database
+        run: npx prisma migrate deploy
 
       - name: Lint
         run: npm run lint
