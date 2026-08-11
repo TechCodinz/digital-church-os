@@ -33,9 +33,32 @@ export function MinistryRoutePage({
   intelligence,
   safeguards,
 }: MinistryRoutePageProps) {
+  const flow = [
+    {
+      step: '01',
+      title: 'Understand the moment',
+      description: intelligence[0]?.description || description,
+    },
+    {
+      step: '02',
+      title: 'Take a faithful action',
+      description: features[0]?.description || 'Move from information into a clear ministry action without unnecessary complexity.',
+    },
+    {
+      step: '03',
+      title: 'Connect the next ministry surface',
+      description: intelligence[1]?.description || 'Carry the work forward into the most relevant connected ministry experience.',
+    },
+    {
+      step: '04',
+      title: 'Review with accountable context',
+      description: safeguards[0] || 'Keep important ministry decisions transparent, permission-aware, and human accountable.',
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-cream-50 pt-20 sm:pt-24">
-      <section className="relative overflow-hidden px-4 pb-14 pt-10 sm:px-6 sm:pb-16 sm:pt-12 lg:px-8">
+    <div className="min-h-screen bg-cream-50 pb-24 pt-20 sm:pt-24 lg:pb-0">
+      <section className="relative overflow-hidden px-4 pb-14 pt-8 sm:px-6 sm:pb-16 sm:pt-12 lg:px-8">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(120,155,100,0.18),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(210,180,140,0.24),_transparent_35%)]" />
         <div className="mx-auto grid max-w-7xl items-center gap-8 lg:grid-cols-[1fr_0.8fr] lg:gap-10">
           <div>
@@ -50,14 +73,14 @@ export function MinistryRoutePage({
 
             <div className="mt-7 flex flex-wrap items-center gap-2 text-xs font-medium text-stone-500">
               <span className="inline-flex items-center rounded-full border border-stone-200 bg-white/80 px-3 py-1.5">
-                <Activity className="mr-1.5 h-3.5 w-3.5 text-sage-600" aria-hidden="true" /> Live ministry workflow
+                <Activity className="mr-1.5 h-3.5 w-3.5 text-sage-600" aria-hidden="true" /> Connected ministry workflow
               </span>
               <span className="inline-flex items-center rounded-full border border-stone-200 bg-white/80 px-3 py-1.5">
-                <LockKeyhole className="mr-1.5 h-3.5 w-3.5 text-sage-600" aria-hidden="true" /> Guarded by role & policy
+                <LockKeyhole className="mr-1.5 h-3.5 w-3.5 text-sage-600" aria-hidden="true" /> Role, privacy & policy aware
               </span>
             </div>
 
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-9 grid gap-3 sm:flex sm:flex-row">
               <Link href={primaryHref} className="inline-flex min-h-12 items-center justify-center rounded-full bg-sage-600 px-7 py-3.5 text-sm font-semibold text-white shadow-xl shadow-sage-200 transition hover:-translate-y-0.5 hover:bg-sage-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-500 focus-visible:ring-offset-2">
                 {primaryLabel} <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
               </Link>
@@ -71,9 +94,9 @@ export function MinistryRoutePage({
             <div className="border-b border-cream-200 bg-gradient-to-br from-white to-sage-50/70 p-6 sm:p-8">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-sage-600">Route intelligence</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-sage-600">Workspace intelligence</p>
                   <h2 className="mt-2 text-2xl text-stone-800">{badge}</h2>
-                  <p className="mt-2 text-sm text-stone-500">Actionable ministry guidance for this workspace.</p>
+                  <p className="mt-2 text-sm text-stone-500">Context, action, and connected ministry handoffs in one place.</p>
                 </div>
                 <div className="rounded-3xl border border-sage-100 bg-white p-4 text-4xl shadow-sm" aria-hidden="true">{emoji}</div>
               </div>
@@ -103,7 +126,7 @@ export function MinistryRoutePage({
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sage-600">Execution layer</p>
-              <h2 className="mt-1 text-3xl font-light text-stone-800">Professional workflow</h2>
+              <h2 className="mt-1 text-3xl font-light text-stone-800">Professional ministry workflow</h2>
             </div>
           </div>
           <div className="grid gap-5 md:grid-cols-3">
@@ -119,11 +142,41 @@ export function MinistryRoutePage({
       </section>
 
       <section className="px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-7 max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sage-600">Connected action flow</p>
+            <h2 className="mt-2 text-3xl font-light text-stone-800 sm:text-4xl">Move from insight to ministry action without losing context.</h2>
+            <p className="mt-3 text-sm leading-6 text-stone-600 sm:text-base">Each workspace should help a member or leader understand what matters, act, hand off to the right ministry surface, and review sensitive decisions responsibly.</p>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-4">
+            {flow.map((item) => (
+              <div key={item.step} className="rounded-3xl border border-stone-200 bg-white/85 p-5 shadow-sm">
+                <p className="text-xs font-bold tracking-[0.24em] text-sage-600">{item.step}</p>
+                <h3 className="mt-3 text-lg font-semibold text-stone-800">{item.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-stone-600">{item.description}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <Link href={primaryHref} className="group flex min-h-14 items-center justify-between rounded-2xl border border-sage-200 bg-sage-50 px-5 py-4 text-sm font-semibold text-sage-800 transition hover:border-sage-300 hover:bg-sage-100">
+              <span>{primaryLabel}</span>
+              <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" aria-hidden="true" />
+            </Link>
+            <Link href={secondaryHref} className="group flex min-h-14 items-center justify-between rounded-2xl border border-stone-200 bg-white px-5 py-4 text-sm font-semibold text-stone-700 transition hover:border-sage-300 hover:text-sage-800">
+              <span>{secondaryLabel}</span>
+              <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="px-4 pb-12 sm:px-6 sm:pb-14 lg:px-8">
         <div className="mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-stone-900 p-7 text-white shadow-2xl sm:p-10">
           <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sage-200">Trust and safety</p>
-              <h2 className="mt-3 text-3xl font-light leading-tight">Designed to serve people with dignity, clarity, and accountable intelligence.</h2>
+              <h2 className="mt-3 text-3xl font-light leading-tight">Designed to serve people with dignity, clarity, privacy, and accountable intelligence.</h2>
+              <p className="mt-3 text-sm leading-6 text-stone-300">Automation may assist with organization and next-step guidance, but sensitive pastoral, financial, safeguarding, or leadership decisions stay human-led.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {safeguards.map((item) => (
@@ -135,6 +188,17 @@ export function MinistryRoutePage({
           </div>
         </div>
       </section>
+
+      <div className="fixed inset-x-0 bottom-[5.1rem] z-30 px-3 sm:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-2 gap-2 rounded-2xl border border-stone-200 bg-white/95 p-2 shadow-2xl backdrop-blur">
+          <Link href={primaryHref} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-sage-600 px-3 text-center text-xs font-semibold text-white">
+            {primaryLabel}
+          </Link>
+          <Link href={secondaryHref} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-stone-200 bg-white px-3 text-center text-xs font-semibold text-stone-700">
+            {secondaryLabel}
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
