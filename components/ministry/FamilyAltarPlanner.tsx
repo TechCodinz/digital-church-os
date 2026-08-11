@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { BookOpenText, Check, Clock3, HeartHandshake, Home, Loader2, RotateCcw, Save, UsersRound } from 'lucide-react';
 
 type FamilyAge = 'young-children' | 'older-children' | 'teens' | 'mixed' | 'adults';
@@ -20,7 +21,11 @@ type SavedAltar = {
 };
 
 const steps = ['Gather', 'Read', 'Talk', 'Pray', 'Worship', 'Live it'];
-const storageKey = 'digital-church-os:family-altar-planner';
+const LEGACY_STORAGE_KEY = 'digital-church-os:family-altar-planner';
+
+function storageKey(userId: string) {
+  return `digital-church-os:family-altar-planner:v2:${userId}`;
+}
 
 const ageLabels: Record<FamilyAge, string> = {
   'young-children': 'Young children',
@@ -40,6 +45,8 @@ function discussionPrompt(age: FamilyAge, theme: string) {
 }
 
 export function FamilyAltarPlanner() {
+  const { data: session } = useSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id || '';
   const [scripture, setScripture] = useState('');
   const [theme, setTheme] = useState('');
   const [age, setAge] = useState<FamilyAge>('mixed');
@@ -51,11 +58,17 @@ export function FamilyAltarPlanner() {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
+  const [legacyDraftPresent, setLegacyDraftPresent] = useState(false);
 
   useEffect(() => {
+    if (!userId) return;
+
     try {
-      const raw = window.localStorage.getItem(storageKey);
+      const raw = window.localStorage.getItem(storageKey(userId));
+      const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+      setLegacyDraftPresent(Boolean(legacyRaw));
       if (!raw) return;
+
       const saved = JSON.parse(raw) as SavedAltar;
       setScripture(saved.scripture || '');
       setTheme(saved.theme || '');
@@ -67,9 +80,9 @@ export function FamilyAltarPlanner() {
       setCompleted(Array.isArray(saved.completed) ? saved.completed : []);
       setSavedAt(saved.updatedAt || null);
     } catch {
-      // Private local recovery is best-effort.
+      setSaveStatus('Private family plan could not be restored from this browser.');
     }
-  }, []);
+  }, [userId]);
 
   const allocation = useMemo(() => {
     const values = minutes <= 10 ? [1, 2, 2, 2, 1, 2] : minutes <= 20 ? [2, 4, 4, 4, 3, 3] : minutes <= 30 ? [3, 6, 6, 5, 4, 6] : [5, 8, 9, 8, 6, 9];
@@ -77,14 +90,20 @@ export function FamilyAltarPlanner() {
   }, [minutes]);
 
   function persistLocal() {
+    if (!userId) throw new Error('Signed-in account required for private browser storage.');
     const updatedAt = new Date().toISOString();
     const payload: SavedAltar = { scripture, theme, age, minutes, gratitude, prayerFocus, serviceAction, completed, updatedAt };
-    window.localStorage.setItem(storageKey, JSON.stringify(payload));
+    window.localStorage.setItem(storageKey(userId), JSON.stringify(payload));
     setSavedAt(updatedAt);
   }
 
   async function save() {
     if (saving) return;
+    if (!userId) {
+      setSaveStatus('Your signed-in session is still loading. Try saving again in a moment.');
+      return;
+    }
+
     setSaving(true);
     setSaveStatus('');
 
@@ -121,14 +140,12 @@ export function FamilyAltarPlanner() {
       });
       const data = await response.json().catch(() => ({}));
       if (response.ok) {
-        setSaveStatus('Family plan saved on this device and a private household formation moment added to your Journey.');
-      } else if (response.status === 401 && localSaved) {
-        setSaveStatus('Family plan saved privately on this device. Sign in to carry a household formation moment into your Journey.');
+        setSaveStatus('Family plan saved to this account’s browser draft and a private household formation moment added to your Journey.');
       } else {
-        setSaveStatus(localSaved ? `Family plan saved on this device. ${data.error || 'Journey sync is temporarily unavailable.'}` : (data.error || 'Unable to save the family plan.'));
+        setSaveStatus(localSaved ? `Family plan saved to this account’s browser draft. ${data.error || 'Journey sync is temporarily unavailable.'}` : (data.error || 'Unable to save the family plan.'));
       }
     } catch {
-      setSaveStatus(localSaved ? 'Family plan saved privately on this device. Journey sync is temporarily unavailable.' : 'Unable to save the family plan.');
+      setSaveStatus(localSaved ? 'Family plan saved to this account’s browser draft. Journey sync is temporarily unavailable.' : 'Unable to save the family plan.');
     } finally {
       setSaving(false);
     }
@@ -145,7 +162,23 @@ export function FamilyAltarPlanner() {
     setCompleted([]);
     setSavedAt(null);
     setSaveStatus('');
-    window.localStorage.removeItem(storageKey);
+    if (!userId) return;
+    try {
+      window.localStorage.removeItem(storageKey(userId));
+      setSaveStatus('This account’s family plan was reset.');
+    } catch {
+      setSaveStatus('This family plan could not be reset.');
+    }
+  }
+
+  function removeLegacyDraft() {
+    try {
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+      setLegacyDraftPresent(false);
+      setSaveStatus('Legacy unscoped family plan removed.');
+    } catch {
+      setSaveStatus('Legacy family plan could not be removed.');
+    }
   }
 
   function toggle(step: string) {
@@ -164,6 +197,13 @@ export function FamilyAltarPlanner() {
           </div>
           <div className="inline-flex items-center rounded-2xl border border-sage-200 bg-sage-50 px-4 py-3 text-sm font-semibold text-sage-800"><Home className="mr-2 h-4 w-4" /> {completed.length}/{steps.length} moments complete</div>
         </div>
+
+        {legacyDraftPresent && (
+          <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            An older unscoped family plan exists. It was <strong>not imported</strong> because this browser may be shared and its original owner cannot be verified.
+            <button type="button" onClick={removeLegacyDraft} className="ml-2 font-semibold underline">Remove legacy plan</button>
+          </div>
+        )}
 
         <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
           <div className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
@@ -196,7 +236,7 @@ export function FamilyAltarPlanner() {
               <button onClick={save} disabled={saving} type="button" className="inline-flex min-h-11 items-center rounded-xl bg-sage-600 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}{saving ? 'Saving privately…' : 'Save family plan'}</button>
               <button onClick={reset} type="button" className="inline-flex min-h-11 items-center rounded-xl border border-stone-200 px-4 text-sm font-semibold text-stone-600"><RotateCcw className="mr-2 h-4 w-4" /> Reset</button>
             </div>
-            <p className="mt-3 text-xs leading-5 text-stone-500">{saveStatus || (savedAt ? `Private browser draft saved ${new Date(savedAt).toLocaleString()}.` : 'Private browser draft not yet saved.')}</p>
+            <p className="mt-3 text-xs leading-5 text-stone-500">{saveStatus || (savedAt ? `Account-scoped browser draft saved ${new Date(savedAt).toLocaleString()}.` : 'Private browser draft not yet saved for this account.')}</p>
             <Link href="/journey" className="mt-2 inline-flex text-xs font-semibold text-sage-700">Open private Journey →</Link>
           </div>
 
@@ -210,7 +250,7 @@ export function FamilyAltarPlanner() {
               {steps.map((step) => {
                 const done = completed.includes(step);
                 const descriptions: Record<string, string> = {
-                  Gather: `Welcome everyone, settle devices, and name the theme in one sentence.`,
+                  Gather: 'Welcome everyone, settle devices, and name the theme in one sentence.',
                   Read: scripture.trim() ? `Read ${scripture.trim()} slowly. Let more than one person participate if appropriate.` : 'Choose and read the Scripture passage slowly before interpretation or application.',
                   Talk: discussionPrompt(age, theme),
                   Pray: prayerFocus.trim() ? `Pray specifically about: ${prayerFocus.trim()}` : 'Let each person offer a short prayer, request, lament, thanksgiving, or silence.',
