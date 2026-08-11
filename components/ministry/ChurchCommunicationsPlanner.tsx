@@ -3,6 +3,12 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { Check, Mail, Megaphone, MessageSquare, Plus, ShieldCheck, Trash2, UsersRound } from 'lucide-react';
+import {
+  getActiveChurchId,
+  loadChurchOperationalRecord,
+  saveChurchOperationalRecord,
+  subscribeToChurchWorkspace,
+} from '@/lib/church-ops/client-record';
 
 type Channel = 'in-app' | 'email' | 'sms' | 'whatsapp' | 'social' | 'stage';
 type Status = 'draft' | 'review' | 'approved' | 'scheduled';
@@ -23,19 +29,57 @@ const defaults: MessageItem[] = [
   { id: 'guests', title: 'Guest follow-up invitation', audience: 'Consented guests', owner: '', channel: 'email', status: 'draft', sendAt: '', body: '', consentRequired: true },
 ];
 
-const storageKey = 'digital-church-communications-planner';
+const legacyKey = 'digital-church-communications-planner';
+const localPrefix = 'digital-church-communications-planner:v2';
+
+function normalizeMessages(value: unknown): MessageItem[] {
+  if (!Array.isArray(value)) return defaults;
+  return value.filter((item) => item && typeof item === 'object').map((item: any, index) => ({
+    id: typeof item.id === 'string' ? item.id : `message-${index}`,
+    title: typeof item.title === 'string' ? item.title : 'Announcement',
+    audience: typeof item.audience === 'string' ? item.audience : '',
+    owner: typeof item.owner === 'string' ? item.owner : '',
+    channel: ['in-app', 'email', 'sms', 'whatsapp', 'social', 'stage'].includes(item.channel) ? item.channel : 'in-app',
+    status: ['draft', 'review', 'approved', 'scheduled'].includes(item.status) ? item.status : 'draft',
+    sendAt: typeof item.sendAt === 'string' ? item.sendAt : '',
+    body: typeof item.body === 'string' ? item.body : '',
+    consentRequired: Boolean(item.consentRequired),
+  }));
+}
 
 export function ChurchCommunicationsPlanner() {
   const [messages, setMessages] = useState<MessageItem[]>(defaults);
   const [saved, setSaved] = useState(false);
+  const [activeChurchId, setActiveChurchId] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('Private browser draft');
+
+  const loadWorkspace = async (churchId: string) => {
+    setActiveChurchId(churchId);
+    setSaved(false);
+    setSyncing(true);
+    setSyncMessage(churchId ? 'Loading church communications…' : 'Loading private communications draft…');
+    try {
+      const result = await loadChurchOperationalRecord({
+        churchId,
+        module: 'communications',
+        recordKey: 'plan',
+        localStoragePrefix: localPrefix,
+        legacyLocalStorageKey: legacyKey,
+        defaultValue: defaults,
+        normalize: normalizeMessages,
+      });
+      setMessages(result.value);
+      setSyncMessage(result.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      if (raw) setMessages(JSON.parse(raw));
-    } catch {
-      // Local planning is optional.
-    }
+    void loadWorkspace(getActiveChurchId());
+    return subscribeToChurchWorkspace((churchId) => void loadWorkspace(churchId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const ready = useMemo(() => messages.filter((item) => item.owner && item.audience && item.body.trim() && item.status !== 'draft').length, [messages]);
@@ -44,13 +88,23 @@ export function ChurchCommunicationsPlanner() {
   const update = (id: string, patch: Partial<MessageItem>) => setMessages((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
   const remove = (id: string) => setMessages((current) => current.filter((item) => item.id !== id));
   const add = () => setMessages((current) => [...current, { id: `${Date.now()}`, title: 'New announcement', audience: '', owner: '', channel: 'in-app', status: 'draft', sendAt: '', body: '', consentRequired: false }]);
-  const save = () => {
+  const save = async () => {
+    setSyncing(true);
+    setSyncMessage(activeChurchId ? 'Saving communications to active church…' : 'Saving private communications draft…');
     try {
-      window.localStorage.setItem(storageKey, JSON.stringify(messages));
+      const result = await saveChurchOperationalRecord({
+        churchId: activeChurchId,
+        module: 'communications',
+        recordKey: 'plan',
+        title: 'Communications & announcements plan',
+        localStoragePrefix: localPrefix,
+        value: messages,
+      });
       setSaved(true);
+      setSyncMessage(result.message);
       window.setTimeout(() => setSaved(false), 1500);
-    } catch {
-      setSaved(false);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -62,7 +116,8 @@ export function ChurchCommunicationsPlanner() {
             <div>
               <div className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-blue-700"><Megaphone className="mr-2 h-4 w-4" /> Communications command desk</div>
               <h1 className="mt-4 max-w-3xl text-3xl font-light leading-tight text-stone-900 md:text-5xl">Plan church communication with clear audience, ownership, consent, review, and timing.</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">Prepare announcements across in-app, email, SMS, WhatsApp, social, and stage channels without pretending external delivery providers are already connected.</p>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">Prepare announcements across in-app, email, SMS, WhatsApp, social, and stage channels without pretending external delivery providers are already connected. Shared planning is scoped to the active church workspace.</p>
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-600"><ShieldCheck className="h-3.5 w-3.5 text-blue-700" /> {syncing ? 'Syncing…' : syncMessage}</div>
             </div>
             <div className="min-w-[185px] rounded-2xl bg-stone-950 p-4 text-white">
               <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Ready for delivery</p>
@@ -93,7 +148,7 @@ export function ChurchCommunicationsPlanner() {
 
           <div className="mt-5 flex flex-wrap gap-3">
             <button type="button" onClick={add} className="inline-flex items-center rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white"><Plus className="mr-2 h-4 w-4" /> Add announcement</button>
-            <button type="button" onClick={save} className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700"><Check className="mr-2 h-4 w-4" /> {saved ? 'Saved privately' : 'Save plan'}</button>
+            <button type="button" onClick={() => void save()} disabled={syncing} className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700 disabled:opacity-60"><Check className="mr-2 h-4 w-4" /> {syncing ? 'Syncing…' : saved ? 'Saved' : activeChurchId ? 'Save to active church' : 'Save private plan'}</button>
           </div>
         </div>
 
@@ -107,7 +162,7 @@ export function ChurchCommunicationsPlanner() {
           </div>
           <div className="mt-7 grid gap-3">
             <Link href="/events" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold">Open events →</Link>
-            <Link href="/admin/follow-up" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold">Open follow-up queue →</Link>
+            <Link href="/outreach" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold">Open consent-aware outreach →</Link>
           </div>
         </aside>
       </div>
