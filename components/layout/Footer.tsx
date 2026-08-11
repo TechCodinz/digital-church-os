@@ -37,6 +37,7 @@ export const Footer = () => {
       label: 'Operations',
       items: [
         { href: '/leader-onboarding', label: 'Leader Setup' },
+        { href: '/church-life', label: 'Church Life Operations' },
         { href: '/care', label: 'Human Care' },
         { href: '/workers', label: 'Church Workers' },
         { href: '/gifts', label: 'Gift Pools' },
