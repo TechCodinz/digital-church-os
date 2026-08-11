@@ -1,22 +1,47 @@
-import { withAuth } from "next-auth/middleware";
-import { NextResponse } from "next/server";
+import { withAuth } from 'next-auth/middleware';
+import { NextResponse } from 'next/server';
+
+const churchAdminUiPrefixes = [
+  '/admin',
+  '/command-center',
+  '/ministry-command-center',
+  '/leader-onboarding',
+  '/service-planner',
+  '/communications',
+  '/facilities',
+  '/testimonies',
+  '/outreach',
+  '/departments',
+  '/requests',
+  '/intelligence',
+  '/council',
+  '/media-rights',
+  '/release-readiness',
+];
+
+const churchAdminApiPrefixes = [
+  '/api/admin',
+  '/api/command-center',
+  '/api/media-rights',
+  '/api/release',
+];
+
+function matchesPrefix(path: string, prefix: string) {
+  return path === prefix || path.startsWith(`${prefix}/`);
+}
 
 export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
-    if (path.startsWith('/admin') && token?.role !== 'CHURCH_ADMIN') {
+    const adminUi = churchAdminUiPrefixes.some((prefix) => matchesPrefix(path, prefix));
+    if (adminUi && token?.role !== 'CHURCH_ADMIN') {
       return NextResponse.redirect(new URL('/dashboard', req.url));
     }
 
-    if ((path.startsWith('/command-center') || path.startsWith('/api/command-center') || path.startsWith('/media-rights') || path.startsWith('/release-readiness') || path.startsWith('/api/media-rights') || path.startsWith('/api/release')) && token?.role !== 'CHURCH_ADMIN') {
-      return path.startsWith('/api/')
-        ? NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-        : NextResponse.redirect(new URL('/dashboard', req.url));
-    }
-
-    if (path.startsWith('/api/admin') && token?.role !== 'CHURCH_ADMIN') {
+    const adminApi = churchAdminApiPrefixes.some((prefix) => matchesPrefix(path, prefix));
+    if (adminApi && token?.role !== 'CHURCH_ADMIN') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
@@ -85,6 +110,13 @@ export const config = {
     '/care/:path*',
     '/council/:path*',
     '/intelligence/:path*',
+    '/service-planner/:path*',
+    '/communications/:path*',
+    '/facilities/:path*',
+    '/testimonies/:path*',
+    '/outreach/:path*',
+    '/departments/:path*',
+    '/requests/:path*',
     '/marketplace/:path*',
     '/website-builder/:path*',
     '/multilingual/:path*',
@@ -95,6 +127,8 @@ export const config = {
     '/activities/:path*',
     '/gifts/:path*',
     '/workers/:path*',
+    '/groups/:path*',
+    '/events/:path*',
     '/conference-sponsorship/:path*',
     '/church-network/:path*',
     '/impact/:path*',
