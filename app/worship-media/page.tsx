@@ -1,5 +1,6 @@
 import { WorshipAtmosphereDirector } from '@/components/worship/WorshipAtmosphereDirector';
 import { WorshipMediaLibrary } from '@/components/worship/WorshipMediaLibrary';
+import { WorshipServicePlanner } from '@/components/worship/WorshipServicePlanner';
 import { Copyright, Music2, Radio, ShieldCheck } from 'lucide-react';
 
 export default function WorshipMediaPage() {
@@ -27,8 +28,9 @@ export default function WorshipMediaPage() {
       </section>
 
       <section className="px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-7xl space-y-10">
           <WorshipAtmosphereDirector />
+          <WorshipServicePlanner />
         </div>
       </section>
 
