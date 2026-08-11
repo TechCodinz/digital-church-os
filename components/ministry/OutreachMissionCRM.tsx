@@ -2,7 +2,13 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Check, HandHeart, MapPin, Megaphone, Plus, Trash2, UsersRound } from 'lucide-react';
+import { Check, HandHeart, MapPin, Megaphone, Plus, ShieldCheck, Trash2, UsersRound } from 'lucide-react';
+import {
+  getActiveChurchId,
+  loadChurchOperationalRecord,
+  saveChurchOperationalRecord,
+  subscribeToChurchWorkspace,
+} from '@/lib/church-ops/client-record';
 
 type Status = 'identified' | 'contacted' | 'engaged' | 'follow-up' | 'connected' | 'closed';
 type OutreachItem = {
@@ -19,20 +25,62 @@ type OutreachItem = {
   outcome: string;
 };
 
-const key = 'digital-church-outreach-crm';
+const legacyKey = 'digital-church-outreach-crm';
+const localPrefix = 'digital-church-outreach-crm:v2';
 const seed: OutreachItem[] = [
   { id: 'community-1', personOrCommunity: 'Community contact', area: '', initiative: 'Local outreach', owner: '', status: 'identified', consentToContact: false, nextAction: '', due: '', needSummary: '', outcome: '' },
 ];
 
+function normalizeItems(value: unknown): OutreachItem[] {
+  if (!Array.isArray(value)) return seed;
+  return value.filter((item) => item && typeof item === 'object').map((item: any, index) => ({
+    id: typeof item.id === 'string' ? item.id : `outreach-${index}`,
+    personOrCommunity: typeof item.personOrCommunity === 'string' ? item.personOrCommunity : 'Community contact',
+    area: typeof item.area === 'string' ? item.area : '',
+    initiative: typeof item.initiative === 'string' ? item.initiative : '',
+    owner: typeof item.owner === 'string' ? item.owner : '',
+    status: ['identified', 'contacted', 'engaged', 'follow-up', 'connected', 'closed'].includes(item.status) ? item.status : 'identified',
+    consentToContact: Boolean(item.consentToContact),
+    nextAction: typeof item.nextAction === 'string' ? item.nextAction : '',
+    due: typeof item.due === 'string' ? item.due : '',
+    needSummary: typeof item.needSummary === 'string' ? item.needSummary : '',
+    outcome: typeof item.outcome === 'string' ? item.outcome : '',
+  }));
+}
+
 export function OutreachMissionCRM() {
   const [items, setItems] = useState<OutreachItem[]>(seed);
   const [saved, setSaved] = useState(false);
+  const [activeChurchId, setActiveChurchId] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('Private browser draft');
+
+  const loadWorkspace = async (churchId: string) => {
+    setActiveChurchId(churchId);
+    setSaved(false);
+    setSyncing(true);
+    setSyncMessage(churchId ? 'Loading church outreach CRM…' : 'Loading private outreach draft…');
+    try {
+      const result = await loadChurchOperationalRecord({
+        churchId,
+        module: 'outreach',
+        recordKey: 'crm',
+        localStoragePrefix: localPrefix,
+        legacyLocalStorageKey: legacyKey,
+        defaultValue: seed,
+        normalize: normalizeItems,
+      });
+      setItems(result.value);
+      setSyncMessage(result.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(key);
-      if (raw) setItems(JSON.parse(raw));
-    } catch {}
+    void loadWorkspace(getActiveChurchId());
+    return subscribeToChurchWorkspace((churchId) => void loadWorkspace(churchId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const active = useMemo(() => items.filter((item) => !['connected', 'closed'].includes(item.status)).length, [items]);
@@ -41,12 +89,25 @@ export function OutreachMissionCRM() {
 
   const update = (id: string, patch: Partial<OutreachItem>) => setItems((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
   const add = () => setItems((current) => [...current, { id: `${Date.now()}`, personOrCommunity: 'New outreach contact', area: '', initiative: '', owner: '', status: 'identified', consentToContact: false, nextAction: '', due: '', needSummary: '', outcome: '' }]);
-  const save = () => {
+  const save = async () => {
+    setSyncing(true);
+    setSyncMessage(activeChurchId ? 'Saving outreach CRM to active church…' : 'Saving private outreach draft…');
     try {
-      window.localStorage.setItem(key, JSON.stringify(items));
+      const result = await saveChurchOperationalRecord({
+        churchId: activeChurchId,
+        module: 'outreach',
+        recordKey: 'crm',
+        title: 'Outreach & mission follow-up',
+        classification: 'SENSITIVE_OPERATIONAL',
+        localStoragePrefix: localPrefix,
+        value: items,
+      });
       setSaved(true);
+      setSyncMessage(result.message);
       window.setTimeout(() => setSaved(false), 1500);
-    } catch { setSaved(false); }
+    } finally {
+      setSyncing(false);
+    }
   };
 
   return (
@@ -57,7 +118,8 @@ export function OutreachMissionCRM() {
             <div>
               <div className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"><HandHeart className="mr-2 h-4 w-4" /> Outreach & mission CRM</div>
               <h1 className="mt-4 max-w-3xl text-3xl font-light leading-tight text-stone-900 md:text-5xl">Turn outreach activity into respectful, accountable follow-up.</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">Track community contacts, initiative ownership, permission to contact, needs, next actions, deadlines, connection outcomes, and ministry handoffs without treating people like sales leads.</p>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">Track community contacts, initiative ownership, permission to contact, needs, next actions, deadlines, connection outcomes, and ministry handoffs without treating people like sales leads. Shared contact data is tenant-scoped and marked sensitive operational.</p>
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-600"><ShieldCheck className="h-3.5 w-3.5 text-emerald-700" /> {syncing ? 'Syncing…' : syncMessage}</div>
             </div>
             <div className="grid min-w-[205px] grid-cols-3 gap-2 text-center"><div className="rounded-2xl bg-stone-950 p-3 text-white"><p className="text-xl font-light">{active}</p><p className="text-[9px] uppercase tracking-wider text-stone-400">Active</p></div><div className="rounded-2xl bg-amber-50 p-3"><p className="text-xl font-light text-amber-800">{unowned}</p><p className="text-[9px] uppercase tracking-wider text-amber-700">Unowned</p></div><div className="rounded-2xl bg-emerald-50 p-3"><p className="text-xl font-light text-emerald-800">{followUp}</p><p className="text-[9px] uppercase tracking-wider text-emerald-700">Follow-up</p></div></div>
           </div>
@@ -80,7 +142,7 @@ export function OutreachMissionCRM() {
               </article>
             ))}
           </div>
-          <div className="mt-5 flex flex-wrap gap-3"><button type="button" onClick={add} className="inline-flex items-center rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white"><Plus className="mr-2 h-4 w-4" /> Add outreach contact</button><button type="button" onClick={save} className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700"><Check className="mr-2 h-4 w-4" /> {saved ? 'Saved privately' : 'Save outreach board'}</button></div>
+          <div className="mt-5 flex flex-wrap gap-3"><button type="button" onClick={add} className="inline-flex items-center rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white"><Plus className="mr-2 h-4 w-4" /> Add outreach contact</button><button type="button" onClick={() => void save()} disabled={syncing} className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700 disabled:opacity-60"><Check className="mr-2 h-4 w-4" /> {syncing ? 'Syncing…' : saved ? 'Saved' : activeChurchId ? 'Save to active church' : 'Save private outreach board'}</button></div>
         </div>
 
         <aside className="bg-stone-950 p-6 text-white sm:p-8 lg:p-10"><Megaphone className="h-8 w-8 text-emerald-300" /><h2 className="mt-5 text-3xl font-light">Mission follow-up without sales-pressure behavior.</h2><div className="mt-6 space-y-3 text-sm leading-6 text-stone-300"><div className="rounded-2xl border border-white/10 bg-white/5 p-4"><UsersRound className="mb-2 h-5 w-5 text-emerald-300" /><strong className="text-white">Respect refusal.</strong> “Closed / no further contact” is a valid outcome and should stop repeated outreach.</div><div className="rounded-2xl border border-white/10 bg-white/5 p-4"><MapPin className="mb-2 h-5 w-5 text-emerald-300" /><strong className="text-white">Community awareness.</strong> Organize initiatives by neighborhood or ministry context so the church can learn where service capacity is actually needed.</div></div><div className="mt-6 grid gap-3"><Link href="/communications" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold">Open communications →</Link><Link href="/care" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold">Open care handoff →</Link><Link href="/groups" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold">Open groups →</Link></div></aside>
