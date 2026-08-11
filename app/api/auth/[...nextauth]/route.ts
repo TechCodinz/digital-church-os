@@ -9,9 +9,11 @@ import { prisma } from '@/lib/prisma';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-if (isProduction && !process.env.NEXTAUTH_SECRET) {
-  throw new Error('NEXTAUTH_SECRET is required in production. Generate one with `openssl rand -base64 64`.');
-}
+// Next.js imports route modules while collecting build data. Do not throw merely
+// because the deployment environment has not supplied NEXTAUTH_SECRET yet.
+// In production there is deliberately NO fallback secret: NextAuth will fail
+// closed for authentication requests until a real secret is configured.
+const authSecret = process.env.NEXTAUTH_SECRET || (!isProduction ? 'digital-church-os-dev-secret-change-in-production' : undefined);
 
 // ── Dynamic provider list — only include providers when env vars are set ──────
 const providers: any[] = [];
@@ -159,7 +161,7 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60,
   },
-  secret: process.env.NEXTAUTH_SECRET || 'digital-church-os-dev-secret-change-in-production',
+  secret: authSecret,
   debug: !isProduction,
 };
 
