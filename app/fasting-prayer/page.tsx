@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
@@ -15,9 +16,19 @@ import {
 } from 'lucide-react';
 
 const focusOptions = ['Repentance & renewal', 'Family', 'Church', 'Healing & comfort', 'Wisdom', 'Outreach & mission', 'Justice & mercy', 'Gratitude'];
-const storageKey = 'digital-church-fasting-prayer-plan';
+const LEGACY_STORAGE_KEY = 'digital-church-fasting-prayer-plan';
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function storageKey(userId: string) {
+  return `digital-church-fasting-prayer-plan:v2:${userId}`;
+}
 
 export default function FastingPrayerPage() {
+  const { data: session } = useSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id || '';
   const [purpose, setPurpose] = useState('');
   const [focuses, setFocuses] = useState<string[]>([]);
   const [scriptureRefs, setScriptureRefs] = useState('');
@@ -25,12 +36,16 @@ export default function FastingPrayerPage() {
   const [practice, setPractice] = useState<'food' | 'media' | 'other'>('media');
   const [days, setDays] = useState(3);
   const [completedDays, setCompletedDays] = useState<number[]>([]);
+  const [startedOn, setStartedOn] = useState(todayKey());
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
+  const [legacyDraftPresent, setLegacyDraftPresent] = useState(false);
 
   useEffect(() => {
+    if (!userId) return;
     try {
-      const stored = window.localStorage.getItem(storageKey);
+      setLegacyDraftPresent(Boolean(window.localStorage.getItem(LEGACY_STORAGE_KEY)));
+      const stored = window.localStorage.getItem(storageKey(userId));
       if (!stored) return;
       const data = JSON.parse(stored);
       setPurpose(typeof data.purpose === 'string' ? data.purpose : '');
@@ -40,10 +55,11 @@ export default function FastingPrayerPage() {
       setPractice(data.practice === 'food' || data.practice === 'other' ? data.practice : 'media');
       setDays([1, 3, 7, 14, 21].includes(Number(data.days)) ? Number(data.days) : 3);
       setCompletedDays(Array.isArray(data.completedDays) ? data.completedDays.filter((item: unknown): item is number => Number.isInteger(item)) : []);
+      setStartedOn(typeof data.startedOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.startedOn) ? data.startedOn : todayKey());
     } catch {
-      // Private local plan remains optional.
+      setSaveStatus('This account’s fasting plan could not be restored from the browser.');
     }
-  }, []);
+  }, [userId]);
 
   const progress = useMemo(() => Math.round((completedDays.length / Math.max(days, 1)) * 100), [completedDays.length, days]);
 
@@ -57,14 +73,28 @@ export default function FastingPrayerPage() {
     setCompletedDays((current) => current.includes(day) ? current.filter((item) => item !== day) : [...current, day]);
   };
 
+  const removeLegacyDraft = () => {
+    try {
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+      setLegacyDraftPresent(false);
+      setSaveStatus('Legacy unscoped fasting plan removed without importing it into this account.');
+    } catch {
+      setSaveStatus('Legacy fasting plan could not be removed.');
+    }
+  };
+
   const savePlan = async () => {
     if (saving) return;
+    if (!userId) {
+      setSaveStatus('Sign in to save this private fasting plan and carry its reflection into Journey.');
+      return;
+    }
     setSaving(true);
     setSaveStatus('');
 
     let localSaved = false;
     try {
-      window.localStorage.setItem(storageKey, JSON.stringify({ purpose, focuses, scriptureRefs, notes, practice, days, completedDays }));
+      window.localStorage.setItem(storageKey(userId), JSON.stringify({ purpose, focuses, scriptureRefs, notes, practice, days, completedDays, startedOn }));
       localSaved = true;
     } catch {
       localSaved = false;
@@ -76,29 +106,35 @@ export default function FastingPrayerPage() {
     ].filter(Boolean).join('\n\n');
     const refs = scriptureRefs.split(/[\n,;]+/).map((item) => item.trim()).filter(Boolean);
     const practiceLabel = practice === 'food' ? 'food-related fast' : practice === 'media' ? 'media / distraction fast' : 'custom discipline';
+    const completedSorted = [...completedDays].sort((a, b) => a - b);
     const nextStep = [
       `${days}-day ${practiceLabel}`,
       focuses.length ? `Prayer focuses: ${focuses.join(', ')}` : '',
-      completedDays.length ? `Days reflected: ${completedDays.sort((a, b) => a - b).join(', ')}` : '',
+      completedSorted.length ? `Days reflected: ${completedSorted.join(', ')}` : '',
     ].filter(Boolean).join('. ');
 
     try {
       const response = await fetch('/api/journey/continuity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: 'Fasting', title: 'Fasting & prayer plan', content, scriptureRefs: refs, nextStep }),
+        body: JSON.stringify({
+          source: 'Fasting',
+          sourceKey: `fasting-plan:${startedOn}`,
+          title: `Fasting & prayer plan · ${startedOn}`,
+          content,
+          scriptureRefs: refs,
+          nextStep,
+        }),
       });
       const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
-        setSaveStatus('Plan saved on this device and its reflection added to your private Journey timeline.');
-      } else if (response.status === 401 && localSaved) {
-        setSaveStatus('Plan saved privately on this device. Sign in to carry its reflection into your Journey timeline.');
+        setSaveStatus(`Plan saved to this account’s browser draft and ${data.operation === 'updated' ? 'updated in' : 'added to'} your private Journey.`);
       } else {
-        setSaveStatus(localSaved ? `Plan saved on this device. ${data.error || 'Journey sync is temporarily unavailable.'}` : (data.error || 'Unable to save the fasting plan.'));
+        setSaveStatus(localSaved ? `Plan saved to this account’s browser draft. ${data.error || 'Journey sync is temporarily unavailable.'}` : (data.error || 'Unable to save the fasting plan.'));
       }
     } catch {
-      setSaveStatus(localSaved ? 'Plan saved privately on this device. Journey sync is temporarily unavailable.' : 'Unable to save the fasting plan.');
+      setSaveStatus(localSaved ? 'Plan saved to this account’s browser draft. Journey sync is temporarily unavailable.' : 'Unable to save the fasting plan.');
     } finally {
       setSaving(false);
     }
@@ -110,6 +146,12 @@ export default function FastingPrayerPage() {
         <section className="overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-sm">
           <div className="grid lg:grid-cols-[1.1fr_0.9fr]">
             <div className="p-7 sm:p-9 lg:p-11">
+              {legacyDraftPresent && (
+                <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">
+                  An older device-only fasting plan exists. It was <strong>not imported</strong> because this browser may be shared and its original owner cannot be verified.
+                  <button type="button" onClick={removeLegacyDraft} className="ml-2 font-semibold underline">Remove legacy plan</button>
+                </div>
+              )}
               <div className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-amber-700">
                 <Sparkles className="mr-2 h-4 w-4" /> Fasting & prayer journey
               </div>
@@ -146,6 +188,7 @@ export default function FastingPrayerPage() {
                 <Link href="/prayer-room" className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700">Open Prayer Room</Link>
               </div>
               {saveStatus && <p className="mt-3 text-xs leading-5 text-stone-500" role="status">{saveStatus}</p>}
+              <p className="mt-2 text-[11px] leading-5 text-stone-400">Active plan started {startedOn}. Re-saving updates the same Journey moment instead of creating a duplicate.</p>
               <Link href="/journey" className="mt-3 inline-flex text-sm font-semibold text-sage-700">View private Journey →</Link>
             </div>
 
