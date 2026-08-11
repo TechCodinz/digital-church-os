@@ -13,6 +13,7 @@ import { ScriptureDepthExperience } from '@/components/scripture/ScriptureDepthE
 import { LivingSanctuaryMissionControl } from '@/components/ministry/LivingSanctuaryMissionControl';
 import { DailyMinistryFlow } from '@/components/ministry/DailyMinistryFlow';
 import { NextBestMinistryAction } from '@/components/ministry/NextBestMinistryAction';
+import { DashboardJourneyResume } from '@/components/journey/DashboardJourneyResume';
 
 async function safeJson(url: string) {
     try {
@@ -26,7 +27,7 @@ async function safeJson(url: string) {
 
 export default function DashboardPage() {
     const { data: session } = useSession();
-    const [stats, setStats] = useState({ prayers: 0, goals: 0, offerings: 0, engagement: 0 });
+    const [stats, setStats] = useState({ prayers: 0, goals: 0, offerings: 0, recentActivity: 0 });
     const [upcomingConference, setUpcomingConference] = useState<any>(null);
     const [activities, setActivities] = useState<any[]>([]);
     const [isAiPastorOpen, setIsAiPastorOpen] = useState(false);
@@ -50,14 +51,9 @@ export default function DashboardPage() {
             const offeringTotal = Array.isArray(offerings)
                 ? offerings.reduce((sum: number, offering: any) => sum + (Number(offering.amount) || 0), 0)
                 : 0;
-            const engagementScore = Math.min(100, Math.round(
-                (prayerCount * 10) +
-                (goalCount * 15) +
-                (Array.isArray(offerings) && offerings.length > 0 ? 25 : 0) +
-                (Array.isArray(activityLog) ? Math.min(activityLog.length * 5, 50) : 0)
-            ));
+            const recentActivity = Array.isArray(activityLog) ? activityLog.length : 0;
 
-            setStats({ prayers: prayerCount, goals: goalCount, offerings: offeringTotal, engagement: engagementScore || 5 });
+            setStats({ prayers: prayerCount, goals: goalCount, offerings: offeringTotal, recentActivity });
             setUpcomingConference(Array.isArray(conferences) && conferences.length > 0 ? conferences[0] : null);
             setActivities(Array.isArray(activityLog) ? activityLog : []);
         };
@@ -87,14 +83,15 @@ export default function DashboardPage() {
 
                 <LivingSanctuaryMissionControl />
                 <DailyMinistryFlow />
-                <NextBestMinistryAction prayers={stats.prayers} goals={stats.goals} offerings={stats.offerings} activityCount={activities.length} />
+                <NextBestMinistryAction prayers={stats.prayers} goals={stats.goals} activityCount={activities.length} />
+                <DashboardJourneyResume />
 
                 <div className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                     {[
                         { label: 'Active Prayers', value: stats.prayers, icon: Heart, color: 'text-rose-500' },
                         { label: 'Spiritual Goals', value: stats.goals, icon: Activity, color: 'text-blue-500' },
                         { label: 'Total Giving', value: `$${stats.offerings}`, icon: Zap, color: 'text-emerald-500' },
-                        { label: 'Engagement', value: `${stats.engagement}%`, icon: Users, color: 'text-purple-500' },
+                        { label: 'Recent Activity', value: stats.recentActivity, icon: Users, color: 'text-purple-500' },
                     ].map((stat, i) => (
                         <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }} className="sanctuary-card">
                             <stat.icon className={`${stat.color} mb-3`} size={24} />
@@ -161,7 +158,10 @@ export default function DashboardPage() {
 
                         <section className="sanctuary-card">
                             <div className="mb-8 flex items-center justify-between">
-                                <h3 className="text-xl font-light text-stone-800">Your Spiritual Pulse</h3>
+                                <div>
+                                    <h3 className="text-xl font-light text-stone-800">Recent account activity</h3>
+                                    <p className="mt-1 text-xs text-stone-400">A factual history of recent in-app actions—not a spiritual score.</p>
+                                </div>
                                 <Link href="/journal" className="flex items-center gap-1 text-sm text-sage-600 hover:underline"><ExternalLink size={13} /> View Journal</Link>
                             </div>
                             <div className="space-y-6">
@@ -177,7 +177,7 @@ export default function DashboardPage() {
                                         <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-tighter ${String(item.status).includes('!') ? 'bg-emerald-50 text-emerald-600' : 'bg-stone-50 text-stone-500'}`}>{item.status}</span>
                                     </div>
                                 )) : (
-                                    <div className="p-8 text-center italic text-stone-400">Your spiritual activity will appear here.</div>
+                                    <div className="p-8 text-center italic text-stone-400">Recent in-app activity will appear here when available.</div>
                                 )}
                                 <Link href="/journal" className="flex w-full items-center justify-center rounded-2xl border-2 border-dashed border-stone-100 py-4 font-medium text-stone-400 transition-all hover:border-sage-200 hover:text-sage-500"><PlusCircle size={18} className="mr-2" /> Add a new journal entry</Link>
                             </div>
