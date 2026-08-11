@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
     const conference = await prisma.$transaction(async (tx) => {
       const created = await tx.conference.create({
         data: {
+          churchProfileId: d.churchId,
           title: d.title,
           theme: d.theme,
           scriptureRefs: d.scriptureRefs,
@@ -87,12 +88,6 @@ export async function POST(req: NextRequest) {
           status: 'UPCOMING',
         },
       });
-
-      await tx.$executeRaw(Prisma.sql`
-        UPDATE "Conference"
-        SET church_profile_id = ${d.churchId}
-        WHERE id = ${created.id}
-      `);
 
       await tx.auditLog.create({
         data: {
@@ -107,7 +102,7 @@ export async function POST(req: NextRequest) {
       return created;
     });
 
-    return NextResponse.json({ ...conference, churchProfileId: d.churchId }, { status: 201 });
+    return NextResponse.json(conference, { status: 201 });
   } catch (error) {
     if (conferenceTenantMigrationRequired(error)) return migrationResponse();
     console.error('Error creating conference:', error);
@@ -142,18 +137,20 @@ export async function GET(req: NextRequest) {
       if (!access.exists) return NextResponse.json({ error: 'Church workspace not found' }, { status: 404 });
       if (!access.allowed) return NextResponse.json({ error: 'This church event calendar is not public.' }, { status: 403 });
 
-      const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-        SELECT id FROM "Conference" WHERE church_profile_id = ${churchId}
-      `);
+      const rows = await prisma.conference.findMany({
+        where: { churchProfileId: churchId },
+        select: { id: true },
+      });
       ids = rows.map((row) => row.id);
       scope = 'church';
     } else {
       // Compatibility quarantine: historical conferences that predate tenancy
       // remain visible through the legacy feed. Tenant conferences are never
       // mixed into an unscoped global query.
-      const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-        SELECT id FROM "Conference" WHERE church_profile_id IS NULL
-      `);
+      const rows = await prisma.conference.findMany({
+        where: { churchProfileId: null },
+        select: { id: true },
+      });
       ids = rows.map((row) => row.id);
     }
 
@@ -175,22 +172,45 @@ export async function GET(req: NextRequest) {
       orderBy: { startDate: 'asc' },
     });
 
+    const conferenceIds = conferences.map((conference) => conference.id);
+    const rawRegistrationCounts = new Map<string, number>();
     let registeredIds = new Set<string>();
-    if (session?.user?.id && conferences.length) {
-      const attendance = await prisma.conferenceAttendance.findMany({
-        where: {
-          userId: session.user.id,
-          conferenceId: { in: conferences.map((conference) => conference.id) },
-        },
-        select: { conferenceId: true },
-      });
-      registeredIds = new Set(attendance.map((row) => row.conferenceId));
+
+    if (conferenceIds.length) {
+      const counts = await prisma.$queryRaw<Array<{ conferenceId: string; count: number }>>(Prisma.sql`
+        SELECT conference_id AS "conferenceId", COUNT(*)::int AS count
+        FROM conference_registrations
+        WHERE conference_id IN (${Prisma.join(conferenceIds)})
+          AND status <> 'CANCELLED'
+        GROUP BY conference_id
+      `);
+      counts.forEach((row) => rawRegistrationCounts.set(row.conferenceId, Number(row.count || 0)));
+    }
+
+    if (session?.user?.id && conferenceIds.length) {
+      const [attendance, registrations] = await Promise.all([
+        prisma.conferenceAttendance.findMany({
+          where: { userId: session.user.id, conferenceId: { in: conferenceIds } },
+          select: { conferenceId: true },
+        }),
+        prisma.$queryRaw<Array<{ conferenceId: string }>>(Prisma.sql`
+          SELECT conference_id AS "conferenceId"
+          FROM conference_registrations
+          WHERE user_id = ${session.user.id}
+            AND conference_id IN (${Prisma.join(conferenceIds)})
+            AND status <> 'CANCELLED'
+        `),
+      ]);
+      registeredIds = new Set([
+        ...attendance.map((row) => row.conferenceId),
+        ...registrations.map((row) => row.conferenceId),
+      ]);
     }
 
     return NextResponse.json(
       conferences.map((conference) => ({
         ...conference,
-        attendeeCount: conference.attendees.length,
+        attendeeCount: Math.max(conference.attendees.length, rawRegistrationCounts.get(conference.id) || 0),
         isRegistered: registeredIds.has(conference.id),
       })),
       { headers: { 'X-Conference-Scope': scope } },
@@ -266,7 +286,7 @@ export async function PATCH(req: NextRequest) {
       return conference;
     });
 
-    return NextResponse.json({ ...updated, churchProfileId: scope.churchProfileId });
+    return NextResponse.json(updated);
   } catch (error) {
     if (conferenceTenantMigrationRequired(error)) return migrationResponse();
     console.error('Error updating conference:', error);
