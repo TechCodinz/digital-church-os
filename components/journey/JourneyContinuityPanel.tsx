@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpenText, Church, Footprints, HeartHandshake, Loader2, Music2, ShieldCheck, Sparkles, Sunrise } from 'lucide-react';
+import { ArrowRight, BookOpenText, Church, Footprints, HeartHandshake, Loader2, Music2, ShieldCheck, Sparkles, Sunrise } from 'lucide-react';
 
 type ContinuityMoment = {
   id: string;
@@ -27,12 +27,16 @@ type ContinuityPayload = {
 const sourceMeta: Record<string, { href: string; label: string; icon: typeof Sparkles }> = {
   'Daily Guide': { href: '/daily-guide', label: 'Daily Guide', icon: Sunrise },
   Scripture: { href: '/scripture', label: 'Scripture', icon: BookOpenText },
-  Prayer: { href: '/prayer-room', label: 'Prayer', icon: HeartHandshake },
-  Fasting: { href: '/fasting-prayer', label: 'Fasting', icon: Sparkles },
+  Prayer: { href: '/prayer-practice', label: 'Prayer Practice', icon: HeartHandshake },
+  Fasting: { href: '/fasting-prayer', label: 'Fasting & Prayer', icon: Sparkles },
+  'Fasting & Prayer': { href: '/fasting-prayer', label: 'Fasting & Prayer', icon: Sparkles },
   'Family Altar': { href: '/family-altar', label: 'Family Altar', icon: Church },
-  Choir: { href: '/choir', label: 'Choir', icon: Music2 },
-  Sermon: { href: '/sermons', label: 'Sermon', icon: BookOpenText },
+  Choir: { href: '/choir', label: 'Choir Studio', icon: Music2 },
+  'Choir Studio': { href: '/choir', label: 'Choir Studio', icon: Music2 },
+  Sermon: { href: '/sermons', label: 'Sermons', icon: BookOpenText },
+  'Live Sermon': { href: '/live-service', label: 'Live Sermon', icon: BookOpenText },
   'Service Response': { href: '/service-response', label: 'Service Response', icon: HeartHandshake },
+  'Pastoral Reflection': { href: '/care', label: 'Pastoral Reflection', icon: HeartHandshake },
 };
 
 export function JourneyContinuityPanel() {
@@ -79,6 +83,9 @@ export function JourneyContinuityPanel() {
       .sort((a, b) => b[1] - a[1]);
   }, [payload]);
 
+  const latestMoment = payload?.moments?.[0] || null;
+  const latestMeta = latestMoment ? sourceMeta[latestMoment.source] : null;
+
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-sm">
       <div className="grid lg:grid-cols-[1.15fr_0.85fr]">
@@ -98,6 +105,17 @@ export function JourneyContinuityPanel() {
             <p className="mt-6 rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600">{message}</p>
           ) : payload ? (
             <>
+              {latestMoment && latestMeta && (
+                <Link href={latestMeta.href} className="mt-6 flex flex-col gap-3 rounded-2xl border border-sage-200 bg-gradient-to-br from-sage-50 to-white p-5 transition hover:border-sage-300 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sage-700">Continue where you left off</p>
+                    <p className="mt-1 text-sm font-semibold text-stone-900">{latestMoment.title}</p>
+                    <p className="mt-1 text-xs text-stone-500">{latestMeta.label} · {new Date(latestMoment.createdAt).toLocaleDateString()}</p>
+                  </div>
+                  <span className="inline-flex shrink-0 items-center text-xs font-semibold text-sage-700">Resume {latestMeta.label}<ArrowRight className="ml-2 h-4 w-4" /></span>
+                </Link>
+              )}
+
               <div className="mt-6 flex flex-wrap gap-2">
                 {activeSources.length ? activeSources.map(([source, count]) => {
                   const meta = sourceMeta[source];
