@@ -38,11 +38,18 @@ async function canUseConference(conferenceId: string, userId?: string | null) {
   const scope = await getConferenceTenantScope(conferenceId);
   if (!scope) return { scope: null, allowed: false, reason: 'Conference not found' };
 
+  if (!scope.churchProfileId) {
+    return {
+      scope,
+      allowed: false,
+      reason: 'This historical conference is in legacy quarantine and no longer accepts registrations or sponsorship requests.',
+    };
+  }
+
   if (scope.status === 'COMPLETED' || scope.endDate.getTime() < Date.now()) {
     return { scope, allowed: false, reason: 'Registration and sponsorship requests are closed for this conference.' };
   }
 
-  if (!scope.churchProfileId) return { scope, allowed: true, reason: null };
   const visibility = await canViewChurchConferences(userId, scope.churchProfileId);
   return {
     scope,
