@@ -7,6 +7,7 @@ import {
   Church,
   HandHeart,
   HeartHandshake,
+  Music2,
   Radio,
   Sparkles,
   UsersRound,
@@ -48,7 +49,10 @@ const primaryActions = [
 ];
 
 const ministryTools = [
+  { title: 'Scripture Study', href: '/scripture', icon: BookOpenText },
+  { title: 'Fasting & Prayer', href: '/fasting-prayer', icon: HeartHandshake },
   { title: 'Sermon Studio', href: '/sermons', icon: BookOpenText },
+  { title: 'Choir & Hymn Studio', href: '/choir', icon: Music2 },
   { title: 'Worship Media', href: '/worship-media', icon: Sparkles },
   { title: 'Presentation Studio', href: '/presentation', icon: WandSparkles },
   { title: 'Sanctuary Activities', href: '/activities', icon: UsersRound },
@@ -104,10 +108,10 @@ export function LivingSanctuaryMissionControl() {
         <aside className="border-t border-stone-100 bg-stone-950 p-6 text-white sm:p-8 lg:p-10 xl:border-l xl:border-t-0">
           <div className="mb-6">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-sage-300">Ministry toolkit</p>
-            <h3 className="mt-2 text-2xl font-light">Create, lead, and serve without losing momentum.</h3>
+            <h3 className="mt-2 text-2xl font-light">Create, lead, study, worship, and serve without losing momentum.</h3>
           </div>
 
-          <div className="space-y-2">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
             {ministryTools.map((tool) => {
               const Icon = tool.icon;
               return (
@@ -128,7 +132,7 @@ export function LivingSanctuaryMissionControl() {
           <div className="mt-6 rounded-2xl border border-sage-400/20 bg-sage-400/10 p-4">
             <p className="text-xs font-bold uppercase tracking-wider text-sage-300">Daily guidance</p>
             <p className="mt-2 text-sm leading-6 text-stone-300">
-              Start with prayer, continue one spiritual growth action, then serve or encourage someone. Ministry intelligence remains advisory and should strengthen—not replace—human pastoral leadership.
+              Start with prayer and Scripture, continue one spiritual growth action, then serve or encourage someone. Ministry intelligence remains advisory and should strengthen—not replace—human pastoral leadership.
             </p>
           </div>
         </aside>
