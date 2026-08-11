@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
-import { SiteSettingsMigrationRequiredError, readSiteSettings } from '@/lib/site-settings';
+import {
+  SiteSettingsMigrationRequiredError,
+  normalizePublicHttpUrl,
+  readSiteSettings,
+} from '@/lib/site-settings';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -12,15 +16,7 @@ type PublicStreamConfig = {
 };
 
 function sanitizeUrl(value: unknown) {
-  if (typeof value !== 'string') return '';
-  const trimmed = value.trim();
-  if (!trimmed) return '';
-  try {
-    const url = new URL(trimmed);
-    return ['https:', 'http:'].includes(url.protocol) ? url.toString() : '';
-  } catch {
-    return '';
-  }
+  return normalizePublicHttpUrl(value) ?? '';
 }
 
 function normalizeTitle(value: unknown) {
