@@ -1,8 +1,11 @@
 import { ChurchOperationsCommandDeck } from '@/components/ministry/ChurchOperationsCommandDeck';
 import { ChurchWorkspaceSelector } from '@/components/ministry/ChurchWorkspaceSelector';
 import { MinistryRoutePage } from '@/components/ministry/MinistryRoutePage';
+import { requireAnyChurchWorkspace } from '@/lib/church-ops/server';
 
-export default function CommandCenterPage() {
+export default async function CommandCenterPage() {
+  await requireAnyChurchWorkspace(['OWNER', 'ADMIN', 'PASTOR', 'STAFF']);
+
   return (
     <main className="min-h-screen bg-cream-50 pb-16 pt-24">
       <section className="px-4 pb-10 pt-8 sm:px-6 lg:px-8">
