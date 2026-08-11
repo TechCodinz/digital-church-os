@@ -138,6 +138,7 @@ export const config = {
     '/workers/:path*',
     '/groups/:path*',
     '/events/:path*',
+    '/church-team/:path*',
     '/conference-sponsorship/:path*',
     '/church-network/:path*',
     '/impact/:path*',
