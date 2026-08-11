@@ -21,6 +21,7 @@ import {
   Sparkles,
   UsersRound,
 } from 'lucide-react';
+import { ACTIVE_CHURCH_STORAGE_KEY } from '@/components/ministry/ChurchWorkspaceSelector';
 
 type Area = {
   id: string;
@@ -29,6 +30,13 @@ type Area = {
   href: string;
   icon: typeof Church;
   critical?: boolean;
+};
+
+type WeeklyOpsState = {
+  ready: string[];
+  priority: string;
+  risk: string;
+  win: string;
 };
 
 const areas: Area[] = [
@@ -53,11 +61,29 @@ const areas: Area[] = [
   { id: 'calendar', title: 'Events & calendar', description: 'Services, rehearsals, meetings, conferences, registrations, campaigns, and readiness.', href: '/admin/events', icon: CalendarCheck },
 ];
 
-function storageKey() {
+function currentWeekStart() {
   const now = new Date();
   const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
   start.setDate(now.getDate() - now.getDay());
-  return `digital-church-ops-week:${start.toISOString().slice(0, 10)}`;
+  return start.toISOString().slice(0, 10);
+}
+
+function localStorageKey(churchId: string) {
+  return `digital-church-ops-week:${churchId || 'private'}:${currentWeekStart()}`;
+}
+
+function sharedRecordKey() {
+  return `week:${currentWeekStart()}`;
+}
+
+function normalizeWeeklyState(value: any): WeeklyOpsState {
+  return {
+    ready: Array.isArray(value?.ready) ? value.ready.filter((item: unknown) => typeof item === 'string') : [],
+    priority: typeof value?.priority === 'string' ? value.priority : '',
+    risk: typeof value?.risk === 'string' ? value.risk : '',
+    win: typeof value?.win === 'string' ? value.win : '',
+  };
 }
 
 export function ChurchOperationsCommandDeck() {
@@ -66,19 +92,101 @@ export function ChurchOperationsCommandDeck() {
   const [risk, setRisk] = useState('');
   const [win, setWin] = useState('');
   const [saved, setSaved] = useState(false);
+  const [activeChurchId, setActiveChurchId] = useState('');
+  const [syncMessage, setSyncMessage] = useState('Private browser draft');
+  const [syncing, setSyncing] = useState(false);
+
+  const applyState = (data: WeeklyOpsState) => {
+    setReady(data.ready);
+    setPriority(data.priority);
+    setRisk(data.risk);
+    setWin(data.win);
+  };
+
+  const loadLocal = (churchId: string) => {
+    try {
+      const raw = window.localStorage.getItem(localStorageKey(churchId));
+      if (raw) {
+        applyState(normalizeWeeklyState(JSON.parse(raw)));
+        return true;
+      }
+
+      // Preserve the pre-tenant local draft only while no church workspace is
+      // selected. Never auto-import an ambiguous legacy draft into a church.
+      if (!churchId) {
+        const legacy = window.localStorage.getItem(`digital-church-ops-week:${currentWeekStart()}`);
+        if (legacy) {
+          applyState(normalizeWeeklyState(JSON.parse(legacy)));
+          return true;
+        }
+      }
+    } catch {
+      // Local recovery is best effort.
+    }
+    applyState({ ready: [], priority: '', risk: '', win: '' });
+    return false;
+  };
+
+  const loadWorkspace = async (churchId: string) => {
+    setActiveChurchId(churchId);
+    setSaved(false);
+
+    if (!churchId) {
+      loadLocal('');
+      setSyncMessage('Private browser draft');
+      return;
+    }
+
+    setSyncing(true);
+    setSyncMessage('Loading shared church week…');
+    try {
+      const params = new URLSearchParams({
+        churchId,
+        module: 'command-center',
+        key: sharedRecordKey(),
+      });
+      const response = await fetch(`/api/church-ops/records?${params.toString()}`, { cache: 'no-store' });
+      const data = await response.json();
+
+      if (response.ok && data?.record?.payload) {
+        const normalized = normalizeWeeklyState(data.record.payload);
+        applyState(normalized);
+        window.localStorage.setItem(localStorageKey(churchId), JSON.stringify(normalized));
+        setSyncMessage(`Shared church week · v${data.record.version || 1}`);
+        return;
+      }
+
+      if (response.status === 404) {
+        const restored = loadLocal(churchId);
+        setSyncMessage(restored ? 'Church-scoped browser draft · not shared yet' : 'New shared church week');
+        return;
+      }
+
+      loadLocal(churchId);
+      setSyncMessage(data?.migrationRequired
+        ? 'Shared persistence waiting for database migration'
+        : data?.error || 'Shared sync unavailable · using church-scoped browser draft');
+    } catch {
+      loadLocal(churchId);
+      setSyncMessage('Shared sync unavailable · using church-scoped browser draft');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(storageKey());
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      setReady(Array.isArray(data.ready) ? data.ready : []);
-      setPriority(data.priority || '');
-      setRisk(data.risk || '');
-      setWin(data.win || '');
-    } catch {
-      // Local command-deck persistence is optional.
-    }
+    const initialChurchId = window.localStorage.getItem(ACTIVE_CHURCH_STORAGE_KEY) || '';
+    void loadWorkspace(initialChurchId);
+
+    const onWorkspaceChange = (event: Event) => {
+      const custom = event as CustomEvent<{ churchId?: string }>;
+      void loadWorkspace(custom.detail?.churchId || '');
+    };
+
+    window.addEventListener('digital-church-workspace-change', onWorkspaceChange);
+    return () => window.removeEventListener('digital-church-workspace-change', onWorkspaceChange);
+    // The loader intentionally runs only on mount and explicit workspace events.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const readiness = useMemo(() => Math.round((ready.length / areas.length) * 100), [ready.length]);
@@ -86,13 +194,55 @@ export function ChurchOperationsCommandDeck() {
 
   const toggle = (id: string) => setReady((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
 
-  const save = () => {
+  const save = async () => {
+    const state: WeeklyOpsState = { ready, priority, risk, win };
+
     try {
-      window.localStorage.setItem(storageKey(), JSON.stringify({ ready, priority, risk, win }));
+      window.localStorage.setItem(localStorageKey(activeChurchId), JSON.stringify(state));
+    } catch {
+      // Shared persistence may still succeed even if browser storage is blocked.
+    }
+
+    if (!activeChurchId) {
       setSaved(true);
+      setSyncMessage('Private browser draft saved');
+      window.setTimeout(() => setSaved(false), 1600);
+      return;
+    }
+
+    setSyncing(true);
+    setSyncMessage('Saving to active church…');
+    try {
+      const response = await fetch('/api/church-ops/records', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          churchId: activeChurchId,
+          module: 'command-center',
+          key: sharedRecordKey(),
+          title: `Weekly church operations · ${currentWeekStart()}`,
+          classification: 'INTERNAL',
+          payload: state,
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setSaved(false);
+        setSyncMessage(data?.migrationRequired
+          ? 'Saved in this browser; shared database migration is still required'
+          : data?.error || 'Saved in this browser; shared sync failed');
+        return;
+      }
+
+      setSaved(true);
+      setSyncMessage(`Saved to active church · v${data?.record?.version || 1}`);
       window.setTimeout(() => setSaved(false), 1600);
     } catch {
       setSaved(false);
+      setSyncMessage('Saved in this browser; shared sync is unavailable');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -104,7 +254,10 @@ export function ChurchOperationsCommandDeck() {
             <div>
               <div className="inline-flex items-center rounded-full bg-sage-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-sage-700"><Sparkles className="mr-2 h-4 w-4" /> Church operations command deck</div>
               <h2 className="mt-4 max-w-4xl text-3xl font-light leading-tight text-stone-900 md:text-4xl">One weekly view for the ministries people actually depend on.</h2>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">Use readiness as an operational checklist—not a ministry score. Open each area to do the real work, then return here to keep leadership attention focused.</p>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">Use readiness as an operational checklist—not a ministry score. When an active church workspace is selected, the weekly state is versioned and shared with authorized leaders for that church.</p>
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-600">
+                <ShieldCheck className="h-3.5 w-3.5 text-sage-700" /> {syncing ? 'Syncing…' : syncMessage}
+              </div>
             </div>
             <div className="min-w-[180px] rounded-2xl bg-stone-950 p-4 text-white">
               <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Weekly readiness</p>
@@ -145,8 +298,8 @@ export function ChurchOperationsCommandDeck() {
           <label className="mt-5 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-400">Risk / gap</span><textarea value={risk} onChange={(e) => setRisk(e.target.value)} className="min-h-[100px] w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white outline-none focus:ring-2 focus:ring-amber-400" placeholder="Coverage gap, unresolved care, rights issue, technical dependency..." /></label>
           <label className="mt-5 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-400">Win / testimony to review</span><textarea value={win} onChange={(e) => setWin(e.target.value)} className="min-h-[100px] w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white outline-none focus:ring-2 focus:ring-sage-400" placeholder="What went well and should be thanked, learned from, or followed up?" /></label>
 
-          <button type="button" onClick={save} className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-sage-500 px-5 py-3 text-sm font-semibold text-white hover:bg-sage-400">{saved ? <Check className="mr-2 h-4 w-4" /> : <ClipboardCheck className="mr-2 h-4 w-4" />}{saved ? 'Weekly attention saved' : 'Save weekly attention'}</button>
-          <p className="mt-4 text-xs leading-5 text-stone-500">This local scratchpad should not contain confidential counseling notes, medical details, abuse reports, financial credentials, or other sensitive case data.</p>
+          <button type="button" onClick={() => void save()} disabled={syncing} className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-sage-500 px-5 py-3 text-sm font-semibold text-white hover:bg-sage-400 disabled:cursor-not-allowed disabled:opacity-60">{saved ? <Check className="mr-2 h-4 w-4" /> : <ClipboardCheck className="mr-2 h-4 w-4" />}{syncing ? 'Syncing weekly attention…' : saved ? 'Weekly attention saved' : activeChurchId ? 'Save to active church' : 'Save private weekly attention'}</button>
+          <p className="mt-4 text-xs leading-5 text-stone-500">This operational record must not contain confidential counseling notes, medical details, abuse reports, financial credentials, child safeguarding case content, or other restricted case data.</p>
         </aside>
       </div>
     </section>
