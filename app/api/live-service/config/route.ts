@@ -39,11 +39,16 @@ function response(streamUrl: string, streamTitle: string, source: PublicStreamCo
 }
 
 export async function GET() {
+  const environmentUrl = sanitizeUrl(process.env.LIVE_STREAM_URL);
+  const environmentTitle = normalizeTitle(process.env.LIVE_STREAM_TITLE);
+
+  let persistedUrl = '';
+  let persistedTitle = '';
+
   try {
     const persisted = await readSiteSettings();
-    const streamUrl = sanitizeUrl(persisted.streamUrl);
-    const streamTitle = normalizeTitle(persisted.streamTitle);
-    if (streamUrl || streamTitle) return response(streamUrl, streamTitle, 'site-config');
+    persistedUrl = sanitizeUrl(persisted.streamUrl);
+    persistedTitle = normalizeTitle(persisted.streamTitle);
   } catch (error) {
     // The public service can still use deployment environment configuration while the settings migration is pending.
     if (!(error instanceof SiteSettingsMigrationRequiredError)) {
@@ -51,9 +56,21 @@ export async function GET() {
     }
   }
 
-  const environmentUrl = sanitizeUrl(process.env.LIVE_STREAM_URL);
-  const environmentTitle = normalizeTitle(process.env.LIVE_STREAM_TITLE);
-  if (environmentUrl || environmentTitle) return response(environmentUrl, environmentTitle, 'environment');
+  // Resolve each field independently so a persisted title cannot accidentally hide a valid
+  // environment-managed provider URL (and vice versa). Persisted non-secret values win only
+  // for the fields they actually provide.
+  const streamUrl = persistedUrl || environmentUrl;
+  const streamTitle = persistedTitle || environmentTitle;
 
-  return response('', 'Live Worship Service', 'none');
+  const source: PublicStreamConfig['source'] = persistedUrl
+    ? 'site-config'
+    : environmentUrl
+      ? 'environment'
+      : persistedTitle
+        ? 'site-config'
+        : environmentTitle
+          ? 'environment'
+          : 'none';
+
+  return response(streamUrl, streamTitle, source);
 }
