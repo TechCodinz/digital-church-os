@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { BookOpenText, Check, Clock3, HeartHandshake, Home, RotateCcw, Save, UsersRound } from 'lucide-react';
+import { BookOpenText, Check, Clock3, HeartHandshake, Home, Loader2, RotateCcw, Save, UsersRound } from 'lucide-react';
 
 type FamilyAge = 'young-children' | 'older-children' | 'teens' | 'mixed' | 'adults';
 type SessionLength = 10 | 20 | 30 | 45;
@@ -20,6 +20,7 @@ type SavedAltar = {
 };
 
 const steps = ['Gather', 'Read', 'Talk', 'Pray', 'Worship', 'Live it'];
+const storageKey = 'digital-church-os:family-altar-planner';
 
 const ageLabels: Record<FamilyAge, string> = {
   'young-children': 'Young children',
@@ -48,10 +49,12 @@ export function FamilyAltarPlanner() {
   const [serviceAction, setServiceAction] = useState('');
   const [completed, setCompleted] = useState<string[]>([]);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('');
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem('digital-church-os:family-altar-planner');
+      const raw = window.localStorage.getItem(storageKey);
       if (!raw) return;
       const saved = JSON.parse(raw) as SavedAltar;
       setScripture(saved.scripture || '');
@@ -73,11 +76,62 @@ export function FamilyAltarPlanner() {
     return Object.fromEntries(steps.map((step, index) => [step, values[index]]));
   }, [minutes]);
 
-  function save() {
+  function persistLocal() {
     const updatedAt = new Date().toISOString();
     const payload: SavedAltar = { scripture, theme, age, minutes, gratitude, prayerFocus, serviceAction, completed, updatedAt };
-    window.localStorage.setItem('digital-church-os:family-altar-planner', JSON.stringify(payload));
+    window.localStorage.setItem(storageKey, JSON.stringify(payload));
     setSavedAt(updatedAt);
+  }
+
+  async function save() {
+    if (saving) return;
+    setSaving(true);
+    setSaveStatus('');
+
+    let localSaved = false;
+    try {
+      persistLocal();
+      localSaved = true;
+    } catch {
+      localSaved = false;
+    }
+
+    const content = [
+      theme.trim() ? `Theme: ${theme.trim()}` : '',
+      gratitude.trim() ? `Gratitude: ${gratitude.trim()}` : '',
+      prayerFocus.trim() ? `Prayer focus: ${prayerFocus.trim()}` : '',
+    ].filter(Boolean).join('\n\n');
+    const nextStep = [
+      serviceAction.trim() ? `Family act of love/service: ${serviceAction.trim()}` : '',
+      completed.length ? `Flow completed: ${completed.join(', ')}` : '',
+      `${ageLabels[age]} · ${minutes} minutes`,
+    ].filter(Boolean).join('. ');
+
+    try {
+      const response = await fetch('/api/journey/continuity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: 'Family Altar',
+          title: theme.trim() || 'Household worship',
+          content,
+          scriptureRefs: scripture.trim() ? [scripture.trim()] : [],
+          nextStep,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        setSaveStatus('Family plan saved on this device and a private household formation moment added to your Journey.');
+      } else if (response.status === 401 && localSaved) {
+        setSaveStatus('Family plan saved privately on this device. Sign in to carry a household formation moment into your Journey.');
+      } else {
+        setSaveStatus(localSaved ? `Family plan saved on this device. ${data.error || 'Journey sync is temporarily unavailable.'}` : (data.error || 'Unable to save the family plan.'));
+      }
+    } catch {
+      setSaveStatus(localSaved ? 'Family plan saved privately on this device. Journey sync is temporarily unavailable.' : 'Unable to save the family plan.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   function reset() {
@@ -90,10 +144,12 @@ export function FamilyAltarPlanner() {
     setServiceAction('');
     setCompleted([]);
     setSavedAt(null);
-    window.localStorage.removeItem('digital-church-os:family-altar-planner');
+    setSaveStatus('');
+    window.localStorage.removeItem(storageKey);
   }
 
   function toggle(step: string) {
+    setSaveStatus('');
     setCompleted((current) => (current.includes(step) ? current.filter((item) => item !== step) : [...current, step]));
   }
 
@@ -113,34 +169,35 @@ export function FamilyAltarPlanner() {
           <div className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
               <label className="text-sm font-medium text-stone-700">Scripture reference
-                <input value={scripture} onChange={(event) => setScripture(event.target.value)} placeholder="e.g. Luke 10:25-37" className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 outline-none focus:border-sage-400 focus:ring-2 focus:ring-sage-100" />
+                <input value={scripture} onChange={(event) => { setScripture(event.target.value); setSaveStatus(''); }} maxLength={160} placeholder="e.g. Luke 10:25-37" className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 outline-none focus:border-sage-400 focus:ring-2 focus:ring-sage-100" />
               </label>
               <label className="text-sm font-medium text-stone-700">Family theme
-                <input value={theme} onChange={(event) => setTheme(event.target.value)} placeholder="e.g. Loving our neighbor" className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 outline-none focus:border-sage-400 focus:ring-2 focus:ring-sage-100" />
+                <input value={theme} onChange={(event) => { setTheme(event.target.value); setSaveStatus(''); }} maxLength={160} placeholder="e.g. Loving our neighbor" className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 outline-none focus:border-sage-400 focus:ring-2 focus:ring-sage-100" />
               </label>
               <label className="text-sm font-medium text-stone-700">Family age mix
-                <select value={age} onChange={(event) => setAge(event.target.value as FamilyAge)} className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 outline-none focus:border-sage-400">
+                <select value={age} onChange={(event) => { setAge(event.target.value as FamilyAge); setSaveStatus(''); }} className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 outline-none focus:border-sage-400">
                   {Object.entries(ageLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
               </label>
               <label className="text-sm font-medium text-stone-700">Available time
-                <select value={minutes} onChange={(event) => setMinutes(Number(event.target.value) as SessionLength)} className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 outline-none focus:border-sage-400">
+                <select value={minutes} onChange={(event) => { setMinutes(Number(event.target.value) as SessionLength); setSaveStatus(''); }} className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 outline-none focus:border-sage-400">
                   {[10, 20, 30, 45].map((value) => <option key={value} value={value}>{value} minutes</option>)}
                 </select>
               </label>
             </div>
 
             <div className="mt-5 space-y-4">
-              <label className="block text-sm font-medium text-stone-700">Gratitude to share<textarea value={gratitude} onChange={(event) => setGratitude(event.target.value)} rows={2} className="mt-2 w-full rounded-xl border border-stone-200 bg-stone-50 p-3 outline-none focus:border-sage-400" /></label>
-              <label className="block text-sm font-medium text-stone-700">Prayer focus<textarea value={prayerFocus} onChange={(event) => setPrayerFocus(event.target.value)} rows={2} className="mt-2 w-full rounded-xl border border-stone-200 bg-stone-50 p-3 outline-none focus:border-sage-400" /></label>
-              <label className="block text-sm font-medium text-stone-700">One act of love/service<textarea value={serviceAction} onChange={(event) => setServiceAction(event.target.value)} rows={2} className="mt-2 w-full rounded-xl border border-stone-200 bg-stone-50 p-3 outline-none focus:border-sage-400" /></label>
+              <label className="block text-sm font-medium text-stone-700">Gratitude to share<textarea value={gratitude} onChange={(event) => { setGratitude(event.target.value); setSaveStatus(''); }} maxLength={1200} rows={2} className="mt-2 w-full rounded-xl border border-stone-200 bg-stone-50 p-3 outline-none focus:border-sage-400" /></label>
+              <label className="block text-sm font-medium text-stone-700">Prayer focus<textarea value={prayerFocus} onChange={(event) => { setPrayerFocus(event.target.value); setSaveStatus(''); }} maxLength={1200} rows={2} className="mt-2 w-full rounded-xl border border-stone-200 bg-stone-50 p-3 outline-none focus:border-sage-400" /></label>
+              <label className="block text-sm font-medium text-stone-700">One act of love/service<textarea value={serviceAction} onChange={(event) => { setServiceAction(event.target.value); setSaveStatus(''); }} maxLength={800} rows={2} className="mt-2 w-full rounded-xl border border-stone-200 bg-stone-50 p-3 outline-none focus:border-sage-400" /></label>
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              <button onClick={save} type="button" className="inline-flex min-h-11 items-center rounded-xl bg-sage-600 px-4 text-sm font-semibold text-white"><Save className="mr-2 h-4 w-4" /> Save family plan</button>
+              <button onClick={save} disabled={saving} type="button" className="inline-flex min-h-11 items-center rounded-xl bg-sage-600 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}{saving ? 'Saving privately…' : 'Save family plan'}</button>
               <button onClick={reset} type="button" className="inline-flex min-h-11 items-center rounded-xl border border-stone-200 px-4 text-sm font-semibold text-stone-600"><RotateCcw className="mr-2 h-4 w-4" /> Reset</button>
             </div>
-            <p className="mt-3 text-xs leading-5 text-stone-500">{savedAt ? `Private browser draft saved ${new Date(savedAt).toLocaleString()}.` : 'Private browser draft not yet saved.'}</p>
+            <p className="mt-3 text-xs leading-5 text-stone-500">{saveStatus || (savedAt ? `Private browser draft saved ${new Date(savedAt).toLocaleString()}.` : 'Private browser draft not yet saved.')}</p>
+            <Link href="/journey" className="mt-2 inline-flex text-xs font-semibold text-sage-700">Open private Journey →</Link>
           </div>
 
           <div className="rounded-[2rem] bg-stone-950 p-6 text-white shadow-xl sm:p-7">
