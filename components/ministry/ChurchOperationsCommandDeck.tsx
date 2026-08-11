@@ -29,17 +29,18 @@ type Area = {
 };
 
 const areas: Area[] = [
-  { id: 'service', title: 'Service & broadcast', description: 'Run-of-show, stream, presentation, response, accessibility, and fallback readiness.', href: '/live-service', icon: Radio, critical: true },
+  { id: 'service', title: 'Service & broadcast', description: 'Full run-of-show, owners, stream, presentation, response, accessibility, and fallback readiness.', href: '/service-planner', icon: Radio, critical: true },
   { id: 'sermon', title: 'Sermon & teaching', description: 'Scripture context, thesis, teaching flow, live cues, response, and follow-up.', href: '/sermons', icon: ClipboardCheck, critical: true },
   { id: 'worship', title: 'Worship & choir', description: 'Songs, hymns, rehearsals, keys, choir structure, playlists, and projection.', href: '/choir', icon: Music2 },
-  { id: 'care', title: 'Prayer & pastoral care', description: 'Prayer requests, human care, follow-up, safeguarding, and sensitive escalations.', href: '/care', icon: HeartHandshake, critical: true },
-  { id: 'people', title: 'Workers & volunteers', description: 'Coverage, roles, rota gaps, appreciation, onboarding, and ministry ownership.', href: '/workers', icon: UsersRound },
+  { id: 'care', title: 'Prayer & pastoral care', description: 'Prayer requests, human care, safeguarding, sensitive escalations, and accountable follow-up.', href: '/care', icon: HeartHandshake, critical: true },
+  { id: 'follow-up', title: 'Discipleship follow-up', description: 'Consent-aware response ownership across contact, foundations, baptism, belonging, groups, and serving.', href: '/admin/follow-up', icon: UsersRound, critical: true },
+  { id: 'people', title: 'Workers & volunteers', description: 'Rota coverage, roles, primaries/backups, call times, gaps, appreciation, and ministry ownership.', href: '/workers', icon: UsersRound },
   { id: 'children', title: 'Children & family', description: 'Age-aware teaching, guardian controls, family discipleship, and trusted-adult pathways.', href: '/children', icon: Baby, critical: true },
   { id: 'giving', title: 'Giving & benevolence', description: 'Giving operations, aid requests, stewardship review, and accountable disbursement.', href: '/giving', icon: CircleDollarSign },
   { id: 'rights', title: 'Media & rights', description: 'Licensing, public-domain checks, distribution clearance, takedowns, and attribution.', href: '/media-rights', icon: Copyright, critical: true },
   { id: 'outreach', title: 'Outreach & communication', description: 'Invitations, follow-up, testimony/story review, community needs, and mission activity.', href: '/activities', icon: Megaphone },
   { id: 'network', title: 'Church network', description: 'Church discovery, collaboration, shared ministry opportunities, and belonging pathways.', href: '/church-network', icon: Church },
-  { id: 'calendar', title: 'Events & calendar', description: 'Services, rehearsals, meetings, conferences, campaigns, and operational milestones.', href: '/events', icon: CalendarCheck },
+  { id: 'calendar', title: 'Events & calendar', description: 'Services, rehearsals, meetings, conferences, registrations, campaigns, and readiness.', href: '/events', icon: CalendarCheck },
 ];
 
 function storageKey() {
