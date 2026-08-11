@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { SiteSettingsMigrationRequiredError, readSiteSettings } from '@/lib/site-settings';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 type PublicStreamConfig = {
   streamUrl: string;
@@ -27,54 +28,32 @@ function normalizeTitle(value: unknown) {
   return value.trim().slice(0, 180);
 }
 
-async function loadPersistedStream() {
-  const delegate = (prisma as any).siteConfig;
-  if (!delegate || typeof delegate.findUnique !== 'function') return null;
-
-  try {
-    const config = await delegate.findUnique({ where: { key: 'admin_settings' } });
-    const value = config?.value;
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-    const data = value as Record<string, unknown>;
-    const streamUrl = sanitizeUrl(data.streamUrl);
-    const streamTitle = normalizeTitle(data.streamTitle);
-    if (!streamUrl && !streamTitle) return null;
-    return { streamUrl, streamTitle };
-  } catch (error) {
-    console.error('Live-service persisted config load failed:', error);
-    return null;
-  }
+function response(streamUrl: string, streamTitle: string, source: PublicStreamConfig['source']) {
+  const body: PublicStreamConfig = {
+    streamUrl,
+    streamTitle: streamTitle || 'Live Worship Service',
+    configured: Boolean(streamUrl),
+    source,
+  };
+  return NextResponse.json(body, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export async function GET() {
-  const persisted = await loadPersistedStream();
-  if (persisted) {
-    const response: PublicStreamConfig = {
-      streamUrl: persisted.streamUrl,
-      streamTitle: persisted.streamTitle || 'Live Worship Service',
-      configured: Boolean(persisted.streamUrl),
-      source: 'site-config',
-    };
-    return NextResponse.json(response, { headers: { 'Cache-Control': 'no-store' } });
+  try {
+    const persisted = await readSiteSettings();
+    const streamUrl = sanitizeUrl(persisted.streamUrl);
+    const streamTitle = normalizeTitle(persisted.streamTitle);
+    if (streamUrl || streamTitle) return response(streamUrl, streamTitle, 'site-config');
+  } catch (error) {
+    // The public service can still use deployment environment configuration while the settings migration is pending.
+    if (!(error instanceof SiteSettingsMigrationRequiredError)) {
+      console.error('Live-service persisted config load failed:', error);
+    }
   }
 
   const environmentUrl = sanitizeUrl(process.env.LIVE_STREAM_URL);
   const environmentTitle = normalizeTitle(process.env.LIVE_STREAM_TITLE);
-  if (environmentUrl || environmentTitle) {
-    const response: PublicStreamConfig = {
-      streamUrl: environmentUrl,
-      streamTitle: environmentTitle || 'Live Worship Service',
-      configured: Boolean(environmentUrl),
-      source: 'environment',
-    };
-    return NextResponse.json(response, { headers: { 'Cache-Control': 'no-store' } });
-  }
+  if (environmentUrl || environmentTitle) return response(environmentUrl, environmentTitle, 'environment');
 
-  const response: PublicStreamConfig = {
-    streamUrl: '',
-    streamTitle: 'Live Worship Service',
-    configured: false,
-    source: 'none',
-  };
-  return NextResponse.json(response, { headers: { 'Cache-Control': 'no-store' } });
+  return response('', 'Live Worship Service', 'none');
 }
