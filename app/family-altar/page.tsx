@@ -1,5 +1,6 @@
 import { AdvancedMinistryWorkspace } from '@/components/ministry/AdvancedMinistryWorkspace';
 import { FamilyAltarPlanner } from '@/components/ministry/FamilyAltarPlanner';
+import { JourneyContinuityComposer } from '@/components/journey/JourneyContinuityComposer';
 
 export default function FamilyAltarPage() {
   return (
@@ -32,6 +33,18 @@ export default function FamilyAltarPage() {
         ]}
       />
       <FamilyAltarPlanner />
+      <div className="bg-cream-50 px-4 pb-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <JourneyContinuityComposer
+            source="Family Altar"
+            title="Carry one family worship moment forward"
+            prompt="Save only the household insight you intentionally want to remember: a Scripture reference, gratitude, shared prayer theme, act of service, or one next step for the family."
+            nextHref="/daily-guide"
+            nextLabel="Continue in Daily Guide"
+            privacyNote="Do not place child activity records, private family conflict, safeguarding concerns, counseling details, or sensitive pastoral information in this formation timeline. Those belong in appropriate guardian-led or human-care workflows."
+          />
+        </div>
+      </div>
     </>
   );
 }
