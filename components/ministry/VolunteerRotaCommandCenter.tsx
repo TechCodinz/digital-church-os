@@ -13,6 +13,12 @@ import {
   Trash2,
   UsersRound,
 } from 'lucide-react';
+import {
+  getActiveChurchId,
+  loadChurchOperationalRecord,
+  saveChurchOperationalRecord,
+  subscribeToChurchWorkspace,
+} from '@/lib/church-ops/client-record';
 
 type RotaStatus = 'unassigned' | 'invited' | 'confirmed' | 'checked-in' | 'unavailable';
 type RotaRole = {
@@ -25,6 +31,12 @@ type RotaRole = {
   status: RotaStatus;
   note: string;
   critical: boolean;
+};
+
+type RotaState = {
+  serviceDate: string;
+  serviceName: string;
+  roles: RotaRole[];
 };
 
 const departments = ['Service lead', 'Worship', 'Choir', 'Media / AV', 'Streaming', 'Ushers', 'Hospitality', 'Prayer team', 'Children', 'Security / safety', 'Parking', 'Protocol', 'Outreach', 'Other'];
@@ -46,27 +58,74 @@ const defaultRoles: RotaRole[] = [
   { id: 'ushers', department: 'Ushers', role: 'Usher lead', primary: '', backup: '', callTime: '09:15', status: 'unassigned', note: '', critical: false },
 ];
 
-function storageKey() {
-  return 'digital-church-volunteer-rota:v1';
+const defaultState: RotaState = { serviceDate: '', serviceName: 'Sunday Worship Service', roles: defaultRoles };
+const legacyKey = 'digital-church-volunteer-rota:v1';
+const localPrefix = 'digital-church-volunteer-rota:v2';
+
+function normalizeRota(value: unknown): RotaState {
+  const data = value && typeof value === 'object' ? value as any : {};
+  const roles: RotaRole[] = Array.isArray(data.roles)
+    ? data.roles.filter((item: unknown) => item && typeof item === 'object').map((item: any, index: number) => ({
+        id: typeof item.id === 'string' ? item.id : `role-${index}`,
+        department: typeof item.department === 'string' ? item.department : 'Other',
+        role: typeof item.role === 'string' ? item.role : 'Ministry role',
+        primary: typeof item.primary === 'string' ? item.primary : '',
+        backup: typeof item.backup === 'string' ? item.backup : '',
+        callTime: typeof item.callTime === 'string' ? item.callTime : '09:00',
+        status: ['unassigned', 'invited', 'confirmed', 'checked-in', 'unavailable'].includes(item.status) ? item.status as RotaStatus : 'unassigned',
+        note: typeof item.note === 'string' ? item.note : '',
+        critical: Boolean(item.critical),
+      }))
+    : defaultRoles;
+
+  return {
+    serviceDate: typeof data.serviceDate === 'string' ? data.serviceDate : '',
+    serviceName: typeof data.serviceName === 'string' ? data.serviceName : defaultState.serviceName,
+    roles,
+  };
 }
 
 export function VolunteerRotaCommandCenter() {
   const [serviceDate, setServiceDate] = useState('');
-  const [serviceName, setServiceName] = useState('Sunday Worship Service');
+  const [serviceName, setServiceName] = useState(defaultState.serviceName);
   const [roles, setRoles] = useState<RotaRole[]>(defaultRoles);
   const [saved, setSaved] = useState(false);
+  const [activeChurchId, setActiveChurchId] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('Private browser draft');
+
+  const applyState = (state: RotaState) => {
+    setServiceDate(state.serviceDate);
+    setServiceName(state.serviceName);
+    setRoles(state.roles);
+  };
+
+  const loadWorkspace = async (churchId: string) => {
+    setActiveChurchId(churchId);
+    setSaved(false);
+    setSyncing(true);
+    setSyncMessage(churchId ? 'Loading church volunteer rota…' : 'Loading private rota draft…');
+    try {
+      const result = await loadChurchOperationalRecord({
+        churchId,
+        module: 'volunteer-rota',
+        recordKey: 'current',
+        localStoragePrefix: localPrefix,
+        legacyLocalStorageKey: legacyKey,
+        defaultValue: defaultState,
+        normalize: normalizeRota,
+      });
+      applyState(result.value);
+      setSyncMessage(result.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(storageKey());
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      setServiceDate(data.serviceDate || '');
-      setServiceName(data.serviceName || 'Sunday Worship Service');
-      if (Array.isArray(data.roles)) setRoles(data.roles);
-    } catch {
-      // Local rota recovery is optional.
-    }
+    void loadWorkspace(getActiveChurchId());
+    return subscribeToChurchWorkspace((churchId) => void loadWorkspace(churchId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const confirmed = useMemo(() => roles.filter((item) => ['confirmed', 'checked-in'].includes(item.status)).length, [roles]);
@@ -78,13 +137,25 @@ export function VolunteerRotaCommandCenter() {
   const addRole = () => setRoles((current) => [...current, { id: `${Date.now()}`, department: 'Other', role: 'New role', primary: '', backup: '', callTime: '09:00', status: 'unassigned', note: '', critical: false }]);
   const removeRole = (id: string) => setRoles((current) => current.filter((item) => item.id !== id));
 
-  const save = () => {
+  const save = async () => {
+    const value: RotaState = { serviceDate, serviceName, roles };
+    setSyncing(true);
+    setSyncMessage(activeChurchId ? 'Saving rota to active church…' : 'Saving private rota draft…');
     try {
-      window.localStorage.setItem(storageKey(), JSON.stringify({ serviceDate, serviceName, roles, updatedAt: new Date().toISOString() }));
+      const result = await saveChurchOperationalRecord({
+        churchId: activeChurchId,
+        module: 'volunteer-rota',
+        recordKey: 'current',
+        title: serviceDate ? `${serviceName} volunteer rota · ${serviceDate}` : `${serviceName} volunteer rota`,
+        classification: 'SENSITIVE_OPERATIONAL',
+        localStoragePrefix: localPrefix,
+        value,
+      });
       setSaved(true);
+      setSyncMessage(result.message);
       window.setTimeout(() => setSaved(false), 1600);
-    } catch {
-      setSaved(false);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -96,7 +167,8 @@ export function VolunteerRotaCommandCenter() {
             <div>
               <div className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-emerald-700"><UsersRound className="mr-2 h-4 w-4" /> Volunteer rota & coverage</div>
               <h2 className="mt-4 max-w-4xl text-3xl font-light leading-tight text-stone-900 md:text-4xl">Know who is serving, who confirmed, who is backup, and where the service still has a people gap.</h2>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">Use this as a coordination board rather than a spiritual-performance score. Names and operational notes stay on this device in this phase; sensitive pastoral, safeguarding, payroll, or disciplinary details do not belong here.</p>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">Use this as a coordination board rather than a spiritual-performance score. Shared names and simple operational notes are tenant-scoped; sensitive pastoral, safeguarding, payroll, health, or disciplinary details do not belong here.</p>
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-600"><ShieldCheck className="h-3.5 w-3.5 text-emerald-700" /> {syncing ? 'Syncing…' : syncMessage}</div>
             </div>
             <div className="min-w-[190px] rounded-2xl bg-stone-950 p-4 text-white">
               <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Confirmed coverage</p>
@@ -133,7 +205,7 @@ export function VolunteerRotaCommandCenter() {
 
           <div className="mt-5 flex flex-wrap gap-3">
             <button type="button" onClick={addRole} className="inline-flex items-center rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800"><Plus className="mr-2 h-4 w-4" /> Add role</button>
-            <button type="button" onClick={save} className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700">{saved ? <Check className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}{saved ? 'Rota saved' : 'Save rota privately'}</button>
+            <button type="button" onClick={() => void save()} disabled={syncing} className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700 disabled:opacity-60">{saved ? <Check className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}{syncing ? 'Syncing…' : saved ? 'Rota saved' : activeChurchId ? 'Save to active church' : 'Save private rota'}</button>
           </div>
         </div>
 
@@ -156,7 +228,7 @@ export function VolunteerRotaCommandCenter() {
 
           <div className="mt-5 space-y-3 text-xs leading-5 text-stone-400">
             <p className="rounded-2xl border border-white/10 bg-white/5 p-4"><CalendarDays className="mb-2 h-4 w-4 text-emerald-300" /> Call time helps teams arrive before their first service cue. It is not an attendance score.</p>
-            <p className="rounded-2xl border border-white/10 bg-white/5 p-4"><Clock3 className="mb-2 h-4 w-4 text-emerald-300" /> A future backend can send confirmations, detect schedule conflicts, and sync church calendars; this local version does not pretend those integrations already exist.</p>
+            <p className="rounded-2xl border border-white/10 bg-white/5 p-4"><Clock3 className="mb-2 h-4 w-4 text-emerald-300" /> Notifications and external calendar sync remain future/provider-backed capabilities; this board does not claim they already happened.</p>
           </div>
 
           <div className="mt-6 grid gap-3">
