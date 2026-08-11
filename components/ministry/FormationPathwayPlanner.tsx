@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import {
   BookOpenText,
   CalendarDays,
@@ -48,11 +49,15 @@ const trackCopy: Record<Track, { title: string; description: string }> = {
   membership: { title: 'Membership & belonging', description: 'Understand the local church, its beliefs, community expectations, care, accountability, service, and mission before making a commitment.' },
 };
 
-function storageKey() {
-  return 'digital-church-formation-pathway:v1';
+const LEGACY_STORAGE_KEY = 'digital-church-formation-pathway:v1';
+
+function storageKey(userId: string) {
+  return `digital-church-formation-pathway:v2:${userId}`;
 }
 
 export function FormationPathwayPlanner() {
+  const { data: session } = useSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id || '';
   const [track, setTrack] = useState<Track>('foundations');
   const [leader, setLeader] = useState('');
   const [targetDate, setTargetDate] = useState('');
@@ -60,12 +65,21 @@ export function FormationPathwayPlanner() {
   const [churchRequirements, setChurchRequirements] = useState('');
   const [sessions, setSessions] = useState<Record<Track, Session[]>>(defaultSessions);
   const [saved, setSaved] = useState(false);
+  const [storageNotice, setStorageNotice] = useState('');
+  const [legacyDraftPresent, setLegacyDraftPresent] = useState(false);
 
   useEffect(() => {
+    if (!userId) return;
+
     try {
-      const raw = window.localStorage.getItem(storageKey());
-      if (!raw) return;
-      const data = JSON.parse(raw);
+      const scopedRaw = window.localStorage.getItem(storageKey(userId));
+      const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+      setLegacyDraftPresent(Boolean(legacyRaw));
+
+      // Never auto-import the old unscoped draft. On shared browsers its owner is ambiguous.
+      if (!scopedRaw) return;
+
+      const data = JSON.parse(scopedRaw);
       if (['foundations', 'baptism', 'membership'].includes(data.track)) setTrack(data.track);
       setLeader(data.leader || '');
       setTargetDate(data.targetDate || '');
@@ -73,9 +87,9 @@ export function FormationPathwayPlanner() {
       setChurchRequirements(data.churchRequirements || '');
       if (data.sessions) setSessions({ ...defaultSessions, ...data.sessions });
     } catch {
-      // Local formation planning is optional.
+      setStorageNotice('Private browser notes could not be restored.');
     }
-  }, []);
+  }, [userId]);
 
   const activeSessions = sessions[track];
   const completed = activeSessions.filter((session) => session.completed).length;
@@ -84,12 +98,30 @@ export function FormationPathwayPlanner() {
   const updateSession = (id: string, patch: Partial<Session>) => setSessions((current) => ({ ...current, [track]: current[track].map((session) => session.id === id ? { ...session, ...patch } : session) }));
 
   const save = () => {
+    if (!userId) {
+      setStorageNotice('Sign in is required before private formation notes can be saved.');
+      setSaved(false);
+      return;
+    }
+
     try {
-      window.localStorage.setItem(storageKey(), JSON.stringify({ track, leader, targetDate, questions, churchRequirements, sessions, updatedAt: new Date().toISOString() }));
+      window.localStorage.setItem(storageKey(userId), JSON.stringify({ track, leader, targetDate, questions, churchRequirements, sessions, updatedAt: new Date().toISOString() }));
       setSaved(true);
+      setStorageNotice('Saved to this signed-in account’s browser-scoped draft.');
       window.setTimeout(() => setSaved(false), 1600);
     } catch {
       setSaved(false);
+      setStorageNotice('Private formation notes could not be saved in this browser.');
+    }
+  };
+
+  const removeLegacyDraft = () => {
+    try {
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+      setLegacyDraftPresent(false);
+      setStorageNotice('Legacy unscoped browser draft removed.');
+    } catch {
+      setStorageNotice('Legacy browser draft could not be removed.');
     }
   };
 
@@ -104,12 +136,20 @@ export function FormationPathwayPlanner() {
               <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">Digital Church OS can organize the learning journey, but it does not impose one denomination’s baptism or membership requirements. Each church must review doctrine, age/guardian needs, pastoral readiness, and its own process.</p>
             </div>
             <div className="min-w-[190px] rounded-2xl bg-stone-950 p-4 text-white">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Track progress</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Sessions reviewed</p>
               <p className="mt-1 text-4xl font-light">{progress}%</p>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-sage-400" style={{ width: `${progress}%` }} /></div>
-              <p className="mt-2 text-xs text-stone-400">{completed}/{activeSessions.length} sessions reviewed</p>
+              <p className="mt-2 text-xs text-stone-400">{completed}/{activeSessions.length} sessions reviewed · not a spiritual score</p>
             </div>
           </div>
+
+          {legacyDraftPresent && (
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+              An older unscoped browser draft exists. It was <strong>not imported</strong> because this browser may be shared and the original owner cannot be verified.
+              <button type="button" onClick={removeLegacyDraft} className="ml-2 font-semibold underline">Remove legacy draft</button>
+            </div>
+          )}
+          {storageNotice && <p className="mt-3 text-xs text-stone-500">{storageNotice}</p>}
 
           <div className="mt-7 grid gap-3 md:grid-cols-3">
             {(Object.keys(trackCopy) as Track[]).map((id) => <button key={id} type="button" onClick={() => setTrack(id)} className={`rounded-2xl border p-4 text-left transition ${track === id ? 'border-sage-300 bg-sage-50' : 'border-stone-200 bg-stone-50'}`}><p className="font-semibold text-stone-900">{trackCopy[id].title}</p><p className="mt-2 text-xs leading-5 text-stone-500">{trackCopy[id].description}</p></button>)}
@@ -121,7 +161,7 @@ export function FormationPathwayPlanner() {
           </div>
 
           <div className="mt-7 space-y-3">
-            {activeSessions.map((session, index) => <article key={session.id} className={`rounded-3xl border p-5 ${session.completed ? 'border-sage-200 bg-sage-50' : 'border-stone-200 bg-stone-50'}`}><div className="flex items-start gap-4"><button type="button" onClick={() => updateSession(session.id, { completed: !session.completed })} className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${session.completed ? 'bg-sage-600 text-white' : 'border border-stone-300 bg-white text-stone-400'}`} aria-label={`Mark ${session.title} ${session.completed ? 'incomplete' : 'complete'}`}><Check className="h-4 w-4" /></button><div className="flex-1"><p className="text-xs font-bold uppercase tracking-wider text-sage-700">Session {index + 1}</p><h3 className="mt-1 font-semibold text-stone-900">{session.title}</h3><Link href="/scripture" className="mt-2 inline-flex text-xs font-semibold text-blue-700">{session.scripture} → Bible study</Link><textarea value={session.reflection} onChange={(e) => updateSession(session.id, { reflection: e.target.value })} className="mt-3 min-h-[90px] w-full rounded-2xl border border-stone-200 bg-white p-3 text-sm leading-6" placeholder="Questions, what you learned, what to discuss with a leader..." /></div></div></article>)}
+            {activeSessions.map((sessionItem, index) => <article key={sessionItem.id} className={`rounded-3xl border p-5 ${sessionItem.completed ? 'border-sage-200 bg-sage-50' : 'border-stone-200 bg-stone-50'}`}><div className="flex items-start gap-4"><button type="button" onClick={() => updateSession(sessionItem.id, { completed: !sessionItem.completed })} className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${sessionItem.completed ? 'bg-sage-600 text-white' : 'border border-stone-300 bg-white text-stone-400'}`} aria-label={`Mark ${sessionItem.title} ${sessionItem.completed ? 'incomplete' : 'complete'}`}><Check className="h-4 w-4" /></button><div className="flex-1"><p className="text-xs font-bold uppercase tracking-wider text-sage-700">Session {index + 1}</p><h3 className="mt-1 font-semibold text-stone-900">{sessionItem.title}</h3><Link href="/scripture" className="mt-2 inline-flex text-xs font-semibold text-blue-700">{sessionItem.scripture} → Bible study</Link><textarea value={sessionItem.reflection} onChange={(e) => updateSession(sessionItem.id, { reflection: e.target.value })} className="mt-3 min-h-[90px] w-full rounded-2xl border border-stone-200 bg-white p-3 text-sm leading-6" placeholder="Questions, what you learned, what to discuss with a leader..." /></div></div></article>)}
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -144,7 +184,7 @@ export function FormationPathwayPlanner() {
           <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-xs leading-5 text-amber-100"><CalendarDays className="mb-2 h-4 w-4" /> A target date is a coordination aid, not pressure. Readiness should be determined by the person and accountable church leadership, with appropriate guardian involvement for minors.</div>
 
           <div className="mt-6 grid gap-3">
-            <Link href="/admin/follow-up" className="inline-flex items-center justify-center rounded-xl bg-sage-600 px-4 py-3 text-sm font-semibold text-white">Leader follow-up board</Link>
+            <Link href="/follow-up/manage" className="inline-flex items-center justify-center rounded-xl bg-sage-600 px-4 py-3 text-sm font-semibold text-white">Leader follow-up board</Link>
             <Link href="/groups" className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-stone-200">Connect to community →</Link>
             <Link href="/care" className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-stone-200">Ask for pastoral care →</Link>
           </div>
