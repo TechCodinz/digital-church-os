@@ -16,7 +16,10 @@ const navItems = [
 export const MobileBottomNav = () => {
     const pathname = usePathname();
 
-    const isRouteActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+    const isRouteActive = (href: string) => {
+        if (href === '/dashboard' && pathname === '/') return true;
+        return pathname === href || pathname.startsWith(`${href}/`);
+    };
 
     return (
         <nav aria-label="Primary mobile ministry navigation" className="fixed bottom-0 left-0 right-0 z-50 border-t border-stone-200 bg-white/95 shadow-[0_-8px_30px_rgba(28,25,23,0.06)] backdrop-blur-xl md:hidden pb-safe">
