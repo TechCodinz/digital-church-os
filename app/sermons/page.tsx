@@ -3,6 +3,7 @@ import { SermonPackConsole } from '@/components/sermon/SermonPackConsole';
 import { LiveSermonCommandCenter } from '@/components/sermon/LiveSermonCommandCenter';
 import { LiveSermonCompanion } from '@/components/sermon/LiveSermonCompanion';
 import { SermonIntelligenceWorkbench } from '@/components/sermon/SermonIntelligenceWorkbench';
+import { JourneyContinuityComposer } from '@/components/journey/JourneyContinuityComposer';
 import { BookOpenText, ShieldCheck } from 'lucide-react';
 
 export default function SermonsPage() {
@@ -22,6 +23,14 @@ export default function SermonsPage() {
             <LiveSermonCommandCenter />
             <SermonIntelligenceWorkbench />
             <LiveSermonCompanion />
+            <JourneyContinuityComposer
+              source="Sermon"
+              title="Carry the message into the week"
+              prompt="Choose one biblical insight, question, prayer, conviction, or practical response you want to remember after listening or preparing. This is separate from the full sermon draft and timed note archive."
+              nextHref="/service-response"
+              nextLabel="Choose a Service Response"
+              privacyNote="Full sermon drafts, generated packs, live cues, and other people’s ministry data are not copied automatically. Only the reflection and next step you intentionally enter here become a private Journey moment."
+            />
             <SermonGeneratorConsole />
             <SermonPackConsole />
           </div>
