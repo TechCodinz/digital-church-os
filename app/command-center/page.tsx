@@ -7,7 +7,10 @@ export default function CommandCenterPage() {
     <main className="min-h-screen bg-cream-50 pb-16 pt-24">
       <section className="px-4 pb-10 pt-8 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <ChurchWorkspaceSelector />
+          <ChurchWorkspaceSelector
+            allowedRoles={['OWNER', 'ADMIN', 'PASTOR', 'STAFF']}
+            emptyMessage="No church workspace with operational write access is attached to this account yet."
+          />
           <ChurchOperationsCommandDeck />
         </div>
       </section>
@@ -34,6 +37,7 @@ export default function CommandCenterPage() {
         safeguards={[
           'Human-owned consequential decisions',
           'Church membership checked for shared records',
+          'Viewer-only workspaces cannot become command-center write targets',
           'No sensitive pastoral case notes in general dashboards',
           'No attendance or service metrics used as spiritual-worth scores',
         ]}
