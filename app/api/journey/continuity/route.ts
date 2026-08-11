@@ -44,6 +44,77 @@ function cleanSourceKey(value: unknown) {
     .replace(/^-+|-+$/g, '');
 }
 
+function parseContinuityMood(mood: string | null) {
+  if (!mood?.startsWith('Continuity:')) return null;
+  const remainder = mood.slice('Continuity:'.length);
+  const separator = remainder.indexOf(':');
+  const source = separator === -1 ? remainder : remainder.slice(0, separator);
+  const sourceKey = separator === -1 ? '' : remainder.slice(separator + 1);
+  if (!allowedSources.has(source)) return null;
+  return { source, sourceKey };
+}
+
+function displayTitle(title: string, source: string) {
+  const prefix = `${source} · `;
+  return title.startsWith(prefix) ? title.slice(prefix.length) : title;
+}
+
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Sign in to view your private journey continuity.' }, { status: 401 });
+  }
+
+  try {
+    const rows = await prisma.journalEntry.findMany({
+      where: {
+        userId: session.user.id,
+        mood: { startsWith: 'Continuity:' },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 18,
+      select: {
+        id: true,
+        title: true,
+        mood: true,
+        createdAt: true,
+      },
+    });
+
+    const moments = rows.flatMap((row) => {
+      const parsed = parseContinuityMood(row.mood);
+      if (!parsed) return [];
+      return [{
+        id: row.id,
+        source: parsed.source,
+        sourceKey: parsed.sourceKey,
+        title: displayTitle(row.title, parsed.source),
+        createdAt: row.createdAt,
+      }];
+    });
+
+    const sourceCounts = moments.reduce<Record<string, number>>((counts, moment) => {
+      counts[moment.source] = (counts[moment.source] || 0) + 1;
+      return counts;
+    }, {});
+
+    return NextResponse.json({
+      moments,
+      sourceCounts,
+      privacyBoundary: {
+        contentExcluded: true,
+        financialActivityExcluded: true,
+        pastoralCaseDataExcluded: true,
+        childActivityExcluded: true,
+        spiritualScoring: false,
+      },
+    });
+  } catch (error) {
+    console.error('Journey continuity fetch failed:', error);
+    return NextResponse.json({ error: 'Unable to load private journey continuity.' }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
