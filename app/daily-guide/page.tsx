@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { DailyAlignmentIntelligence } from '@/components/ministry/DailyAlignmentIntelligence';
 import {
   BookOpenText,
   Check,
@@ -89,6 +90,8 @@ export default function DailyGuidePage() {
             </aside>
           </div>
         </section>
+
+        <DailyAlignmentIntelligence />
       </div>
     </main>
   );
