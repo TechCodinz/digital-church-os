@@ -1,13 +1,26 @@
 import { AdvancedMinistryWorkspace } from '@/components/ministry/AdvancedMinistryWorkspace';
+import { ChurchWorkspaceSelector } from '@/components/ministry/ChurchWorkspaceSelector';
 import { MinisterPreparationBoard } from '@/components/ministry/MinisterPreparationBoard';
+import { requireChurchWorkspace } from '@/lib/church-ops/server';
 
-export default function MinisterPortalPage() {
+export default async function MinisterPortalPage() {
+  await requireChurchWorkspace(['OWNER', 'ADMIN', 'PASTOR', 'STAFF']);
+
   return (
     <>
+      <section className="bg-cream-50 px-4 pt-24 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl pt-6">
+          <ChurchWorkspaceSelector
+            allowedRoles={['OWNER', 'ADMIN', 'PASTOR', 'STAFF']}
+            emptyMessage="No church workspace with minister-preparation access is attached to this account."
+          />
+        </div>
+      </section>
+
       <AdvancedMinistryWorkspace
         eyebrow="Minister Portal"
         title="Prepare, coordinate, serve, and follow up from one ministry command surface."
-        description="A connected workspace for ministers and ministry leaders to move between service preparation, Scripture, sermon work, worship, teams, requests, follow-up, and accountable next actions."
+        description="A connected church workspace for ministers and ministry leaders to move between service preparation, Scripture, sermon work, worship, teams, requests, follow-up, and accountable next actions."
         emoji="🕊️"
         focus={[
           { title: 'Service preparation', description: 'Keep message focus, Scripture, worship, response moments, volunteers, communications, and follow-up aligned before the service begins.' },
@@ -26,7 +39,7 @@ export default function MinisterPortalPage() {
           { label: 'Church Team', href: '/church-team/manage', description: 'Manage role-aware ministry team membership and invitations.' },
         ]}
         safeguards={[
-          'Role-protected actions remain subject to church workspace permissions and human authorization.',
+          'This route requires an active church workspace with OWNER, ADMIN, PASTOR, or STAFF access.',
           'Confidential pastoral notes do not belong in shared operational scratchpads or broad team views.',
           'AI may organize, summarize, and recommend next actions; it does not become the minister, pastor, or final decision maker.',
         ]}
