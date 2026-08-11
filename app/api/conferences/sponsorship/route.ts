@@ -75,13 +75,14 @@ async function canUseConference(conferenceId: string, userId?: string | null) {
 
 async function requireConferenceManager(userId: string, conferenceId: string) {
   const scope = await getConferenceTenantScope(conferenceId);
-  if (!scope) return { scope: null, allowed: false, status: 404, error: 'Conference not found' };
+  if (!scope) return { scope: null, role: null, allowed: false, status: 404, error: 'Conference not found' };
   if (!scope.churchProfileId) {
-    return { scope, allowed: false, status: 403, error: 'Legacy quarantined conferences cannot use tenant management actions.' };
+    return { scope, role: null, allowed: false, status: 403, error: 'Legacy quarantined conferences cannot use tenant management actions.' };
   }
   const management = await canManageConference(userId, scope, false);
   return {
     scope,
+    role: management.role,
     allowed: management.allowed,
     status: management.allowed ? 200 : 403,
     error: management.allowed ? null : 'You do not have management access for this conference.',
@@ -242,6 +243,7 @@ export async function GET(req: NextRequest) {
     const conferenceId = searchParams.get('conferenceId');
     let manager = false;
     let legacyManager = false;
+    let tenantRole: string | null = null;
 
     if (conferenceId) {
       const scope = await getConferenceTenantScope(conferenceId);
@@ -250,20 +252,25 @@ export async function GET(req: NextRequest) {
       if (scope.churchProfileId) {
         const management = await canManageConference(session.user.id, scope, false);
         manager = management.allowed;
+        tenantRole = management.role;
       } else {
         legacyManager = session.user.role === 'CHURCH_ADMIN';
       }
     }
 
     if (conferenceId && (manager || legacyManager)) {
-      const sponsorships = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
-        SELECT csr.*, u.name, u.email
-        FROM conference_sponsorship_requests csr
-        JOIN "User" u ON u.id = csr.user_id
-        WHERE csr.conference_id = ${conferenceId}
-        ORDER BY csr.created_at DESC
-        LIMIT 150
-      `);
+      const sponsorshipAccess = legacyManager || ['OWNER', 'ADMIN', 'PASTOR'].includes(tenantRole || '');
+      const sponsorshipReviewAccess = legacyManager || ['OWNER', 'ADMIN'].includes(tenantRole || '');
+      const sponsorships = sponsorshipAccess
+        ? await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+            SELECT csr.*, u.name, u.email
+            FROM conference_sponsorship_requests csr
+            JOIN "User" u ON u.id = csr.user_id
+            WHERE csr.conference_id = ${conferenceId}
+            ORDER BY csr.created_at DESC
+            LIMIT 150
+          `)
+        : [];
       const registrations = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
         SELECT *
         FROM conference_registrations
@@ -271,7 +278,14 @@ export async function GET(req: NextRequest) {
         ORDER BY created_at DESC
         LIMIT 150
       `);
-      return NextResponse.json({ sponsorships, registrations, scope: manager ? 'tenant-manager' : 'legacy-admin' });
+      return NextResponse.json({
+        sponsorships,
+        registrations,
+        scope: manager ? 'tenant-manager' : 'legacy-admin',
+        tenantRole,
+        sponsorshipAccess,
+        sponsorshipReviewAccess,
+      });
     }
 
     const sponsorships = conferenceId
@@ -323,16 +337,25 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (d.action === 'review-sponsorship') {
-      const rows = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
-        UPDATE conference_sponsorship_requests
-        SET
-          status = ${d.status},
-          reviewed_by = ${session.user.id},
-          reviewed_at = now()
-        WHERE id = ${d.requestId}
-          AND conference_id = ${d.conferenceId}
-        RETURNING *
-      `);
+      if (!['OWNER', 'ADMIN'].includes(management.role || '')) {
+        return NextResponse.json({ error: 'Only church owners/admins can approve or reject conference support requests.' }, { status: 403 });
+      }
+
+      const rows = d.status === 'PENDING'
+        ? await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+            UPDATE conference_sponsorship_requests
+            SET status = 'PENDING', reviewed_by = NULL, reviewed_at = NULL
+            WHERE id = ${d.requestId}
+              AND conference_id = ${d.conferenceId}
+            RETURNING *
+          `)
+        : await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+            UPDATE conference_sponsorship_requests
+            SET status = ${d.status}, reviewed_by = ${session.user.id}, reviewed_at = now()
+            WHERE id = ${d.requestId}
+              AND conference_id = ${d.conferenceId}
+            RETURNING *
+          `);
       if (!rows[0]) return NextResponse.json({ error: 'Sponsorship request not found for this conference.' }, { status: 404 });
       return NextResponse.json({ request: rows[0] });
     }
