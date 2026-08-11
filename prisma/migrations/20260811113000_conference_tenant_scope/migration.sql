@@ -29,7 +29,9 @@ CREATE INDEX IF NOT EXISTS "Conference_church_profile_id_status_startDate_idx"
 
 -- Child tables inherit tenant ownership through conference_id. Index the
 -- relationship so every tenant-authorized lookup can join through Conference
--- efficiently without duplicating church_id and risking tenant drift.
+-- efficiently without duplicating church_id and risking tenant drift. These
+-- child tables are Phase 4 raw-SQL tables and are intentionally not modeled as
+-- duplicate Prisma tenant entities.
 CREATE INDEX IF NOT EXISTS conference_tickets_conference_id_idx
   ON conference_tickets(conference_id);
 CREATE INDEX IF NOT EXISTS conference_registrations_conference_created_idx
@@ -38,9 +40,3 @@ CREATE INDEX IF NOT EXISTS conference_sponsorship_conference_created_idx
   ON conference_sponsorship_requests(conference_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS conference_certificates_conference_id_idx
   ON conference_certificates(conference_id);
-
--- Prisma's ConferenceAttendance table also inherits tenant ownership from the
--- Conference parent. This supports tenant-scoped registration counts without
--- copying church identity onto every attendance row.
-CREATE INDEX IF NOT EXISTS "ConferenceAttendance_conferenceId_registeredAt_idx"
-  ON "ConferenceAttendance" ("conferenceId", "registeredAt" DESC);
