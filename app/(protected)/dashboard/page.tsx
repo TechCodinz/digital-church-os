@@ -12,6 +12,7 @@ import { AIPastorModal } from '@/components/ai/AIPastorModal';
 import { ScriptureDepthExperience } from '@/components/scripture/ScriptureDepthExperience';
 import { LivingSanctuaryMissionControl } from '@/components/ministry/LivingSanctuaryMissionControl';
 import { DailyMinistryFlow } from '@/components/ministry/DailyMinistryFlow';
+import { NextBestMinistryAction } from '@/components/ministry/NextBestMinistryAction';
 
 async function safeJson(url: string) {
     try {
@@ -86,6 +87,7 @@ export default function DashboardPage() {
 
                 <LivingSanctuaryMissionControl />
                 <DailyMinistryFlow />
+                <NextBestMinistryAction prayers={stats.prayers} goals={stats.goals} offerings={stats.offerings} activityCount={activities.length} />
 
                 <div className="mb-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                     {[
@@ -149,9 +151,9 @@ export default function DashboardPage() {
                             <div className="absolute right-0 top-0 p-8 opacity-10 transition-transform duration-700 group-hover:scale-125"><Zap size={120} /></div>
                             <div className="relative z-10">
                                 <h3 className="mb-4 text-2xl font-light">How can I assist your walk today?</h3>
-                                <p className="mb-8 max-w-md text-stone-400">Your AI Pastor is ready to provide scripture-grounded guidance, reflection, and a pathway to human care when needed.</p>
+                                <p className="mb-8 max-w-md text-stone-400">Your AI Ministry Companion can offer scripture-grounded reflection and a pathway to human care when needed.</p>
                                 <div className="flex flex-wrap gap-4">
-                                    <button onClick={() => setIsAiPastorOpen(true)} className="flex items-center rounded-xl bg-sage-500 px-8 py-3 font-medium transition-all hover:bg-sage-600">Ask AI Pastor <ChevronRight size={18} className="ml-2" /></button>
+                                    <button onClick={() => setIsAiPastorOpen(true)} className="flex items-center rounded-xl bg-sage-500 px-8 py-3 font-medium transition-all hover:bg-sage-600">Ask AI Companion <ChevronRight size={18} className="ml-2" /></button>
                                     <Link href="/journal" className="flex items-center gap-2 rounded-xl bg-white/10 px-8 py-3 font-medium transition-all hover:bg-white/20"><BookOpen size={16} /> View Journal</Link>
                                 </div>
                             </div>
