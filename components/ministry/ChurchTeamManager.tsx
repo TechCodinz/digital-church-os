@@ -4,11 +4,14 @@ import { useEffect, useState } from 'react';
 import { Check, ClipboardCheck, Loader2, ShieldCheck, Trash2, UsersRound } from 'lucide-react';
 import { ACTIVE_CHURCH_STORAGE_KEY } from '@/components/ministry/ChurchWorkspaceSelector';
 
+type TeamRole = 'OWNER' | 'ADMIN' | 'PASTOR' | 'STAFF' | 'VIEWER';
+type MemberStatus = 'ACTIVE' | 'SUSPENDED' | 'REMOVED';
+
 type Member = {
   id: string;
   user_id: string;
-  role: 'OWNER' | 'ADMIN' | 'PASTOR' | 'STAFF' | 'VIEWER';
-  status: string;
+  role: TeamRole;
+  status: MemberStatus;
   name: string | null;
   email: string;
 };
@@ -24,7 +27,7 @@ type Invitation = {
 type Church = {
   id: string;
   name: string;
-  role: 'OWNER' | 'ADMIN' | 'PASTOR' | 'STAFF' | 'VIEWER';
+  role: TeamRole;
 };
 
 export function ChurchTeamManager() {
@@ -36,6 +39,7 @@ export function ChurchTeamManager() {
   const [inviteLink, setInviteLink] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [busyMemberId, setBusyMemberId] = useState('');
   const [message, setMessage] = useState('');
 
   const activeChurchId = () => window.localStorage.getItem(ACTIVE_CHURCH_STORAGE_KEY) || '';
@@ -106,6 +110,29 @@ export function ChurchTeamManager() {
     }
   };
 
+  const updateMember = async (memberId: string, patch: { role?: Exclude<TeamRole, 'OWNER'>; status?: MemberStatus }) => {
+    setBusyMemberId(memberId);
+    setMessage('');
+    try {
+      const response = await fetch('/api/church-ops/team', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ churchId: activeChurchId() || undefined, memberId, ...patch }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setMessage(data?.error || 'Team access could not be changed.');
+        return;
+      }
+      setMessage(patch.status === 'REMOVED' ? 'Workspace access removed.' : patch.status === 'SUSPENDED' ? 'Workspace access suspended.' : 'Workspace access updated.');
+      await load();
+    } catch {
+      setMessage('Team access could not be changed right now.');
+    } finally {
+      setBusyMemberId('');
+    }
+  };
+
   const copyLink = async () => {
     if (!inviteLink) return;
     try {
@@ -137,6 +164,12 @@ export function ChurchTeamManager() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const canEditMember = (member: Member) => {
+    if (!church || member.role === 'OWNER') return false;
+    if (church.role === 'OWNER') return true;
+    return church.role === 'ADMIN' && member.role !== 'ADMIN';
   };
 
   return (
@@ -186,14 +219,40 @@ export function ChurchTeamManager() {
             <h2 className="text-xl font-semibold text-stone-900">Active team</h2>
             {loading ? <p className="mt-4 inline-flex items-center text-sm text-stone-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading team…</p> : (
               <div className="mt-4 grid gap-3 md:grid-cols-2">
-                {members.map((member) => (
-                  <article key={member.id} className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0"><p className="truncate font-semibold text-stone-900">{member.name || member.email}</p><p className="mt-1 truncate text-xs text-stone-500">{member.email}</p></div>
-                      <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-600 shadow-sm">{member.role}</span>
-                    </div>
-                  </article>
-                ))}
+                {members.map((member) => {
+                  const editable = canEditMember(member);
+                  const busy = busyMemberId === member.id;
+                  return (
+                    <article key={member.id} className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0"><p className="truncate font-semibold text-stone-900">{member.name || member.email}</p><p className="mt-1 truncate text-xs text-stone-500">{member.email}</p></div>
+                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider shadow-sm ${member.status === 'SUSPENDED' ? 'bg-amber-100 text-amber-800' : 'bg-white text-stone-600'}`}>{member.status}</span>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        {editable ? (
+                          <select
+                            value={member.role}
+                            disabled={busy}
+                            onChange={(event) => void updateMember(member.id, { role: event.target.value as Exclude<TeamRole, 'OWNER'> })}
+                            className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 disabled:opacity-50"
+                          >
+                            {church?.role === 'OWNER' && <option value="ADMIN">Admin</option>}
+                            <option value="PASTOR">Pastor</option>
+                            <option value="STAFF">Staff</option>
+                            <option value="VIEWER">Viewer</option>
+                          </select>
+                        ) : (
+                          <span className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm">{member.role}</span>
+                        )}
+
+                        {editable && member.status === 'ACTIVE' && <button type="button" disabled={busy} onClick={() => void updateMember(member.id, { status: 'SUSPENDED' })} className="rounded-xl border border-amber-100 bg-white px-3 py-2 text-xs font-semibold text-amber-700 disabled:opacity-50">Suspend</button>}
+                        {editable && member.status === 'SUSPENDED' && <button type="button" disabled={busy} onClick={() => void updateMember(member.id, { status: 'ACTIVE' })} className="rounded-xl border border-sage-100 bg-white px-3 py-2 text-xs font-semibold text-sage-700 disabled:opacity-50">Reactivate</button>}
+                        {editable && <button type="button" disabled={busy} onClick={() => void updateMember(member.id, { status: 'REMOVED' })} className="inline-flex items-center rounded-xl border border-rose-100 bg-white px-3 py-2 text-xs font-semibold text-rose-600 disabled:opacity-50">{busy ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />} Remove</button>}
+                      </div>
+                    </article>
+                  );
+                })}
                 {!members.length && <p className="text-sm text-stone-500">No active team memberships are available yet.</p>}
               </div>
             )}
@@ -217,8 +276,8 @@ export function ChurchTeamManager() {
           <ShieldCheck className="h-8 w-8 text-blue-300" />
           <h2 className="mt-5 text-3xl font-light">Tenant access is separate from global product roles.</h2>
           <div className="mt-6 space-y-3 text-sm leading-6 text-stone-300">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4"><strong className="text-white">Owner.</strong> Controls workspace administration and may grant the tenant Admin role.</div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4"><strong className="text-white">Admin.</strong> Can manage normal church workspace access but cannot manufacture a new owner.</div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4"><strong className="text-white">Owner.</strong> Controls workspace administration and may grant the tenant Admin role. Owner access cannot be downgraded here.</div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4"><strong className="text-white">Admin.</strong> Can manage normal church workspace access but cannot manufacture a new owner or control another admin.</div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4"><strong className="text-white">Pastor / Staff.</strong> Intended for operational write access as legacy modules are migrated to tenant-safe storage.</div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4"><strong className="text-white">Viewer.</strong> Intended for read-oriented visibility without shared-record mutation rights.</div>
           </div>
