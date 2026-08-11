@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { JourneyContinuityLive } from '@/components/journey/JourneyContinuityLive';
 import { QuickContinuityCapture } from '@/components/journey/QuickContinuityCapture';
 import { SpiritualJourneyPanel } from '@/components/journey/SpiritualJourneyPanel';
+import { JourneyMemoryControls } from '@/components/journey/JourneyMemoryControls';
 import { BookOpenText, Footprints } from 'lucide-react';
 
 export default function JourneyPage() {
@@ -23,6 +24,7 @@ export default function JourneyPage() {
             <QuickContinuityCapture />
             <JourneyContinuityLive />
             <SpiritualJourneyPanel />
+            <JourneyMemoryControls />
           </div>
         </div>
       </section>
