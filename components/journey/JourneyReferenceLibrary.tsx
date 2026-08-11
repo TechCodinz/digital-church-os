@@ -28,13 +28,32 @@ type Payload = {
 const sourceHref: Record<string, string> = {
   'Daily Guide': '/daily-guide',
   Scripture: '/scripture',
-  Prayer: '/prayer-room',
+  Prayer: '/prayer-practice',
   Fasting: '/fasting-prayer',
+  'Fasting & Prayer': '/fasting-prayer',
   'Family Altar': '/family-altar',
   Choir: '/choir',
+  'Choir Studio': '/choir',
   Sermon: '/sermons',
+  'Live Sermon': '/live-service',
   'Service Response': '/service-response',
+  'Pastoral Reflection': '/care',
 };
+
+const defaultSources = [
+  'Daily Guide',
+  'Scripture',
+  'Prayer',
+  'Fasting',
+  'Fasting & Prayer',
+  'Family Altar',
+  'Choir',
+  'Choir Studio',
+  'Sermon',
+  'Live Sermon',
+  'Service Response',
+  'Pastoral Reflection',
+];
 
 export function JourneyReferenceLibrary() {
   const [query, setQuery] = useState('');
@@ -68,7 +87,7 @@ export function JourneyReferenceLibrary() {
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [query, source]);
 
-  const sources = useMemo(() => payload?.sources || ['Daily Guide', 'Scripture', 'Prayer', 'Fasting', 'Family Altar', 'Choir', 'Sermon', 'Service Response'], [payload]);
+  const sources = useMemo(() => payload?.sources?.length ? payload.sources : defaultSources, [payload]);
 
   const removeEntry = async (entry: Entry) => {
     if (deletingId) return;
@@ -88,6 +107,7 @@ export function JourneyReferenceLibrary() {
       setPayload((current) => current ? { ...current, entries: current.entries.filter((item) => item.id !== entry.id) } : current);
       setExpanded((current) => current === entry.id ? null : current);
       setActionStatus('Removed from your private Journey.');
+      window.dispatchEvent(new Event('digital-church:journey-updated'));
     } catch (reason) {
       setActionStatus(reason instanceof Error ? reason.message : 'Unable to remove this Journey moment.');
     } finally {
