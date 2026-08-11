@@ -3,10 +3,8 @@ import { NextResponse } from 'next/server';
 
 const churchAdminUiPrefixes = [
   '/admin',
-  '/command-center',
   '/ministry-command-center',
   '/leader-onboarding',
-  '/service-planner',
   '/communications',
   '/facilities',
   '/testimonies',
