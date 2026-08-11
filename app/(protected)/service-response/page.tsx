@@ -12,6 +12,13 @@ import {
 
 const responsePaths = [
   {
+    title: 'I chose to follow Christ',
+    description: 'Start a clear new-believer pathway for prayer, Scripture, baptism preparation, church belonging, and human follow-up.',
+    href: '/next-steps',
+    icon: Sparkles,
+    tone: 'border-sage-100 bg-sage-50 text-sage-700',
+  },
+  {
     title: 'I need prayer',
     description: 'Share a prayer request and choose whether it stays private, goes to a prayer team, or needs pastoral follow-up.',
     href: '/prayer-room',
@@ -66,7 +73,7 @@ export default function ServiceResponsePage() {
             </div>
             <h1 className="text-4xl font-light leading-tight md:text-5xl">Respond to what God is stirring in you.</h1>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-stone-300 sm:text-base">
-              A live service should not end at the video player. Choose a next step for prayer, care, Scripture, service, church connection, or transparent support. Sensitive decisions remain human-led and private by default.
+              A live service should not end at the video player. Choose a next step for salvation and discipleship, prayer, care, Scripture, service, church connection, or transparent support. Sensitive decisions remain human-led and private by default.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link href="/live-service" className="rounded-2xl bg-sage-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sage-600">
