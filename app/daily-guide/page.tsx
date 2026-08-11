@@ -7,6 +7,7 @@ import {
   BookOpenText,
   Check,
   Heart,
+  Loader2,
   NotebookPen,
   Radio,
   Sparkles,
@@ -30,7 +31,8 @@ export default function DailyGuidePage() {
   const [completed, setCompleted] = useState<string[]>([]);
   const [morning, setMorning] = useState('');
   const [evening, setEvening] = useState('');
-  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('');
 
   useEffect(() => {
     try {
@@ -46,14 +48,61 @@ export default function DailyGuidePage() {
   }, []);
 
   const progress = useMemo(() => Math.round((completed.length / rhythm.length) * 100), [completed.length]);
-  const toggle = (id: string) => setCompleted((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
-  const save = () => {
+  const toggle = (id: string) => {
+    setSaveStatus('');
+    setCompleted((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  };
+
+  const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    setSaveStatus('');
+
+    let localSaved = false;
     try {
       window.localStorage.setItem(key(), JSON.stringify({ completed, morning, evening }));
-      setSaved(true);
-      window.setTimeout(() => setSaved(false), 1800);
+      localSaved = true;
     } catch {
-      setSaved(false);
+      localSaved = false;
+    }
+
+    const reflectionParts = [
+      morning.trim() ? `Morning intention: ${morning.trim()}` : '',
+      evening.trim() ? `Evening examen: ${evening.trim()}` : '',
+    ].filter(Boolean);
+
+    if (!reflectionParts.length) {
+      setSaveStatus(localSaved ? 'Daily rhythm saved privately on this device.' : 'Nothing was saved. Add a reflection and try again.');
+      setSaving(false);
+      return;
+    }
+
+    const completedLabels = rhythm.filter((item) => completed.includes(item.id)).map((item) => item.title);
+
+    try {
+      const response = await fetch('/api/journey/continuity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: 'Daily Guide',
+          title: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
+          content: reflectionParts.join('\n\n'),
+          nextStep: completedLabels.length ? `Rhythm touched today: ${completedLabels.join(', ')}` : '',
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok) {
+        setSaveStatus('Saved on this device and added to your private Journey timeline.');
+      } else if (response.status === 401 && localSaved) {
+        setSaveStatus('Saved privately on this device. Sign in to carry reflections into your Journey timeline.');
+      } else {
+        setSaveStatus(localSaved ? `Saved on this device. ${data.error || 'Journey sync is temporarily unavailable.'}` : (data.error || 'Unable to save today’s reflection.'));
+      }
+    } catch {
+      setSaveStatus(localSaved ? 'Saved privately on this device. Journey sync is temporarily unavailable.' : 'Unable to save today’s reflection.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -81,12 +130,14 @@ export default function DailyGuidePage() {
               <p className="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-sage-300">Private daily pulse</p>
               <p className="mt-2 text-5xl font-light">{progress}%</p>
               <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-sage-400" style={{ width: `${progress}%` }} /></div>
-              <p className="mt-4 text-sm leading-6 text-stone-400">Progress stays on this device. It is not visible to other members and should never be used to rank spirituality.</p>
+              <p className="mt-4 text-sm leading-6 text-stone-400">Progress stays on this device. Signed-in reflections can also be carried into your private Journey timeline; neither is visible to other members or used to rank spirituality.</p>
 
-              <label className="mt-7 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-400">Morning intention</span><textarea value={morning} onChange={(e) => setMorning(e.target.value)} className="min-h-[110px] w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white outline-none focus:ring-2 focus:ring-sage-400" placeholder="What needs your attention, prayer, or surrender today?" /></label>
-              <label className="mt-5 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-400">Evening examen</span><textarea value={evening} onChange={(e) => setEvening(e.target.value)} className="min-h-[110px] w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white outline-none focus:ring-2 focus:ring-sage-400" placeholder="Where did you notice grace, resistance, need, or a next step?" /></label>
-              <button type="button" onClick={save} className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-sage-500 px-5 py-3 text-sm font-semibold text-white hover:bg-sage-400">{saved ? <Check className="mr-2 h-4 w-4" /> : <NotebookPen className="mr-2 h-4 w-4" />}{saved ? 'Saved privately' : 'Save today’s reflection'}</button>
-              <Link href="/fasting-prayer" className="mt-4 inline-flex w-full justify-center text-sm font-semibold text-amber-300">Open fasting & prayer journey →</Link>
+              <label className="mt-7 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-400">Morning intention</span><textarea value={morning} onChange={(e) => { setMorning(e.target.value); setSaveStatus(''); }} maxLength={1600} className="min-h-[110px] w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white outline-none focus:ring-2 focus:ring-sage-400" placeholder="What needs your attention, prayer, or surrender today?" /></label>
+              <label className="mt-5 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-400">Evening examen</span><textarea value={evening} onChange={(e) => { setEvening(e.target.value); setSaveStatus(''); }} maxLength={1600} className="min-h-[110px] w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white outline-none focus:ring-2 focus:ring-sage-400" placeholder="Where did you notice grace, resistance, need, or a next step?" /></label>
+              <button type="button" onClick={save} disabled={saving} className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-sage-500 px-5 py-3 text-sm font-semibold text-white hover:bg-sage-400 disabled:cursor-not-allowed disabled:opacity-60">{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <NotebookPen className="mr-2 h-4 w-4" />}{saving ? 'Saving privately…' : 'Save today’s reflection'}</button>
+              {saveStatus && <p className="mt-3 text-xs leading-5 text-stone-300" role="status">{saveStatus}</p>}
+              <Link href="/journey" className="mt-4 inline-flex w-full justify-center text-sm font-semibold text-sage-300">Open private Journey →</Link>
+              <Link href="/fasting-prayer" className="mt-3 inline-flex w-full justify-center text-sm font-semibold text-amber-300">Open fasting & prayer journey →</Link>
             </aside>
           </div>
         </section>
