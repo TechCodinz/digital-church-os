@@ -42,8 +42,8 @@ export default async function ServicePlannerPage() {
 
       <section className="mt-12 border-y border-stone-200 bg-white/70 px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-sage-700">Continue the operating flow</p><p className="mt-2 text-sm leading-6 text-stone-600">Check volunteer coverage before service, then move into the live-service second screen when the gathering begins.</p></div>
-          <div className="flex flex-wrap gap-3"><Link href="/admin/workers" className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700">Volunteer coverage</Link><Link href="/live-service" className="rounded-xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white">Open live service</Link></div>
+          <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-sage-700">Continue the operating flow</p><p className="mt-2 text-sm leading-6 text-stone-600">Check tenant-scoped volunteer coverage before service, then move into the live-service second screen when the gathering begins.</p></div>
+          <div className="flex flex-wrap gap-3"><Link href="/workers/manage" className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700">Volunteer coverage</Link><Link href="/live-service" className="rounded-xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white">Open live service</Link></div>
         </div>
       </section>
     </main>
