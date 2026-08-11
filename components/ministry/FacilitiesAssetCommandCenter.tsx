@@ -2,7 +2,13 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Building2, Check, Plus, Trash2, Wrench } from 'lucide-react';
+import { Building2, Check, Plus, ShieldCheck, Trash2, Wrench } from 'lucide-react';
+import {
+  getActiveChurchId,
+  loadChurchOperationalRecord,
+  saveChurchOperationalRecord,
+  subscribeToChurchWorkspace,
+} from '@/lib/church-ops/client-record';
 
 type Status = 'ready' | 'attention' | 'offline' | 'reserved';
 type Asset = { id: string; name: string; area: string; owner: string; status: Status; nextCheck: string; nextAction: string; critical: boolean };
@@ -14,17 +20,56 @@ const seed: Asset[] = [
   { id: 'power', name: 'Backup power', area: 'Facilities', owner: '', status: 'ready', nextCheck: '', nextAction: '', critical: true },
 ];
 
-const key = 'digital-church-facility-assets';
+const legacyKey = 'digital-church-facility-assets';
+const localPrefix = 'digital-church-facility-assets:v2';
+
+function normalizeAssets(value: unknown): Asset[] {
+  if (!Array.isArray(value)) return seed;
+  return value.filter((item) => item && typeof item === 'object').map((item: any, index) => ({
+    id: typeof item.id === 'string' ? item.id : `asset-${index}`,
+    name: typeof item.name === 'string' ? item.name : 'Asset or room',
+    area: typeof item.area === 'string' ? item.area : '',
+    owner: typeof item.owner === 'string' ? item.owner : '',
+    status: ['ready', 'attention', 'offline', 'reserved'].includes(item.status) ? item.status : 'ready',
+    nextCheck: typeof item.nextCheck === 'string' ? item.nextCheck : '',
+    nextAction: typeof item.nextAction === 'string' ? item.nextAction : '',
+    critical: Boolean(item.critical),
+  }));
+}
 
 export function FacilitiesAssetCommandCenter() {
   const [assets, setAssets] = useState<Asset[]>(seed);
   const [saved, setSaved] = useState(false);
+  const [activeChurchId, setActiveChurchId] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('Private browser draft');
+
+  const loadWorkspace = async (churchId: string) => {
+    setActiveChurchId(churchId);
+    setSaved(false);
+    setSyncing(true);
+    setSyncMessage(churchId ? 'Loading church facilities…' : 'Loading private facilities draft…');
+    try {
+      const result = await loadChurchOperationalRecord({
+        churchId,
+        module: 'facilities',
+        recordKey: 'assets',
+        localStoragePrefix: localPrefix,
+        legacyLocalStorageKey: legacyKey,
+        defaultValue: seed,
+        normalize: normalizeAssets,
+      });
+      setAssets(result.value);
+      setSyncMessage(result.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(key);
-      if (raw) setAssets(JSON.parse(raw));
-    } catch {}
+    void loadWorkspace(getActiveChurchId());
+    return subscribeToChurchWorkspace((churchId) => void loadWorkspace(churchId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const attention = useMemo(() => assets.filter((item) => item.status === 'attention' || item.status === 'offline').length, [assets]);
@@ -32,12 +77,24 @@ export function FacilitiesAssetCommandCenter() {
 
   const update = (id: string, patch: Partial<Asset>) => setAssets((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
   const add = () => setAssets((current) => [...current, { id: `${Date.now()}`, name: 'New asset or room', area: '', owner: '', status: 'ready', nextCheck: '', nextAction: '', critical: false }]);
-  const save = () => {
+  const save = async () => {
+    setSyncing(true);
+    setSyncMessage(activeChurchId ? 'Saving facilities to active church…' : 'Saving private facilities draft…');
     try {
-      window.localStorage.setItem(key, JSON.stringify(assets));
+      const result = await saveChurchOperationalRecord({
+        churchId: activeChurchId,
+        module: 'facilities',
+        recordKey: 'assets',
+        title: 'Facilities & asset readiness',
+        localStoragePrefix: localPrefix,
+        value: assets,
+      });
       setSaved(true);
+      setSyncMessage(result.message);
       window.setTimeout(() => setSaved(false), 1500);
-    } catch { setSaved(false); }
+    } finally {
+      setSyncing(false);
+    }
   };
 
   return (
@@ -48,7 +105,8 @@ export function FacilitiesAssetCommandCenter() {
             <div>
               <div className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-amber-800"><Building2 className="mr-2 h-4 w-4" /> Facilities & assets</div>
               <h1 className="mt-4 max-w-3xl text-3xl font-light leading-tight text-stone-900 md:text-5xl">Know what the church building depends on before people arrive.</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">Track rooms and equipment, ownership, condition, next checks, and required actions in one operational workspace.</p>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">Track rooms and equipment, ownership, condition, next checks, and required actions in one operational workspace. Shared state is scoped to the active church tenant.</p>
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-600"><ShieldCheck className="h-3.5 w-3.5 text-amber-700" /> {syncing ? 'Syncing…' : syncMessage}</div>
             </div>
             <div className="grid min-w-[185px] grid-cols-2 gap-2 text-center"><div className="rounded-2xl bg-amber-50 p-3"><p className="text-2xl font-light text-amber-800">{attention}</p><p className="text-[9px] uppercase tracking-wider text-amber-700">Need attention</p></div><div className="rounded-2xl bg-rose-50 p-3"><p className="text-2xl font-light text-rose-800">{criticalOffline}</p><p className="text-[9px] uppercase tracking-wider text-rose-700">Critical offline</p></div></div>
           </div>
@@ -68,7 +126,7 @@ export function FacilitiesAssetCommandCenter() {
               </article>
             ))}
           </div>
-          <div className="mt-5 flex flex-wrap gap-3"><button type="button" onClick={add} className="inline-flex items-center rounded-xl bg-amber-700 px-5 py-3 text-sm font-semibold text-white"><Plus className="mr-2 h-4 w-4" /> Add asset</button><button type="button" onClick={save} className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700"><Check className="mr-2 h-4 w-4" /> {saved ? 'Saved' : 'Save facilities plan'}</button></div>
+          <div className="mt-5 flex flex-wrap gap-3"><button type="button" onClick={add} className="inline-flex items-center rounded-xl bg-amber-700 px-5 py-3 text-sm font-semibold text-white"><Plus className="mr-2 h-4 w-4" /> Add asset</button><button type="button" onClick={() => void save()} disabled={syncing} className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700 disabled:opacity-60"><Check className="mr-2 h-4 w-4" /> {syncing ? 'Syncing…' : saved ? 'Saved' : activeChurchId ? 'Save to active church' : 'Save private plan'}</button></div>
         </div>
 
         <aside className="bg-stone-950 p-6 text-white sm:p-8 lg:p-10"><Wrench className="h-8 w-8 text-amber-300" /><h2 className="mt-5 text-3xl font-light">Operational visibility for rooms and equipment.</h2><p className="mt-4 text-sm leading-6 text-stone-300">Use this workspace to coordinate owners and follow-up. Formal inspections, repairs, certifications, and specialist maintenance remain with qualified people and the church’s official records.</p><div className="mt-6 grid gap-3"><Link href="/service-planner" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold">Open service planner →</Link><Link href="/events" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold">Open events →</Link></div></aside>
