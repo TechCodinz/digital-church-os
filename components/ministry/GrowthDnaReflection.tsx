@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { Leaf, RotateCcw, Save, Sparkles } from 'lucide-react';
 
 type RhythmState = 'nourishing' | 'steady' | 'attention' | 'resting';
@@ -39,21 +40,38 @@ const states: { value: RhythmState; label: string }[] = [
   { value: 'resting', label: 'Resting this season' },
 ];
 
+const LEGACY_STORAGE_KEY = 'digital-church-os:growth-dna';
+
+function storageKey(userId: string) {
+  return `digital-church-os:growth-dna:v2:${userId}`;
+}
+
 export function GrowthDnaReflection() {
+  const { data: session } = useSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id || '';
   const [draft, setDraft] = useState<GrowthDraft>(emptyDraft);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [storageNotice, setStorageNotice] = useState('');
+  const [legacyDraftPresent, setLegacyDraftPresent] = useState(false);
 
   useEffect(() => {
+    if (!userId) return;
+
     try {
-      const raw = window.localStorage.getItem('digital-church-os:growth-dna');
-      if (!raw) return;
-      const saved = JSON.parse(raw) as Partial<GrowthDraft>;
+      const scopedRaw = window.localStorage.getItem(storageKey(userId));
+      const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+      setLegacyDraftPresent(Boolean(legacyRaw));
+
+      // Never auto-import the old unscoped draft. On a shared browser its owner is ambiguous.
+      if (!scopedRaw) return;
+
+      const saved = JSON.parse(scopedRaw) as Partial<GrowthDraft>;
       setDraft({ ...emptyDraft, ...saved, rhythms: { ...emptyDraft.rhythms, ...(saved.rhythms || {}) } });
       setSavedAt(saved.updatedAt || null);
     } catch {
-      // Private browser recovery is best-effort.
+      setStorageNotice('Private Growth DNA notes could not be restored from this browser.');
     }
-  }, []);
+  }, [userId]);
 
   const suggestedStep = useMemo(() => {
     const focus = rhythmLabels[draft.chosenFocus];
@@ -74,17 +92,43 @@ export function GrowthDnaReflection() {
   }
 
   function save() {
-    const updatedAt = new Date().toISOString();
-    const next = { ...draft, updatedAt };
-    window.localStorage.setItem('digital-church-os:growth-dna', JSON.stringify(next));
-    setDraft(next);
-    setSavedAt(updatedAt);
+    if (!userId) {
+      setStorageNotice('Sign in is required before private Growth DNA notes can be saved.');
+      return;
+    }
+
+    try {
+      const updatedAt = new Date().toISOString();
+      const next = { ...draft, updatedAt };
+      window.localStorage.setItem(storageKey(userId), JSON.stringify(next));
+      setDraft(next);
+      setSavedAt(updatedAt);
+      setStorageNotice('Saved to this signed-in account’s browser-scoped draft.');
+    } catch {
+      setStorageNotice('Private Growth DNA notes could not be saved in this browser.');
+    }
   }
 
   function reset() {
     setDraft(emptyDraft);
     setSavedAt(null);
-    window.localStorage.removeItem('digital-church-os:growth-dna');
+    if (!userId) return;
+    try {
+      window.localStorage.removeItem(storageKey(userId));
+      setStorageNotice('This account’s Growth DNA browser draft was reset.');
+    } catch {
+      setStorageNotice('This browser draft could not be reset.');
+    }
+  }
+
+  function removeLegacyDraft() {
+    try {
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+      setLegacyDraftPresent(false);
+      setStorageNotice('Legacy unscoped Growth DNA draft removed.');
+    } catch {
+      setStorageNotice('Legacy Growth DNA draft could not be removed.');
+    }
   }
 
   return (
@@ -98,6 +142,14 @@ export function GrowthDnaReflection() {
           </div>
           <div className="inline-flex items-center rounded-2xl border border-sage-200 bg-sage-50 px-4 py-3 text-sm font-semibold text-sage-800"><Leaf className="mr-2 h-4 w-4" /> No ranking</div>
         </div>
+
+        {legacyDraftPresent && (
+          <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            An older unscoped browser reflection exists. It was <strong>not imported</strong> because this browser may be shared and its original owner cannot be verified.
+            <button type="button" onClick={removeLegacyDraft} className="ml-2 font-semibold underline">Remove legacy draft</button>
+          </div>
+        )}
+        {storageNotice && <p className="mb-5 text-xs text-stone-500">{storageNotice}</p>}
 
         <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
           <div className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm sm:p-7">
@@ -126,7 +178,7 @@ export function GrowthDnaReflection() {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2"><button onClick={save} type="button" className="inline-flex min-h-11 items-center rounded-xl bg-sage-600 px-4 text-sm font-semibold text-white"><Save className="mr-2 h-4 w-4" /> Save private reflection</button><button onClick={reset} type="button" className="inline-flex min-h-11 items-center rounded-xl border border-stone-200 px-4 text-sm font-semibold text-stone-600"><RotateCcw className="mr-2 h-4 w-4" /> Reset</button></div>
-            <p className="mt-3 text-xs text-stone-500">{savedAt ? `Private browser reflection saved ${new Date(savedAt).toLocaleString()}.` : 'Private browser reflection not yet saved.'}</p>
+            <p className="mt-3 text-xs text-stone-500">{savedAt ? `Account-scoped browser reflection saved ${new Date(savedAt).toLocaleString()}.` : 'Private browser reflection not yet saved for this account.'}</p>
           </div>
 
           <aside className="space-y-5">
