@@ -15,6 +15,17 @@ async function optionalRows<T>(query: Promise<T[]>, label: string): Promise<T[]>
   }
 }
 
+function journalTimelineType(mood: string | null) {
+  const prefix = 'Continuity:';
+  if (mood?.startsWith(prefix)) return mood.slice(prefix.length) || 'Journey';
+  return 'Journal';
+}
+
+function journalTimelineMeta(mood: string | null) {
+  if (mood?.startsWith('Continuity:')) return 'Private continuity moment';
+  return mood || 'Reflection';
+}
+
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -30,7 +41,7 @@ export async function GET() {
       prisma.journalEntry.findMany({
         where: { userId: session.user.id },
         orderBy: { createdAt: 'desc' },
-        take: 10,
+        take: 30,
         select: { id: true, title: true, mood: true, createdAt: true },
       }),
       prisma.goal.findMany({
@@ -72,10 +83,10 @@ export async function GET() {
         meta: prayer.isAnswered ? 'Marked answered' : 'Prayer reflection',
       })),
       ...journalEntries.map((entry) => ({
-        type: 'Journal',
+        type: journalTimelineType(entry.mood),
         title: entry.title,
         date: entry.createdAt,
-        meta: entry.mood || 'Reflection',
+        meta: journalTimelineMeta(entry.mood),
       })),
       ...goals.map((goal) => ({
         type: 'Goal',
