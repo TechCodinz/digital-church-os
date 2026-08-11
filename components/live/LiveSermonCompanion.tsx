@@ -37,7 +37,7 @@ export function LiveSermonCompanion() {
   const [scriptures, setScriptures] = useState('');
   const [takeaway, setTakeaway] = useState('');
   const [saved, setSaved] = useState(false);
-  const [journalStatus, setJournalStatus] = useState('');
+  const [journeyStatus, setJourneyStatus] = useState('');
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
@@ -45,11 +45,9 @@ export function LiveSermonCompanion() {
     const parts = [
       notes.trim() ? `Notes:\n${notes.trim()}` : '',
       points.length ? `Key points:\n${points.map((point) => `• [${point.at}] ${point.text}`).join('\n')}` : '',
-      scriptures.trim() ? `Scripture references:\n${scriptures.trim()}` : '',
-      takeaway.trim() ? `My next faithful action:\n${takeaway.trim()}` : '',
     ].filter(Boolean);
     return parts.join('\n\n');
-  }, [notes, points, scriptures, takeaway]);
+  }, [notes, points]);
 
   const addPoint = () => {
     const text = pointText.trim();
@@ -69,31 +67,39 @@ export function LiveSermonCompanion() {
     }
   };
 
-  const saveToJournal = async () => {
-    if (!summary) return;
-    setJournalStatus('Saving…');
+  const saveToJourney = async () => {
+    if (!summary && !scriptures.trim() && !takeaway.trim()) return;
+    savePrivate();
+    setJourneyStatus('Saving…');
     try {
-      const res = await fetch('/api/user/journal', {
+      const dateKey = new Date().toISOString().slice(0, 10);
+      const res = await fetch('/api/journey/continuity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: `Live sermon notes — ${new Date().toLocaleDateString()}`,
-          content: summary,
-          mood: 'Seeking',
+          source: 'Live Sermon',
+          sourceKey: `live-sermon:${dateKey}`,
+          title: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
+          content: summary || 'Live sermon reflection',
+          scriptureRefs: scriptures.trim() || undefined,
+          nextStep: takeaway.trim() || undefined,
         }),
       });
-      if (res.ok) setJournalStatus('Saved to journal');
-      else if (res.status === 401) setJournalStatus('Sign in to save to journal');
-      else setJournalStatus('Journal save unavailable');
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setJourneyStatus(data.operation === 'updated' ? 'Updated in private Journey' : 'Saved to private Journey');
+        window.dispatchEvent(new CustomEvent('digital-church:journey-updated'));
+      } else if (res.status === 401) setJourneyStatus('Sign in to save to Journey');
+      else setJourneyStatus(data.error || 'Journey save unavailable');
     } catch {
-      setJournalStatus('Journal save unavailable');
+      setJourneyStatus('Journey save unavailable; your browser draft remains available');
     }
   };
 
   const startVoiceJot = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setJournalStatus('Live speech-to-text is not supported in this browser');
+      setJourneyStatus('Live speech-to-text is not supported in this browser');
       return;
     }
 
@@ -198,12 +204,13 @@ export function LiveSermonCompanion() {
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
               <button onClick={savePrivate} className="inline-flex items-center justify-center rounded-xl bg-sage-600 px-5 py-3 text-sm font-semibold text-white hover:bg-sage-500">{saved ? <Check className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}{saved ? 'Saved privately' : 'Save private notes'}</button>
-              <button onClick={saveToJournal} disabled={!summary} className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-stone-100 disabled:opacity-40"><BookOpenText className="mr-2 h-4 w-4" /> Save to journal</button>
+              <button onClick={saveToJourney} disabled={!summary && !scriptures.trim() && !takeaway.trim()} className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-stone-100 disabled:opacity-40"><BookOpenText className="mr-2 h-4 w-4" /> Save to Journey</button>
             </div>
-            {journalStatus && <p className="mt-3 text-xs text-stone-400">{journalStatus}</p>}
+            {journeyStatus && <p className="mt-3 text-xs text-stone-400">{journeyStatus}</p>}
 
             <div className="mt-7 space-y-3 border-t border-white/10 pt-6">
               <Link href="/scripture" className="flex items-center text-sm font-semibold text-sage-300"><BookOpenText className="mr-2 h-4 w-4" /> Study the referenced passage</Link>
+              <Link href="/journey" className="flex items-center text-sm font-semibold text-amber-300"><NotebookPen className="mr-2 h-4 w-4" /> Open private Journey</Link>
               <Link href="/care" className="flex items-center text-sm font-semibold text-rose-300"><HeartHandshake className="mr-2 h-4 w-4" /> Ask for human pastoral care</Link>
             </div>
           </aside>
