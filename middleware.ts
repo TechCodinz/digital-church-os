@@ -110,6 +110,7 @@ export const config = {
     '/live-broadcast/:path*',
     '/worship-media/:path*',
     '/journey/:path*',
+    '/growth-dna/:path*',
     '/formation/:path*',
     '/next-steps/:path*',
     '/service-response/:path*',
