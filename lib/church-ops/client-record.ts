@@ -29,6 +29,7 @@ type LoadOptions<T> = {
   defaultValue: T;
   normalize: (value: unknown) => T;
   legacyLocalStorageKey?: string;
+  legacyScopedLocalStorageKey?: string;
 };
 
 type SaveOptions<T> = {
@@ -69,21 +70,24 @@ function writeLocal(key: string, value: unknown) {
   }
 }
 
+function readChurchLocalFallback<T>(options: LoadOptions<T>, scopedKey: string) {
+  const current = readLocal(scopedKey, options.normalize);
+  if (current) return current;
+  if (options.legacyScopedLocalStorageKey) return readLocal(options.legacyScopedLocalStorageKey, options.normalize);
+  return null;
+}
+
 export async function loadChurchOperationalRecord<T>(options: LoadOptions<T>): Promise<ChurchOpsLoadResult<T>> {
   const churchId = options.churchId ?? getActiveChurchId();
   const scopedKey = churchScopedLocalKey(options.localStoragePrefix, churchId);
 
   if (!churchId) {
     const local = readLocal(scopedKey, options.normalize);
-    if (local) {
-      return { value: local, churchId: '', source: 'private-local', message: 'Private browser draft' };
-    }
+    if (local) return { value: local, churchId: '', source: 'private-local', message: 'Private browser draft' };
 
     if (options.legacyLocalStorageKey) {
       const legacy = readLocal(options.legacyLocalStorageKey, options.normalize);
-      if (legacy) {
-        return { value: legacy, churchId: '', source: 'private-local', message: 'Private legacy browser draft' };
-      }
+      if (legacy) return { value: legacy, churchId: '', source: 'private-local', message: 'Private legacy browser draft' };
     }
 
     return { value: options.defaultValue, churchId: '', source: 'default', message: 'New private browser draft' };
@@ -97,41 +101,26 @@ export async function loadChurchOperationalRecord<T>(options: LoadOptions<T>): P
     if (response.ok && data?.record?.payload) {
       const value = options.normalize(data.record.payload);
       writeLocal(scopedKey, value);
-      return {
-        value,
-        churchId,
-        source: 'shared',
-        version: Number(data.record.version) || 1,
-        message: `Shared church record · v${Number(data.record.version) || 1}`,
-      };
+      return { value, churchId, source: 'shared', version: Number(data.record.version) || 1, message: `Shared church record · v${Number(data.record.version) || 1}` };
     }
 
     if (response.status === 404) {
-      const local = readLocal(scopedKey, options.normalize);
-      if (local) {
-        return { value: local, churchId, source: 'church-local', message: 'Church-scoped browser draft · not shared yet' };
-      }
+      const local = readChurchLocalFallback(options, scopedKey);
+      if (local) return { value: local, churchId, source: 'church-local', message: 'Church-scoped browser draft · not shared yet' };
       return { value: options.defaultValue, churchId, source: 'default', message: 'New shared church record' };
     }
 
-    const local = readLocal(scopedKey, options.normalize);
+    const local = readChurchLocalFallback(options, scopedKey);
     return {
       value: local ?? options.defaultValue,
       churchId,
       source: local ? 'church-local' : 'default',
-      message: data?.migrationRequired
-        ? 'Shared persistence waiting for database migration'
-        : data?.error || 'Shared sync unavailable · using church-scoped browser draft',
+      message: data?.migrationRequired ? 'Shared persistence waiting for database migration' : data?.error || 'Shared sync unavailable · using church-scoped browser draft',
       migrationRequired: Boolean(data?.migrationRequired),
     };
   } catch {
-    const local = readLocal(scopedKey, options.normalize);
-    return {
-      value: local ?? options.defaultValue,
-      churchId,
-      source: local ? 'church-local' : 'default',
-      message: 'Shared sync unavailable · using church-scoped browser draft',
-    };
+    const local = readChurchLocalFallback(options, scopedKey);
+    return { value: local ?? options.defaultValue, churchId, source: local ? 'church-local' : 'default', message: 'Shared sync unavailable · using church-scoped browser draft' };
   }
 }
 
@@ -140,22 +129,13 @@ export async function saveChurchOperationalRecord<T>(options: SaveOptions<T>): P
   const scopedKey = churchScopedLocalKey(options.localStoragePrefix, churchId);
   writeLocal(scopedKey, options.value);
 
-  if (!churchId) {
-    return { churchId: '', shared: false, message: 'Private browser draft saved' };
-  }
+  if (!churchId) return { churchId: '', shared: false, message: 'Private browser draft saved' };
 
   try {
     const response = await fetch('/api/church-ops/records', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        churchId,
-        module: options.module,
-        key: options.recordKey,
-        title: options.title,
-        classification: options.classification || 'INTERNAL',
-        payload: options.value,
-      }),
+      body: JSON.stringify({ churchId, module: options.module, key: options.recordKey, title: options.title, classification: options.classification || 'INTERNAL', payload: options.value }),
     });
     const data = await response.json();
 
@@ -163,9 +143,7 @@ export async function saveChurchOperationalRecord<T>(options: SaveOptions<T>): P
       return {
         churchId,
         shared: false,
-        message: data?.migrationRequired
-          ? 'Saved in this browser; shared database migration is still required'
-          : data?.error || 'Saved in this browser; shared sync failed',
+        message: data?.migrationRequired ? 'Saved in this browser; shared database migration is still required' : data?.error || 'Saved in this browser; shared sync failed',
         migrationRequired: Boolean(data?.migrationRequired),
       };
     }
@@ -182,7 +160,6 @@ export function subscribeToChurchWorkspace(callback: (churchId: string) => void)
     const custom = event as CustomEvent<{ churchId?: string }>;
     callback(custom.detail?.churchId || '');
   };
-
   window.addEventListener('digital-church-workspace-change', listener);
   return () => window.removeEventListener('digital-church-workspace-change', listener);
 }
