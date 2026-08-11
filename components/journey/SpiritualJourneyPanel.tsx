@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ArrowUpRight,
   BookOpen,
   CheckCircle2,
   Footprints,
@@ -40,6 +41,8 @@ type FormationLane = {
   terms: string[];
 };
 
+type Continuation = { href: string; label: string };
+
 const formationLanes: FormationLane[] = [
   { id: 'scripture', label: 'Scripture & learning', description: 'Reading, study, teaching, and truth carried into daily life.', href: '/scripture', cta: 'Study Scripture', terms: ['scripture', 'bible', 'study', 'sermon', 'lesson', 'reading'] },
   { id: 'prayer', label: 'Prayer & reflection', description: 'Prayer, gratitude, lament, discernment, journaling, and listening.', href: '/prayer-room', cta: 'Open Prayer Room', terms: ['prayer', 'pray', 'journal', 'reflection', 'fasting'] },
@@ -47,8 +50,27 @@ const formationLanes: FormationLane[] = [
   { id: 'service', label: 'Service & mission', description: 'Serving people, outreach, responsibility, generosity, and witness.', href: '/outreach', cta: 'Explore service', terms: ['service', 'serve', 'outreach', 'mission', 'volunteer'] },
 ];
 
+const continuationRoutes: Record<string, Continuation> = {
+  'Daily Guide': { href: '/daily-guide', label: 'Continue daily guide' },
+  Scripture: { href: '/scripture', label: 'Return to Scripture' },
+  Prayer: { href: '/prayer-practice', label: 'Continue prayer' },
+  Fasting: { href: '/fasting-prayer', label: 'Continue fasting' },
+  'Family Altar': { href: '/family-altar', label: 'Open family altar' },
+  Choir: { href: '/choir', label: 'Open choir studio' },
+  Sermon: { href: '/sermons', label: 'Open sermons' },
+  'Sermon Note': { href: '/sermons', label: 'Open sermons' },
+  'Service Response': { href: '/service-response', label: 'Continue response' },
+  Journal: { href: '/journal', label: 'Open journal' },
+  Goal: { href: '/journey', label: 'Review journey' },
+  Milestone: { href: '/journey', label: 'Review journey' },
+};
+
 function normalizedText(item: JourneyPayload['timeline'][number]) {
   return `${item.type} ${item.title} ${item.meta || ''}`.toLowerCase();
+}
+
+function continuationFor(type: string) {
+  return continuationRoutes[type] || { href: '/daily-guide', label: 'Choose next step' };
 }
 
 export function SpiritualJourneyPanel() {
@@ -85,6 +107,18 @@ export function SpiritualJourneyPanel() {
       const matchedMoments = payload.timeline.filter((item) => lane.terms.some((term) => normalizedText(item).includes(term)));
       return { ...lane, moments: matchedMoments.length };
     });
+  }, [payload]);
+
+  const sourceSummary = useMemo(() => {
+    if (!payload) return [] as Array<{ type: string; count: number; href: string }>;
+    const counts = payload.timeline.reduce<Record<string, number>>((acc, item) => {
+      acc[item.type] = (acc[item.type] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([type, count]) => ({ type, count, href: continuationFor(type).href }));
   }, [payload]);
 
   const saveReflection = async () => {
@@ -124,7 +158,7 @@ export function SpiritualJourneyPanel() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-sage-600">Growth DNA · private formation view</p>
                 <h2 className="mt-1 text-2xl font-light text-stone-800 sm:text-3xl">Notice your rhythms without turning faith into a score.</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-500">Recent moments can help you remember what you have used this app for. They do not measure holiness, salvation, faithfulness, maturity, God’s approval, or spiritual worth—and they are never used to rank you against another person.</p>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-500">Recent moments help you remember where Scripture, prayer, service, family formation, sermons, and reflection intersect. They do not measure holiness, salvation, faithfulness, maturity, God’s approval, or spiritual worth—and they are never used to rank you against another person.</p>
               </div>
             </div>
 
@@ -143,6 +177,16 @@ export function SpiritualJourneyPanel() {
                 </div>
               ))}
             </div>
+
+            {sourceSummary.length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-2" aria-label="Recent journey sources">
+                {sourceSummary.map((item) => (
+                  <Link key={item.type} href={item.href} className="inline-flex min-h-9 items-center rounded-full border border-sage-100 bg-sage-50 px-3 text-xs font-semibold text-sage-800 transition hover:border-sage-200 hover:bg-white">
+                    {item.type}<span className="ml-2 rounded-full bg-white px-1.5 py-0.5 text-[10px] text-sage-700">{item.count}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
           <aside className="border-t border-cream-200 bg-stone-900 p-6 text-white sm:p-8 lg:border-l lg:border-t-0">
@@ -162,21 +206,36 @@ export function SpiritualJourneyPanel() {
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="sanctuary-card p-6">
-          <h3 className="mb-5 flex items-center gap-2 text-xl font-medium text-stone-800"><Sparkles className="h-5 w-5 text-sage-600" /> Recent journey moments</h3>
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="flex items-center gap-2 text-xl font-medium text-stone-800"><Sparkles className="h-5 w-5 text-sage-600" /> Recent journey moments</h3>
+              <p className="mt-1 text-xs leading-5 text-stone-500">Each continuity moment keeps its source visible so you can resume the experience instead of starting over on another page.</p>
+            </div>
+            <Link href="/daily-guide" className="text-xs font-semibold text-sage-700">Choose today’s next step →</Link>
+          </div>
           <div className="space-y-3">
             {payload.timeline.length === 0 ? (
               <p className="text-sm text-stone-500">No journey moments yet. Begin with Scripture, prayer, reflection, community, or service.</p>
-            ) : payload.timeline.slice(0, 12).map((item, index) => (
-              <div key={`${item.type}-${item.title}-${index}`} className="rounded-2xl border border-cream-200 bg-white/70 p-4">
-                <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                  <div>
-                    <p className="font-medium text-stone-800">{item.title}</p>
-                    <p className="text-sm text-stone-500">{item.type}{item.meta ? ` · ${item.meta}` : ''}</p>
+            ) : payload.timeline.slice(0, 12).map((item, index) => {
+              const continuation = continuationFor(item.type);
+              return (
+                <article key={`${item.type}-${item.title}-${index}`} className="rounded-2xl border border-cream-200 bg-white/70 p-4">
+                  <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                    <div className="min-w-0">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-sage-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-sage-700">{item.type}</span>
+                        <span className="text-xs text-stone-400">{new Date(item.date).toLocaleDateString()}</span>
+                      </div>
+                      <p className="font-medium text-stone-800">{item.title}</p>
+                      {item.meta && <p className="mt-1 text-xs leading-5 text-stone-500">{item.meta}</p>}
+                    </div>
+                    <Link href={continuation.href} className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white px-3 text-xs font-semibold text-stone-700 transition hover:border-sage-200 hover:text-sage-700">
+                      {continuation.label}<ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
+                    </Link>
                   </div>
-                  <span className="text-xs text-stone-400">{new Date(item.date).toLocaleDateString()}</span>
-                </div>
-              </div>
-            ))}
+                </article>
+              );
+            })}
           </div>
         </div>
 
@@ -192,7 +251,7 @@ export function SpiritualJourneyPanel() {
 
           <div className="grid grid-cols-2 gap-3">
             <Link href="/scripture" className="rounded-2xl border border-stone-200 bg-white p-4 text-sm font-semibold text-stone-700"><BookOpen className="mb-3 h-5 w-5 text-sage-600" />Scripture</Link>
-            <Link href="/prayer-room" className="rounded-2xl border border-stone-200 bg-white p-4 text-sm font-semibold text-stone-700"><Heart className="mb-3 h-5 w-5 text-sage-600" />Prayer</Link>
+            <Link href="/prayer-practice" className="rounded-2xl border border-stone-200 bg-white p-4 text-sm font-semibold text-stone-700"><Heart className="mb-3 h-5 w-5 text-sage-600" />Prayer practice</Link>
             <Link href="/care" className="rounded-2xl border border-stone-200 bg-white p-4 text-sm font-semibold text-stone-700"><HeartHandshake className="mb-3 h-5 w-5 text-sage-600" />Human care</Link>
             <Link href="/daily-guide" className="rounded-2xl border border-stone-200 bg-white p-4 text-sm font-semibold text-stone-700"><Sparkles className="mb-3 h-5 w-5 text-sage-600" />Daily guide</Link>
           </div>
