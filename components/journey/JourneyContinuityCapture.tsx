@@ -18,12 +18,12 @@ function todayKey() {
 
 function contextFor(pathname: string): ContinuityContext | null {
   if (pathname.startsWith('/scripture')) return { source: 'Scripture', label: 'Scripture moment', title: 'Scripture reflection', prompt: 'What did you notice in the text, and what do you want to remember or practice?' };
-  if (pathname.startsWith('/prayer') || pathname.startsWith('/care')) return { source: 'Prayer', label: 'Prayer moment', title: 'Prayer reflection', prompt: 'What are you bringing before God, receiving from Scripture, or entrusting to wise human care?' };
+  if (pathname.startsWith('/prayer')) return { source: 'Prayer', label: 'Prayer moment', title: 'Prayer reflection', prompt: 'What are you bringing before God, receiving from Scripture, or choosing to remember in prayer?' };
   if (pathname.startsWith('/fasting')) return { source: 'Fasting', label: 'Fasting moment', title: 'Fasting reflection', prompt: 'What are you learning, praying about, or adjusting responsibly during this fast?' };
   if (pathname.startsWith('/family-altar')) return { source: 'Family Altar', label: 'Family altar moment', title: 'Family altar reflection', prompt: 'What did your household read, pray, discuss, or decide to carry into the week?' };
   if (pathname.startsWith('/choir') || pathname.startsWith('/worship-media')) return { source: 'Choir', label: 'Worship creation moment', title: 'Worship reflection', prompt: 'What theme, Scripture, lyric, arrangement, or rehearsal insight should remain connected to your journey?' };
+  if (pathname.startsWith('/service-response')) return { source: 'Service Response', label: 'Response moment', title: 'Service response', prompt: 'What response are you choosing—prayer, discipleship, serving, reconciliation, or another next step?' };
   if (pathname.startsWith('/sermons') || pathname.startsWith('/live-service')) return { source: 'Sermon', label: 'Sermon moment', title: 'Sermon reflection', prompt: 'What truth, question, Scripture reference, or faithful response do you want to remember?' };
-  if (pathname.startsWith('/service-response')) return { source: 'Service Response', label: 'Response moment', title: 'Service response', prompt: 'What response are you choosing—prayer, care, discipleship, serving, reconciliation, or another next step?' };
   return null;
 }
 
