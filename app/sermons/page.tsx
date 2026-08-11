@@ -1,6 +1,7 @@
 import { SermonGeneratorConsole } from '@/components/sermon/SermonGeneratorConsole';
 import { SermonPackConsole } from '@/components/sermon/SermonPackConsole';
 import { LiveSermonCommandCenter } from '@/components/sermon/LiveSermonCommandCenter';
+import { LiveSermonCompanion } from '@/components/sermon/LiveSermonCompanion';
 import { BookOpenText, ShieldCheck } from 'lucide-react';
 
 export default function SermonsPage() {
@@ -12,12 +13,13 @@ export default function SermonsPage() {
             <div className="mb-6 inline-flex items-center rounded-full border border-sage-200 bg-white/70 px-4 py-2 text-sm font-medium text-sage-700 shadow-sm">
               <BookOpenText className="mr-2 h-4 w-4" /> Sermon and teaching studio
             </div>
-            <h1 className="text-4xl font-light leading-tight text-stone-800 md:text-6xl">Prepare, preach, present, and turn one biblical message into an entire ministry follow-through.</h1>
-            <p className="mt-6 text-lg leading-8 text-stone-600">Start with the biblical reference and pastoral thesis, keep live-service cues organized, then use the sermon engines for draft assistance and ministry packs across children, youth, worship, prayer, outreach, and discipleship.</p>
+            <h1 className="text-4xl font-light leading-tight text-stone-800 md:text-6xl">Prepare, preach, listen deeply, present clearly, and turn one biblical message into an entire ministry follow-through.</h1>
+            <p className="mt-6 text-lg leading-8 text-stone-600">Leaders can organize Scripture, thesis, live cues and response; listeners can privately capture timed insights, verses, questions, prayer and one faithful action; then the sermon engines can build reviewed ministry packs across children, youth, worship, outreach and discipleship.</p>
           </div>
 
           <div className="space-y-10">
             <LiveSermonCommandCenter />
+            <LiveSermonCompanion />
             <SermonGeneratorConsole />
             <SermonPackConsole />
           </div>
@@ -29,7 +31,7 @@ export default function SermonsPage() {
           {[
             ['Scripture before generation', 'References, context, and accountable interpretation stay primary; AI assists drafting rather than becoming spiritual authority.'],
             ['Sermon-to-everything', 'One reviewed teaching theme can become Bible study, children/youth material, worship direction, prayer points, outreach content, slides, and follow-up devotionals.'],
-            ['Response & operational memory', 'Preparation notes stay private by default, while service response can intentionally connect people to care, discipleship, and follow-up workflows.'],
+            ['Message-to-life continuity', 'Timed notes, private reflection, response pathways, and journey tools help people carry a sermon beyond the service instead of losing it after Sunday.'],
           ].map(([title, description]) => (
             <div key={title} className="sanctuary-card p-6">
               <ShieldCheck className="mb-4 h-6 w-6 text-sage-600" />
