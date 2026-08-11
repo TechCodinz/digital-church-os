@@ -15,14 +15,23 @@ async function optionalRows<T>(query: Promise<T[]>, label: string): Promise<T[]>
   }
 }
 
+function continuityParts(mood: string | null) {
+  if (!mood?.startsWith('Continuity:')) return null;
+  const value = mood.slice('Continuity:'.length);
+  const separator = value.indexOf(':');
+  return {
+    source: (separator === -1 ? value : value.slice(0, separator)) || 'Journey',
+    keyed: separator !== -1,
+  };
+}
+
 function journalTimelineType(mood: string | null) {
-  const prefix = 'Continuity:';
-  if (mood?.startsWith(prefix)) return mood.slice(prefix.length) || 'Journey';
-  return 'Journal';
+  return continuityParts(mood)?.source || 'Journal';
 }
 
 function journalTimelineMeta(mood: string | null) {
-  if (mood?.startsWith('Continuity:')) return 'Private continuity moment';
+  const continuity = continuityParts(mood);
+  if (continuity) return continuity.keyed ? 'Private continuity moment · updateable' : 'Private continuity moment';
   return mood || 'Reflection';
 }
 
