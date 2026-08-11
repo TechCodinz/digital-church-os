@@ -341,35 +341,73 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: 'Only church owners/admins can approve or reject conference support requests.' }, { status: 403 });
       }
 
-      const rows = d.status === 'PENDING'
-        ? await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
-            UPDATE conference_sponsorship_requests
-            SET status = 'PENDING', reviewed_by = NULL, reviewed_at = NULL
-            WHERE id = ${d.requestId}
-              AND conference_id = ${d.conferenceId}
-            RETURNING *
-          `)
-        : await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
-            UPDATE conference_sponsorship_requests
-            SET status = ${d.status}, reviewed_by = ${session.user.id}, reviewed_at = now()
-            WHERE id = ${d.requestId}
-              AND conference_id = ${d.conferenceId}
-            RETURNING *
-          `);
-      if (!rows[0]) return NextResponse.json({ error: 'Sponsorship request not found for this conference.' }, { status: 404 });
-      return NextResponse.json({ request: rows[0] });
+      const request = await prisma.$transaction(async (tx) => {
+        const rows = d.status === 'PENDING'
+          ? await tx.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+              UPDATE conference_sponsorship_requests
+              SET status = 'PENDING', reviewed_by = NULL, reviewed_at = NULL
+              WHERE id = ${d.requestId}
+                AND conference_id = ${d.conferenceId}
+              RETURNING *
+            `)
+          : await tx.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+              UPDATE conference_sponsorship_requests
+              SET status = ${d.status}, reviewed_by = ${session.user.id}, reviewed_at = now()
+              WHERE id = ${d.requestId}
+                AND conference_id = ${d.conferenceId}
+              RETURNING *
+            `);
+
+        if (!rows[0]) return null;
+        await tx.auditLog.create({
+          data: {
+            actorId: session.user.id,
+            action: 'UPDATE',
+            entityType: 'ConferenceSponsorshipRequest',
+            entityId: d.requestId,
+            metadata: {
+              conferenceId: d.conferenceId,
+              reviewStatus: d.status,
+              tenantRole: management.role,
+            },
+          },
+        });
+        return rows[0];
+      });
+
+      if (!request) return NextResponse.json({ error: 'Sponsorship request not found for this conference.' }, { status: 404 });
+      return NextResponse.json({ request });
     }
 
-    const rows = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
-      UPDATE conference_registrations
-      SET checked_in_at = ${d.checkedIn ? new Date() : null}
-      WHERE id = ${d.registrationId}
-        AND conference_id = ${d.conferenceId}
-        AND status <> 'CANCELLED'
-      RETURNING *
-    `);
-    if (!rows[0]) return NextResponse.json({ error: 'Active registration not found for this conference.' }, { status: 404 });
-    return NextResponse.json({ registration: rows[0] });
+    const registration = await prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+        UPDATE conference_registrations
+        SET checked_in_at = ${d.checkedIn ? new Date() : null}
+        WHERE id = ${d.registrationId}
+          AND conference_id = ${d.conferenceId}
+          AND status <> 'CANCELLED'
+        RETURNING *
+      `);
+      if (!rows[0]) return null;
+
+      await tx.auditLog.create({
+        data: {
+          actorId: session.user.id,
+          action: 'UPDATE',
+          entityType: 'ConferenceRegistration',
+          entityId: d.registrationId,
+          metadata: {
+            conferenceId: d.conferenceId,
+            checkedIn: d.checkedIn,
+            tenantRole: management.role,
+          },
+        },
+      });
+      return rows[0];
+    });
+
+    if (!registration) return NextResponse.json({ error: 'Active registration not found for this conference.' }, { status: 404 });
+    return NextResponse.json({ registration });
   } catch (error) {
     if (conferenceTenantMigrationRequired(error)) return migrationResponse();
     console.error('Conference management action failed:', error);
