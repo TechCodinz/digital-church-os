@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import {
   Building2,
   CheckCircle2,
@@ -49,7 +50,15 @@ const collaborationModes = [
   { id: 'PARTNER', label: 'Partnership', note: 'Build an ongoing church-to-church relationship.' },
 ];
 
+const LEGACY_BRIEF_KEY = 'digital-church-network-collaboration-brief';
+
+function briefKey(userId: string) {
+  return `digital-church-network-collaboration-brief:v2:${userId}`;
+}
+
 export function ChurchNetworkIntelligence() {
+  const { data: session } = useSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id || '';
   const [payload, setPayload] = useState<NetworkPayload>({ churches: [], connections: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +67,8 @@ export function ChurchNetworkIntelligence() {
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [mode, setMode] = useState('PARTNER');
   const [brief, setBrief] = useState('');
+  const [briefStatus, setBriefStatus] = useState('');
+  const [legacyBriefPresent, setLegacyBriefPresent] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -79,6 +90,21 @@ export function ChurchNetworkIntelligence() {
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    try {
+      setLegacyBriefPresent(Boolean(window.localStorage.getItem(LEGACY_BRIEF_KEY)));
+      const raw = window.localStorage.getItem(briefKey(userId));
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { mode?: unknown; brief?: unknown };
+      const nextMode = typeof parsed.mode === 'string' && collaborationModes.some((item) => item.id === parsed.mode) ? parsed.mode : 'PARTNER';
+      setMode(nextMode);
+      setBrief(typeof parsed.brief === 'string' ? parsed.brief : '');
+    } catch {
+      setBriefStatus('This account’s private collaboration brief could not be restored from the browser.');
+    }
+  }, [userId]);
 
   const countries = useMemo(
     () => Array.from(new Set((payload.churches || []).map((church) => church.country).filter(Boolean) as string[])).sort(),
@@ -104,13 +130,25 @@ export function ChurchNetworkIntelligence() {
   const selectedMode = collaborationModes.find((item) => item.id === mode) || collaborationModes[0];
 
   const saveBrief = () => {
+    if (!userId) {
+      setBriefStatus('Sign in before saving a private collaboration brief on this browser.');
+      return;
+    }
     try {
-      window.localStorage.setItem(
-        'digital-church-network-collaboration-brief',
-        JSON.stringify({ mode, brief, savedAt: new Date().toISOString() }),
-      );
+      window.localStorage.setItem(briefKey(userId), JSON.stringify({ mode, brief, savedAt: new Date().toISOString() }));
+      setBriefStatus('Saved to this signed-in account’s browser-scoped draft.');
     } catch {
-      // Private browser persistence is optional.
+      setBriefStatus('This private collaboration brief could not be saved in the browser.');
+    }
+  };
+
+  const removeLegacyBrief = () => {
+    try {
+      window.localStorage.removeItem(LEGACY_BRIEF_KEY);
+      setLegacyBriefPresent(false);
+      setBriefStatus('Legacy unscoped collaboration brief removed without importing it into this account.');
+    } catch {
+      setBriefStatus('Legacy collaboration brief could not be removed.');
     }
   };
 
@@ -119,15 +157,11 @@ export function ChurchNetworkIntelligence() {
       <div className="mx-auto max-w-7xl">
         <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <div className="inline-flex items-center rounded-full border border-sage-200 bg-sage-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-sage-700">
-              <Sparkles className="mr-2 h-4 w-4" /> Live network intelligence
-            </div>
+            <div className="inline-flex items-center rounded-full border border-sage-200 bg-sage-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-sage-700"><Sparkles className="mr-2 h-4 w-4" /> Live network intelligence</div>
             <h2 className="mt-3 text-3xl font-light text-stone-900 sm:text-4xl">Discover real churches, understand context, and prepare accountable collaboration.</h2>
             <p className="mt-3 text-sm leading-6 text-stone-600 sm:text-base">This workspace reads the existing church-network API. Verification badges reflect stored verification state only; the interface does not invent affiliation, trust, attendance, doctrine, or partnership status.</p>
           </div>
-          <button type="button" onClick={() => void load()} disabled={loading} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-700 shadow-sm disabled:opacity-60">
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh directory
-          </button>
+          <button type="button" onClick={() => void load()} disabled={loading} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-700 shadow-sm disabled:opacity-60"><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh directory</button>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -153,14 +187,8 @@ export function ChurchNetworkIntelligence() {
                 <div className="md:col-span-2 rounded-2xl border border-dashed border-stone-300 bg-stone-50 p-8 text-center"><Globe2 className="mx-auto h-7 w-7 text-stone-400" /><p className="mt-3 font-semibold text-stone-700">No church profiles match this view.</p><p className="mt-1 text-sm text-stone-500">Change the search or country filter. The app will not fabricate directory entries.</p></div>
               ) : visibleChurches.slice(0, 12).map((church) => (
                 <article key={church.id} className="rounded-2xl border border-stone-200 bg-stone-50/60 p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0"><h4 className="truncate font-semibold text-stone-900">{church.name}</h4><p className="mt-1 text-xs text-stone-500">{church.denomination || 'Tradition not publicly specified'}</p></div>
-                    {church.verified && <span className="inline-flex shrink-0 items-center rounded-full bg-sage-100 px-2 py-1 text-[10px] font-bold uppercase text-sage-800"><CheckCircle2 className="mr-1 h-3 w-3" /> Verified</span>}
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2 text-xs text-stone-600">
-                    {(church.city || church.country) && <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1"><MapPin className="mr-1 h-3 w-3" />{[church.city, church.country].filter(Boolean).join(', ')}</span>}
-                    <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1"><Users className="mr-1 h-3 w-3" /> Public profile</span>
-                  </div>
+                  <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h4 className="truncate font-semibold text-stone-900">{church.name}</h4><p className="mt-1 text-xs text-stone-500">{church.denomination || 'Tradition not publicly specified'}</p></div>{church.verified && <span className="inline-flex shrink-0 items-center rounded-full bg-sage-100 px-2 py-1 text-[10px] font-bold uppercase text-sage-800"><CheckCircle2 className="mr-1 h-3 w-3" /> Verified</span>}</div>
+                  <div className="mt-4 flex flex-wrap gap-2 text-xs text-stone-600">{(church.city || church.country) && <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1"><MapPin className="mr-1 h-3 w-3" />{[church.city, church.country].filter(Boolean).join(', ')}</span>}<span className="inline-flex items-center rounded-full bg-white px-2.5 py-1"><Users className="mr-1 h-3 w-3" /> Public profile</span></div>
                   {church.description && <p className="mt-4 line-clamp-3 text-sm leading-6 text-stone-600">{church.description}</p>}
                 </article>
               ))}
@@ -172,16 +200,13 @@ export function ChurchNetworkIntelligence() {
             <p className="mt-4 text-xs font-bold uppercase tracking-[0.2em] text-sage-700">Collaboration brief</p>
             <h3 className="mt-2 text-2xl font-light text-stone-900">Prepare before you invite.</h3>
             <p className="mt-2 text-sm leading-6 text-stone-600">Draft purpose and context privately first. Sending a real network request remains an authenticated, owner-scoped action through the existing backend.</p>
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              {collaborationModes.map((item) => <button key={item.id} type="button" onClick={() => setMode(item.id)} className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold ${mode === item.id ? 'border-sage-400 bg-white text-sage-800' : 'border-sage-100 bg-sage-50 text-stone-600'}`}>{item.label}</button>)}
-            </div>
+            {legacyBriefPresent && <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">An older unscoped brief exists. It was not imported because this browser may be shared.<button type="button" onClick={removeLegacyBrief} className="ml-1 font-semibold underline">Remove it</button></div>}
+            <div className="mt-5 grid grid-cols-2 gap-2">{collaborationModes.map((item) => <button key={item.id} type="button" onClick={() => { setMode(item.id); setBriefStatus(''); }} className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold ${mode === item.id ? 'border-sage-400 bg-white text-sage-800' : 'border-sage-100 bg-sage-50 text-stone-600'}`}>{item.label}</button>)}</div>
             <div className="mt-4 rounded-xl bg-white p-3 text-xs leading-5 text-stone-600"><strong className="block text-stone-800">{selectedMode.label}</strong>{selectedMode.note}</div>
-            <textarea value={brief} onChange={(event) => setBrief(event.target.value)} rows={7} maxLength={2000} placeholder="Purpose, desired outcomes, dates, languages, safeguarding considerations, resource needs, responsible contacts…" className="mt-4 w-full rounded-2xl border border-sage-200 bg-white p-4 text-sm leading-6 outline-none focus:ring-2 focus:ring-sage-200" />
+            <textarea value={brief} onChange={(event) => { setBrief(event.target.value); setBriefStatus(''); }} rows={7} maxLength={2000} placeholder="Purpose, desired outcomes, dates, languages, safeguarding considerations, resource needs, responsible contacts…" className="mt-4 w-full rounded-2xl border border-sage-200 bg-white p-4 text-sm leading-6 outline-none focus:ring-2 focus:ring-sage-200" />
             <button type="button" onClick={saveBrief} className="mt-3 min-h-11 w-full rounded-xl bg-stone-900 px-4 text-sm font-semibold text-white">Save private brief</button>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-              <Link href="/conferences" className="rounded-xl border border-sage-200 bg-white px-4 py-3 text-center text-sm font-semibold text-sage-800">Plan a joint event</Link>
-              <Link href="/prayer-room" className="rounded-xl border border-sage-200 bg-white px-4 py-3 text-center text-sm font-semibold text-sage-800">Coordinate prayer</Link>
-            </div>
+            {briefStatus && <p className="mt-3 text-xs leading-5 text-stone-600" role="status">{briefStatus}</p>}
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1"><Link href="/conferences" className="rounded-xl border border-sage-200 bg-white px-4 py-3 text-center text-sm font-semibold text-sage-800">Plan a joint event</Link><Link href="/prayer-room" className="rounded-xl border border-sage-200 bg-white px-4 py-3 text-center text-sm font-semibold text-sage-800">Coordinate prayer</Link></div>
             <p className="mt-4 text-[11px] leading-5 text-stone-500">AI or matching logic may suggest relevant profiles later, but it must never declare theological compatibility, safeguarding fitness, legitimacy, or endorsement without human verification.</p>
           </aside>
         </div>
