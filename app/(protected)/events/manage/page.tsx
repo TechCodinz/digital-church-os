@@ -1,4 +1,5 @@
 import { ChurchWorkspaceSelector } from '@/components/ministry/ChurchWorkspaceSelector';
+import { ConferenceRegistrationDesk } from '@/components/ministry/ConferenceRegistrationDesk';
 import { EventMinistryPlanner } from '@/components/ministry/EventMinistryPlanner';
 import { TenantConferenceManager } from '@/components/ministry/TenantConferenceManager';
 import { requireChurchWorkspace } from '@/lib/church-ops/server';
@@ -14,6 +15,7 @@ export default async function EventManagementPage() {
           emptyMessage="No church workspace with event-operations access is attached to this account."
         />
         <TenantConferenceManager />
+        <ConferenceRegistrationDesk />
         <EventMinistryPlanner />
       </div>
     </main>
