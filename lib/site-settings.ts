@@ -22,16 +22,7 @@ const STRING_KEYS = new Set([
   'streamTitle',
 ]);
 
-const BOOLEAN_KEYS = new Set([
-  'aiPastorEnabled',
-  'voiceEnabled',
-  'paymentsEnabled',
-  'emailNotificationsEnabled',
-  'rateLimitEnabled',
-  'allowRegistration',
-]);
-
-export type SafeSiteSettings = Record<string, string | boolean>;
+export type SafeSiteSettings = Record<string, string>;
 
 export class SiteSettingsMigrationRequiredError extends Error {
   migrationRequired = true;
@@ -76,12 +67,9 @@ export function sanitizeSiteSettingsPatch(value: unknown): SafeSiteSettings {
   const safe: SafeSiteSettings = {};
 
   for (const [key, raw] of Object.entries(value)) {
-    if (STRING_KEYS.has(key) && typeof raw === 'string') {
-      const maxLength = key === 'streamUrl' || key === 'churchWebsite' ? 2048 : 240;
-      safe[key] = raw.trim().slice(0, maxLength);
-    } else if (BOOLEAN_KEYS.has(key) && typeof raw === 'boolean') {
-      safe[key] = raw;
-    }
+    if (!STRING_KEYS.has(key) || typeof raw !== 'string') continue;
+    const maxLength = key === 'streamUrl' || key === 'churchWebsite' ? 2048 : 240;
+    safe[key] = raw.trim().slice(0, maxLength);
   }
 
   return safe;
@@ -126,7 +114,13 @@ export async function writeSiteSettingsPatch(patch: SafeSiteSettings): Promise<S
             'paypalClientSecret',
             'coinbaseCommerceApiKey',
             'bitpayApiKey',
-            'resendApiKey'
+            'resendApiKey',
+            'aiPastorEnabled',
+            'voiceEnabled',
+            'paymentsEnabled',
+            'emailNotificationsEnabled',
+            'rateLimitEnabled',
+            'allowRegistration'
           ]::text[]
         ) || EXCLUDED.value,
         updated_at = now()
