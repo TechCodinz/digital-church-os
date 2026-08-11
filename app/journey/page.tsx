@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { JourneyContinuityPanel } from '@/components/journey/JourneyContinuityPanel';
 import { QuickContinuityCapture } from '@/components/journey/QuickContinuityCapture';
+import { WeeklyFormationSynthesis } from '@/components/journey/WeeklyFormationSynthesis';
 import { SpiritualJourneyPanel } from '@/components/journey/SpiritualJourneyPanel';
 import { JourneyMemoryControls } from '@/components/journey/JourneyMemoryControls';
 import { BookOpenText, Footprints } from 'lucide-react';
@@ -23,6 +24,7 @@ export default function JourneyPage() {
           <div className="space-y-8">
             <QuickContinuityCapture />
             <JourneyContinuityPanel />
+            <WeeklyFormationSynthesis />
             <SpiritualJourneyPanel />
             <JourneyMemoryControls />
           </div>
