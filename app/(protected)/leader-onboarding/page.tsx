@@ -18,7 +18,7 @@ const steps = [
   {
     id: 'identity',
     title: 'Church identity',
-    description: 'Confirm ministry name, location, service rhythm, leadership role, and the ministries you want to activate first.',
+    description: 'Confirm the church profile that shared ministry operations belong to, including ministry name, location, denomination/context, and public visibility.',
     icon: Church,
     actionHref: '/church-network',
     actionLabel: 'Review church profile',
@@ -26,31 +26,31 @@ const steps = [
   {
     id: 'team',
     title: 'Team and roles',
-    description: 'Prepare pastors, admins, care leaders, media teams, children/youth workers, worship teams, and volunteers for role-based access.',
+    description: 'Invite pastors, admins, staff, and viewers into the selected church workspace using expiring, email-bound invitations instead of global product roles.',
     icon: Users,
-    actionHref: '/admin',
-    actionLabel: 'Open admin operations',
+    actionHref: '/admin/church-team',
+    actionLabel: 'Manage church team',
   },
   {
     id: 'service',
     title: 'Service experience',
-    description: 'Set service times, live stream links, sermon preparation, presentation flow, prayer requests, giving, attendance, and follow-up.',
+    description: 'Plan service times, run-of-show, stream/presentation readiness, worship, sermon flow, volunteers, prayer response, accessibility, and contingencies.',
     icon: Radio,
-    actionHref: '/live-service',
-    actionLabel: 'Review live service',
+    actionHref: '/service-planner',
+    actionLabel: 'Open service planner',
   },
   {
     id: 'care',
     title: 'Human care readiness',
-    description: 'Assign care ownership, escalation routing, trusted contacts, human review, and appropriate crisis safeguards before opening sensitive workflows.',
+    description: 'Prepare member care intake, human ownership, pastoral appointment coordination, trusted contacts, referrals, and appropriate crisis safeguards before opening sensitive workflows.',
     icon: HeartHandshake,
-    actionHref: '/care',
-    actionLabel: 'Review care workflows',
+    actionHref: '/admin/care-appointments',
+    actionLabel: 'Review leader care operations',
   },
   {
     id: 'launch',
     title: 'Release readiness',
-    description: 'Review media rights, feature flags, safety queues, provider readiness, and launch blockers before enabling broad public participation.',
+    description: 'Review media rights, feature flags, safety queues, provider readiness, authentication configuration, database migrations, and launch blockers before broad public participation.',
     icon: ShieldCheck,
     actionHref: '/release-readiness',
     actionLabel: 'Check readiness',
@@ -82,7 +82,7 @@ export default function LeaderOnboardingPage() {
     await saveStep(current.id);
     if (complete) {
       await saveStep('complete');
-      router.push('/ministry-command-center');
+      router.push('/command-center');
       return;
     }
     setStep((value) => value + 1);
@@ -101,14 +101,14 @@ export default function LeaderOnboardingPage() {
             Set up your ministry like an operating system, not a pile of tools.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-stone-600">
-            Five focused steps help your team prepare church identity, roles, services, human care, and launch readiness before broader rollout.
+            Five focused steps help leaders establish the correct church workspace, role-based team access, service readiness, human care, and release safeguards before broader rollout.
           </p>
         </div>
 
         <div className="mb-8">
           <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-stone-400">
             <span>Step {step + 1} of {steps.length}</span>
-            <span>{progress}% ready</span>
+            <span>{progress}% reviewed</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-stone-200">
             <div className="h-full rounded-full bg-sage-600 transition-all duration-500" style={{ width: `${progress}%` }} />
