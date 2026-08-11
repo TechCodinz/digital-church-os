@@ -144,9 +144,12 @@ export async function GET(req: NextRequest) {
       ids = rows.map((row) => row.id);
       scope = 'church';
     } else {
-      // Compatibility quarantine: historical conferences that predate tenancy
-      // remain visible through the legacy feed. Tenant conferences are never
-      // mixed into an unscoped global query.
+      // Unscoped historical records are a product-admin quarantine only. New
+      // member/public callers must choose a church explicitly; null tenancy is
+      // never treated as a shadow global conference calendar.
+      if (session?.user?.role !== 'CHURCH_ADMIN') {
+        return NextResponse.json({ error: 'Choose a church conference calendar.' }, { status: 400 });
+      }
       const rows = await prisma.conference.findMany({
         where: { churchProfileId: null },
         select: { id: true },
@@ -165,7 +168,6 @@ export async function GET(req: NextRequest) {
       where,
       include: {
         attendees: {
-          // Keep old UI's count-compatible array without exposing attendee IDs.
           select: { attended: true },
         },
       },
@@ -232,14 +234,14 @@ export async function PATCH(req: NextRequest) {
     const churchId = searchParams.get('churchId');
     if (!id) return NextResponse.json({ error: 'Conference ID required' }, { status: 400 });
 
-    const scope = await getConferenceTenantScope(id);
-    if (!scope) return NextResponse.json({ error: 'Conference not found' }, { status: 404 });
+    const tenantScope = await getConferenceTenantScope(id);
+    if (!tenantScope) return NextResponse.json({ error: 'Conference not found' }, { status: 404 });
 
-    if (scope.churchProfileId) {
-      if (!churchId || churchId !== scope.churchProfileId) {
+    if (tenantScope.churchProfileId) {
+      if (!churchId || churchId !== tenantScope.churchProfileId) {
         return NextResponse.json({ error: 'Explicit matching churchId is required.' }, { status: 400 });
       }
-      const management = await canManageConference(session.user.id, scope, false);
+      const management = await canManageConference(session.user.id, tenantScope, false);
       if (!management.allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     } else if (session.user.role !== 'CHURCH_ADMIN') {
       return NextResponse.json({ error: 'Legacy unscoped conferences require product-admin access.' }, { status: 403 });
@@ -280,7 +282,7 @@ export async function PATCH(req: NextRequest) {
           action: 'UPDATE',
           entityType: 'Conference',
           entityId: id,
-          metadata: { churchId: scope.churchProfileId, legacyUnscoped: !scope.churchProfileId },
+          metadata: { churchId: tenantScope.churchProfileId, legacyUnscoped: !tenantScope.churchProfileId },
         },
       });
       return conference;
@@ -304,14 +306,14 @@ export async function DELETE(req: NextRequest) {
     const churchId = searchParams.get('churchId');
     if (!id) return NextResponse.json({ error: 'Conference ID required' }, { status: 400 });
 
-    const scope = await getConferenceTenantScope(id);
-    if (!scope) return NextResponse.json({ error: 'Conference not found' }, { status: 404 });
+    const tenantScope = await getConferenceTenantScope(id);
+    if (!tenantScope) return NextResponse.json({ error: 'Conference not found' }, { status: 404 });
 
-    if (scope.churchProfileId) {
-      if (!churchId || churchId !== scope.churchProfileId) {
+    if (tenantScope.churchProfileId) {
+      if (!churchId || churchId !== tenantScope.churchProfileId) {
         return NextResponse.json({ error: 'Explicit matching churchId is required.' }, { status: 400 });
       }
-      const management = await canManageConference(session.user.id, scope, true);
+      const management = await canManageConference(session.user.id, tenantScope, true);
       if (!management.allowed) {
         return NextResponse.json({ error: 'Only church owners/admins can delete a tenant conference.' }, { status: 403 });
       }
@@ -327,7 +329,7 @@ export async function DELETE(req: NextRequest) {
           action: 'DELETE',
           entityType: 'Conference',
           entityId: id,
-          metadata: { churchId: scope.churchProfileId, legacyUnscoped: !scope.churchProfileId },
+          metadata: { churchId: tenantScope.churchProfileId, legacyUnscoped: !tenantScope.churchProfileId },
         },
       });
     });
