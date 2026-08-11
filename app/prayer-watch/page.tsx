@@ -1,17 +1,30 @@
 import { AdvancedMinistryWorkspace } from '@/components/ministry/AdvancedMinistryWorkspace';
+import { ChurchWorkspaceSelector } from '@/components/ministry/ChurchWorkspaceSelector';
 import { PrayerWatchPlanner } from '@/components/ministry/PrayerWatchPlanner';
+import { requireChurchWorkspace } from '@/lib/church-ops/server';
 
-export default function PrayerWatchPage() {
+export default async function PrayerWatchPage() {
+  await requireChurchWorkspace(['OWNER', 'ADMIN', 'PASTOR', 'STAFF']);
+
   return (
     <>
+      <section className="bg-cream-50 px-4 pt-24 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl pt-6">
+          <ChurchWorkspaceSelector
+            allowedRoles={['OWNER', 'ADMIN', 'PASTOR', 'STAFF']}
+            emptyMessage="No church workspace with prayer-watch coordination access is attached to this account."
+          />
+        </div>
+      </section>
+
       <AdvancedMinistryWorkspace
         eyebrow="Prayer Watch"
         title="Coordinate sustained prayer with Scripture, trustworthy context, and clear human moderation."
-        description="Build personal, church, city, and global prayer watches around approved prayer themes, time windows, Scripture references, intercessor handoffs, and private reflections without manufacturing urgency or unverified crisis claims."
+        description="Build church prayer watches around approved prayer themes, time windows, Scripture references, intercessor handoffs, and non-confidential operational notes without manufacturing urgency or unverified crisis claims."
         emoji="🕯️"
         focus={[
-          { title: 'Prayer watch planner', description: 'Create time blocks, themes, Scripture references, participating teams, private intentions, and handoff notes for sustained prayer rhythms.' },
-          { title: 'Intercession board', description: 'Organize church-approved prayer focuses by ministry, family, community, mission, leadership, healing support, thanksgiving, or global concern.' },
+          { title: 'Prayer watch planner', description: 'Create time blocks, themes, Scripture references, participating teams, and safe handoff notes for sustained prayer rhythms.' },
+          { title: 'Intercession board', description: 'Organize church-approved prayer focuses by ministry, family, community, mission, leadership, thanksgiving, or global concern.' },
           { title: 'Watch handoff', description: 'Let one prayer period close with a concise summary, Scripture focus, and optional next-watch context without exposing confidential requests.' },
         ]}
         intelligence={[
@@ -26,8 +39,8 @@ export default function PrayerWatchPage() {
           { label: 'Daily Guide', href: '/daily-guide', description: 'Carry a prayer-watch theme into personal Scripture and reflection.' },
         ]}
         safeguards={[
-          'Global or crisis-related prayer prompts must distinguish verified context from general themes and must not fabricate breaking events.',
-          'Confidential prayer requests stay private or role-restricted according to the requester’s sharing choice.',
+          'This church-team route requires an active workspace with OWNER, ADMIN, PASTOR, or STAFF access.',
+          'Confidential prayer requests, crises, medical details, abuse reports, and safeguarding cases stay out of this shared operational planner.',
           'AI prayer assistance is advisory and Scripture-referenced; it does not claim prophecy, revelation, guaranteed healing, or supernatural certainty.',
         ]}
       />
