@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ChoirStudioCommandCenter } from '@/components/worship/ChoirStudioCommandCenter';
 import { WorshipCompositionWorkbench } from '@/components/worship/WorshipCompositionWorkbench';
 import { OriginalHymnStudio } from '@/components/worship/OriginalHymnStudio';
+import { JourneyContinuityComposer } from '@/components/journey/JourneyContinuityComposer';
 import { BookOpenText, Copyright, Music2, Radio, ShieldCheck, Sparkles, UsersRound } from 'lucide-react';
 
 export default function ChoirPage() {
@@ -38,6 +39,14 @@ export default function ChoirPage() {
           <ChoirStudioCommandCenter />
           <WorshipCompositionWorkbench />
           <OriginalHymnStudio />
+          <JourneyContinuityComposer
+            source="Choir"
+            title="Carry this worship-creation session forward"
+            prompt="Save the Scripture foundation, ministry lesson, rehearsal insight, or next musical step you intentionally want to remember after this creation session."
+            nextHref="/service-planner"
+            nextLabel="Continue to Service Planner"
+            privacyNote="Lyrics, recordings, stems, and full compositions are not copied into Journey automatically. Save only the reflection or next step you intentionally enter here; rights-sensitive creative material stays in its proper workflow."
+          />
         </div>
       </section>
 
