@@ -1,42 +1,32 @@
 import { MinistryRoutePage } from '@/components/ministry/MinistryRoutePage';
-import { VolunteerRotaCommandCenter } from '@/components/ministry/VolunteerRotaCommandCenter';
 
 export default function WorkersPage() {
   return (
-    <main className="min-h-screen bg-cream-50 pb-16 pt-24">
-      <section className="px-4 pb-10 pt-8 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <VolunteerRotaCommandCenter />
-        </div>
-      </section>
-
-      <MinistryRoutePage
-        badge="Church worker productivity"
-        emoji="🛠️"
-        title="Assign, track, reward, appreciate, and schedule church workers and volunteers professionally."
-        description="Worker mode now combines live rota coverage with task assignment, completion proof, appreciation, and department operations so leaders can see both who is serving and what still needs to be done."
-        primaryHref="/service-planner"
-        primaryLabel="Open service planner"
-        secondaryHref="/rewards"
-        secondaryLabel="Open rewards"
-        features={[
-          { title: 'Rota & backup coverage', description: 'Plan departments, roles, primaries, backups, call times, confirmation status, and critical coverage gaps.' },
-          { title: 'Task assignment', description: 'Leaders can assign media, ushering, choir, children, prayer, outreach, and service tasks.' },
-          { title: 'Proof and review', description: 'Workers can submit proof text or links, and leaders can review completion.' },
-          { title: 'Stipends and appreciation', description: 'Tasks can include points and stipend eligibility for worker appreciation workflows.' },
-        ]}
-        intelligence={[
-          { title: 'Volunteer gap awareness', description: 'The rota surfaces unassigned/unavailable critical roles and missing backups before service.' },
-          { title: 'Department productivity', description: 'Departments can coordinate work, completion, and contribution across services and events.' },
-          { title: 'Faithful service recognition', description: 'The platform can honor unseen service with records, points, gifts, and reports without turning ministry into competition.' },
-        ]}
-        safeguards={[
-          'Human-owned rota decisions',
-          'No spiritual-performance scoring',
-          'No sensitive pastoral or disciplinary notes in the rota',
-          'Stipend review workflow',
-        ]}
-      />
-    </main>
+    <MinistryRoutePage
+      badge="Serve with your church"
+      emoji="🛠️"
+      title="See meaningful ways to serve, complete assigned ministry work, and receive appreciation without turning service into competition."
+      description="The worker portal is the member-facing side of church service. Leader rota decisions, backup coverage, and department staffing stay in restricted church-admin operations."
+      primaryHref="/activities"
+      primaryLabel="Open service activities"
+      secondaryHref="/rewards"
+      secondaryLabel="View appreciation & rewards"
+      features={[
+        { title: 'Assigned service', description: 'Participate in appropriate ministry tasks and practical service opportunities.' },
+        { title: 'Completion proof', description: 'Submit proof text or links when a church-created task requires review.' },
+        { title: 'Appreciation', description: 'Approved service can connect to points, gifts, or other church-defined appreciation workflows.' },
+      ]}
+      intelligence={[
+        { title: 'Clear next action', description: 'Members can focus on their own service responsibilities rather than seeing private rota planning.' },
+        { title: 'Healthy contribution', description: 'Service remains voluntary, accountable, and connected to ministry purpose.' },
+        { title: 'Leader separation', description: 'Staffing gaps, primaries, backups, and check-in coordination remain behind church-admin access.' },
+      ]}
+      safeguards={[
+        'No spiritual-performance scoring',
+        'No private leader rota exposed to members',
+        'Human review for assignments and stipends',
+        'No sensitive pastoral or disciplinary notes',
+      ]}
+    />
   );
 }
