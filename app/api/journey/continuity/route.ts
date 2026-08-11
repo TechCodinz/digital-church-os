@@ -16,6 +16,7 @@ const allowedSources = new Set([
 
 type ContinuityBody = {
   source?: unknown;
+  sourceKey?: unknown;
   title?: unknown;
   content?: unknown;
   scriptureRefs?: unknown;
@@ -36,6 +37,13 @@ function cleanRefs(value: unknown) {
     .map((item) => item.slice(0, 120));
 }
 
+function cleanSourceKey(value: unknown) {
+  return cleanString(value, 120)
+    .toLowerCase()
+    .replace(/[^a-z0-9:_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -45,6 +53,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as ContinuityBody;
     const source = cleanString(body.source, 40);
+    const sourceKey = cleanSourceKey(body.sourceKey);
     const title = cleanString(body.title, 120);
     const content = cleanString(body.content, 3500);
     const nextStep = cleanString(body.nextStep, 800);
@@ -62,21 +71,36 @@ export async function POST(request: Request) {
       scriptureRefs.length ? `Scripture: ${scriptureRefs.join(', ')}` : '',
       nextStep ? `Next step: ${nextStep}` : '',
     ].filter(Boolean);
+    const mood = sourceKey ? `Continuity:${source}:${sourceKey}` : `Continuity:${source}`;
+    const data = {
+      title: `${source} · ${title || 'Journey moment'}`,
+      content: sections.join('\n\n'),
+      mood,
+    };
 
-    const entry = await prisma.journalEntry.create({
-      data: {
-        userId: session.user.id,
-        title: `${source} · ${title || 'Journey moment'}`,
-        content: sections.join('\n\n'),
-        mood: `Continuity:${source}`,
-      },
-      select: { id: true, title: true, mood: true, createdAt: true },
-    });
+    const existing = sourceKey
+      ? await prisma.journalEntry.findFirst({
+          where: { userId: session.user.id, mood },
+          select: { id: true },
+        })
+      : null;
+
+    const entry = existing
+      ? await prisma.journalEntry.update({
+          where: { id: existing.id },
+          data,
+          select: { id: true, title: true, mood: true, createdAt: true },
+        })
+      : await prisma.journalEntry.create({
+          data: { userId: session.user.id, ...data },
+          select: { id: true, title: true, mood: true, createdAt: true },
+        });
 
     return NextResponse.json({
       entry,
+      operation: existing ? 'updated' : 'created',
       privacy: 'Private to your signed-in account and included in your Journey timeline.',
-    }, { status: 201 });
+    }, { status: existing ? 200 : 201 });
   } catch (error) {
     console.error('Journey continuity save failed:', error);
     return NextResponse.json({ error: 'Unable to save this private journey moment.' }, { status: 500 });
