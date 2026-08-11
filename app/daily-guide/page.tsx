@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { useEffect, useMemo, useState } from 'react';
 import { DailyAlignmentIntelligence } from '@/components/ministry/DailyAlignmentIntelligence';
 import {
@@ -23,29 +24,44 @@ const rhythm = [
   { id: 'reflect', title: 'Jot what changed', description: 'Capture one insight, one question, and one next step to revisit later.', href: '/journey', icon: NotebookPen },
 ];
 
-function key() {
-  return `digital-church-daily-alignment:${new Date().toISOString().slice(0, 10)}`;
+const LEGACY_PREFIX = 'digital-church-daily-alignment:';
+
+function dayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function key(userId: string) {
+  return `digital-church-daily-alignment:v2:${userId}:${dayKey()}`;
+}
+
+function legacyKey() {
+  return `${LEGACY_PREFIX}${dayKey()}`;
 }
 
 export default function DailyGuidePage() {
+  const { data: session } = useSession();
+  const userId = (session?.user as { id?: string } | undefined)?.id || '';
   const [completed, setCompleted] = useState<string[]>([]);
   const [morning, setMorning] = useState('');
   const [evening, setEvening] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
+  const [legacyDraftPresent, setLegacyDraftPresent] = useState(false);
 
   useEffect(() => {
+    if (!userId) return;
     try {
-      const stored = window.localStorage.getItem(key());
+      setLegacyDraftPresent(Boolean(window.localStorage.getItem(legacyKey())));
+      const stored = window.localStorage.getItem(key(userId));
       if (!stored) return;
       const data = JSON.parse(stored);
       setCompleted(Array.isArray(data.completed) ? data.completed : []);
       setMorning(data.morning || '');
       setEvening(data.evening || '');
     } catch {
-      // Private local rhythm is optional.
+      setSaveStatus('This account’s daily rhythm could not be restored from the browser.');
     }
-  }, []);
+  }, [userId]);
 
   const progress = useMemo(() => Math.round((completed.length / rhythm.length) * 100), [completed.length]);
   const toggle = (id: string) => {
@@ -53,14 +69,28 @@ export default function DailyGuidePage() {
     setCompleted((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   };
 
+  const removeLegacyDraft = () => {
+    try {
+      window.localStorage.removeItem(legacyKey());
+      setLegacyDraftPresent(false);
+      setSaveStatus('Legacy unscoped daily draft removed without importing it into this account.');
+    } catch {
+      setSaveStatus('Legacy daily draft could not be removed.');
+    }
+  };
+
   const save = async () => {
     if (saving) return;
+    if (!userId) {
+      setSaveStatus('Sign in to save today’s private rhythm and carry its reflection into Journey.');
+      return;
+    }
     setSaving(true);
     setSaveStatus('');
 
     let localSaved = false;
     try {
-      window.localStorage.setItem(key(), JSON.stringify({ completed, morning, evening }));
+      window.localStorage.setItem(key(userId), JSON.stringify({ completed, morning, evening }));
       localSaved = true;
     } catch {
       localSaved = false;
@@ -72,7 +102,7 @@ export default function DailyGuidePage() {
     ].filter(Boolean);
 
     if (!reflectionParts.length) {
-      setSaveStatus(localSaved ? 'Daily rhythm saved privately on this device.' : 'Nothing was saved. Add a reflection and try again.');
+      setSaveStatus(localSaved ? 'Daily rhythm saved to this account’s browser draft. Add a reflection when you want it carried into Journey.' : 'Nothing was saved. Add a reflection and try again.');
       setSaving(false);
       return;
     }
@@ -85,6 +115,7 @@ export default function DailyGuidePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source: 'Daily Guide',
+          sourceKey: `daily-guide:${dayKey()}`,
           title: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
           content: reflectionParts.join('\n\n'),
           nextStep: completedLabels.length ? `Rhythm touched today: ${completedLabels.join(', ')}` : '',
@@ -93,14 +124,12 @@ export default function DailyGuidePage() {
       const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
-        setSaveStatus('Saved on this device and added to your private Journey timeline.');
-      } else if (response.status === 401 && localSaved) {
-        setSaveStatus('Saved privately on this device. Sign in to carry reflections into your Journey timeline.');
+        setSaveStatus(`Saved to this account’s browser draft and ${data.operation === 'updated' ? 'updated in' : 'added to'} your private Journey.`);
       } else {
-        setSaveStatus(localSaved ? `Saved on this device. ${data.error || 'Journey sync is temporarily unavailable.'}` : (data.error || 'Unable to save today’s reflection.'));
+        setSaveStatus(localSaved ? `Saved to this account’s browser draft. ${data.error || 'Journey sync is temporarily unavailable.'}` : (data.error || 'Unable to save today’s reflection.'));
       }
     } catch {
-      setSaveStatus(localSaved ? 'Saved privately on this device. Journey sync is temporarily unavailable.' : 'Unable to save today’s reflection.');
+      setSaveStatus(localSaved ? 'Saved to this account’s browser draft. Journey sync is temporarily unavailable.' : 'Unable to save today’s reflection.');
     } finally {
       setSaving(false);
     }
@@ -112,6 +141,12 @@ export default function DailyGuidePage() {
         <section className="overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-sm">
           <div className="grid lg:grid-cols-[1.1fr_0.9fr]">
             <div className="p-7 sm:p-9 lg:p-11">
+              {legacyDraftPresent && (
+                <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">
+                  An older device-only daily draft exists. It was <strong>not imported</strong> because this browser may be shared and its original owner cannot be verified.
+                  <button type="button" onClick={removeLegacyDraft} className="ml-2 font-semibold underline">Remove legacy draft</button>
+                </div>
+              )}
               <div className="inline-flex items-center rounded-full bg-sage-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-sage-700"><Sunrise className="mr-2 h-4 w-4" /> Daily spiritual alignment</div>
               <h1 className="mt-5 max-w-4xl text-4xl font-light leading-tight text-stone-900 md:text-5xl">A calm daily guide that keeps Scripture, prayer, worship, service, and reflection connected.</h1>
               <p className="mt-4 max-w-3xl text-base leading-7 text-stone-600">The goal is not a streak for its own sake. It is a repeatable rhythm that helps you remain attentive, remember what matters, and carry faith into relationships and service.</p>
@@ -130,7 +165,7 @@ export default function DailyGuidePage() {
               <p className="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-sage-300">Private daily pulse</p>
               <p className="mt-2 text-5xl font-light">{progress}%</p>
               <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-sage-400" style={{ width: `${progress}%` }} /></div>
-              <p className="mt-4 text-sm leading-6 text-stone-400">Progress stays on this device. Signed-in reflections can also be carried into your private Journey timeline; neither is visible to other members or used to rank spirituality.</p>
+              <p className="mt-4 text-sm leading-6 text-stone-400">Progress stays in an account-scoped browser draft. Signed-in reflections can also be carried into one updateable private Journey moment for today; neither is visible to other members or used to rank spirituality.</p>
 
               <label className="mt-7 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-400">Morning intention</span><textarea value={morning} onChange={(e) => { setMorning(e.target.value); setSaveStatus(''); }} maxLength={1600} className="min-h-[110px] w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white outline-none focus:ring-2 focus:ring-sage-400" placeholder="What needs your attention, prayer, or surrender today?" /></label>
               <label className="mt-5 block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-400">Evening examen</span><textarea value={evening} onChange={(e) => { setEvening(e.target.value); setSaveStatus(''); }} maxLength={1600} className="min-h-[110px] w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white outline-none focus:ring-2 focus:ring-sage-400" placeholder="Where did you notice grace, resistance, need, or a next step?" /></label>
