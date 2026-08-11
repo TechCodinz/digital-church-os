@@ -13,27 +13,27 @@ export default function CommandCenterPage() {
       <MinistryRoutePage
         badge="AI Church Operating Command Center"
         emoji="🧠"
-        title="See what the church should do next across care, giving, workers, events, rewards, outreach, worship, teaching, children, media, and service readiness."
-        description="The command center combines weekly operating attention with persistent reports, health metrics, priorities, opportunities, and risks so leaders can run ministry with intelligence and accountability without turning people into scores."
-        primaryHref="/admin"
-        primaryLabel="Open admin"
+        title="See what the church should do next across services, people, care, discipleship, groups, events, giving, outreach, worship, teaching, children, media, and ministry readiness."
+        description="The command center connects weekly operating attention to real execution surfaces: service run sheets, volunteer coverage, response follow-up, aggregate attendance/assimilation, group capacity, event readiness, care, teaching, worship, outreach, and stewardship. Leaders get intelligence without turning people into scores."
+        primaryHref="/service-planner"
+        primaryLabel="Open service planner"
         secondaryHref="/intelligence"
         secondaryLabel="Open Ministry Intelligence"
         features={[
-          { title: 'Weekly ministry readiness', description: 'Review service, sermon, worship, care, workers, children/family, giving, rights, outreach, church-network, and calendar readiness from one operating surface.' },
-          { title: 'Priorities and risks', description: 'Leaders can surface what needs follow-up before trust is lost, people fall through gaps, or important operational work is missed.' },
-          { title: 'Growth opportunities', description: 'Reports can suggest sermon packs, impact summaries, worker appreciation, outreach follow-up, and church-network collaboration.' },
+          { title: 'Whole-church readiness', description: 'Review service, sermon, worship, care, discipleship follow-up, attendance, groups, workers, children/family, giving, rights, outreach, church-network, and event readiness from one operating surface.' },
+          { title: 'People do not disappear', description: 'Response pathways can continue through consent-aware human ownership, foundations, baptism conversations, belonging, groups, care, and healthy serving opportunities.' },
+          { title: 'Execution before metrics', description: 'Run sheets, rotas, event tasks, group capacity, care handoffs, and operational due dates come before dashboards and reports.' },
         ]}
         intelligence={[
-          { title: 'AI COO layer', description: 'The system becomes an operating advisor while consequential ministry decisions remain accountable to human leaders.' },
-          { title: 'Leadership resilience', description: 'If leaders are busy, the command center still exposes queues, readiness gaps, risks, and next actions.' },
-          { title: 'Meaningful productivity', description: 'Church activity becomes easier to coordinate while protecting pastoral privacy and keeping ministry mission-aligned.' },
+          { title: 'AI COO layer', description: 'The system can become an operating advisor while consequential ministry decisions remain accountable to human leaders.' },
+          { title: 'Leadership resilience', description: 'If leaders are busy, the command center still exposes coverage gaps, overdue follow-up, readiness risks, capacity constraints, and next actions.' },
+          { title: 'Privacy-aware insight', description: 'Aggregate attendance can inform planning while individual pastoral, counseling, safeguarding, and crisis details remain in dedicated protected workflows.' },
         ]}
         safeguards={[
-          'Admin-only persistent reports',
+          'Human-owned consequential decisions',
+          'Consent-aware follow-up',
           'No sensitive pastoral case notes in general dashboards',
-          'Metric-backed but human-led decisions',
-          'Risk and opportunity tracking',
+          'No attendance or service metrics used as spiritual-worth scores',
         ]}
       />
     </main>
