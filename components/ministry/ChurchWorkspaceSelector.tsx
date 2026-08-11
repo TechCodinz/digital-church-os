@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Building2, Check, Loader2, ShieldCheck } from 'lucide-react';
 
+type WorkspaceRole = 'OWNER' | 'ADMIN' | 'PASTOR' | 'STAFF' | 'VIEWER';
+
 type Workspace = {
   id: string;
   name: string;
@@ -11,7 +13,7 @@ type Workspace = {
   denomination: string | null;
   country: string | null;
   city: string | null;
-  role: 'OWNER' | 'ADMIN' | 'PASTOR' | 'STAFF' | 'VIEWER';
+  role: WorkspaceRole;
 };
 
 export const ACTIVE_CHURCH_STORAGE_KEY = 'digital-church-active-church-id';
@@ -20,7 +22,13 @@ function broadcastWorkspace(churchId: string) {
   window.dispatchEvent(new CustomEvent('digital-church-workspace-change', { detail: { churchId } }));
 }
 
-export function ChurchWorkspaceSelector() {
+export function ChurchWorkspaceSelector({
+  allowedRoles,
+  emptyMessage = 'No church profile with the required workspace access is attached to this account yet.',
+}: {
+  allowedRoles?: WorkspaceRole[];
+  emptyMessage?: string;
+}) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeId, setActiveId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -79,11 +87,14 @@ export function ChurchWorkspaceSelector() {
           return;
         }
 
-        const next = Array.isArray(data.workspaces) ? data.workspaces : [];
+        const discovered: Workspace[] = Array.isArray(data.workspaces) ? data.workspaces : [];
+        const next = allowedRoles?.length
+          ? discovered.filter((workspace) => allowedRoles.includes(workspace.role))
+          : discovered;
         setWorkspaces(next);
 
         const saved = window.localStorage.getItem(ACTIVE_CHURCH_STORAGE_KEY) || '';
-        const validSaved = next.some((workspace: Workspace) => workspace.id === saved) ? saved : '';
+        const validSaved = next.some((workspace) => workspace.id === saved) ? saved : '';
         const resolved = validSaved || (next.length === 1 ? next[0].id : '');
 
         if (resolved) {
@@ -105,7 +116,8 @@ export function ChurchWorkspaceSelector() {
 
     void load();
     return () => { cancelled = true; };
-    // activateWorkspace intentionally remains local to the mounted selector.
+    // Workspace discovery intentionally runs on mount. `allowedRoles` is fixed
+    // for each mounted leader surface rather than changed interactively.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -146,7 +158,7 @@ export function ChurchWorkspaceSelector() {
                 </div>
               ) : (
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <span className="text-sm text-amber-700">No church profile is attached to this account yet.</span>
+                  <span className="text-sm text-amber-700">{emptyMessage}</span>
                   <Link href="/church-network" className="rounded-xl bg-stone-900 px-4 py-2.5 text-xs font-semibold text-white">Create or manage church profile</Link>
                 </div>
               )}
