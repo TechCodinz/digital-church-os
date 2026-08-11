@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BookOpenText, Compass, HeartHandshake, Radio, Sparkles, X } from 'lucide-react';
 
 type GuideAction = {
@@ -19,12 +19,34 @@ type GuideContext = {
   actions: GuideAction[];
 };
 
+type RecentMoment = {
+  id: string;
+  source: string;
+  title: string;
+  createdAt: string;
+};
+
 const baseActions: GuideAction[] = [
   { label: 'Live worship', href: '/live-service', description: 'Join the live sanctuary and service response flow.', icon: Radio },
   { label: 'Prayer & care', href: '/prayer-room', description: 'Pray privately or request human pastoral follow-up.', icon: HeartHandshake },
   { label: 'Study Scripture', href: '/scripture', description: 'Open translation-aware Scripture study and private notes.', icon: BookOpenText },
   { label: 'Daily Guide', href: '/daily-guide', description: 'Choose one calm, faithful next step for today.', icon: Compass },
 ];
+
+const continuityRoutes: Record<string, string> = {
+  'Daily Guide': '/daily-guide',
+  Scripture: '/scripture',
+  Prayer: '/prayer-practice',
+  Fasting: '/fasting-prayer',
+  'Fasting & Prayer': '/fasting-prayer',
+  'Family Altar': '/family-altar',
+  Choir: '/choir',
+  'Choir Studio': '/choir',
+  Sermon: '/sermons',
+  'Live Sermon': '/live-service',
+  'Service Response': '/service-response',
+  'Pastoral Reflection': '/pastoral-hub',
+};
 
 function contextFor(pathname: string): GuideContext {
   if (pathname.startsWith('/live-service') || pathname.startsWith('/sermons')) {
@@ -152,7 +174,38 @@ function contextFor(pathname: string): GuideContext {
 export function FloatingSanctuaryGuide() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [recentMoment, setRecentMoment] = useState<RecentMoment | null>(null);
   const context = useMemo(() => contextFor(pathname), [pathname]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadRecent = async () => {
+      try {
+        const response = await fetch('/api/journey/continuity', { cache: 'no-store' });
+        if (!response.ok) {
+          if (active) setRecentMoment(null);
+          return;
+        }
+        const data = await response.json().catch(() => ({}));
+        const first = Array.isArray(data.moments) ? data.moments[0] : null;
+        if (active) setRecentMoment(first && typeof first.source === 'string' ? first : null);
+      } catch {
+        if (active) setRecentMoment(null);
+      }
+    };
+
+    void loadRecent();
+    const refresh = () => void loadRecent();
+    window.addEventListener('digital-church:journey-updated', refresh);
+    return () => {
+      active = false;
+      window.removeEventListener('digital-church:journey-updated', refresh);
+    };
+  }, []);
+
+  const resumeHref = recentMoment ? continuityRoutes[recentMoment.source] : undefined;
+  const showResume = Boolean(recentMoment && resumeHref && !(pathname === resumeHref || pathname.startsWith(`${resumeHref}/`)));
 
   return (
     <div className="pointer-events-none fixed bottom-[5.25rem] right-4 z-40 md:bottom-6 md:right-6">
@@ -172,6 +225,19 @@ export function FloatingSanctuaryGuide() {
           </div>
 
           <div className="grid gap-2 p-3">
+            {showResume && recentMoment && resumeHref && (
+              <Link href={resumeHref} onClick={() => setOpen(false)} className="rounded-2xl border border-violet-200 bg-violet-50 p-3 transition hover:border-violet-300 hover:bg-violet-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400">
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-violet-700 shadow-sm"><Sparkles className="h-4 w-4" /></span>
+                  <span className="min-w-0">
+                    <span className="block text-[10px] font-bold uppercase tracking-[0.16em] text-violet-700">Resume where you left off</span>
+                    <span className="mt-1 block truncate text-sm font-semibold text-stone-900">{recentMoment.title || recentMoment.source}</span>
+                    <span className="mt-1 block text-xs leading-5 text-stone-500">Return to {recentMoment.source}. Only continuity metadata is used here; your private reflection text is not loaded into this guide.</span>
+                  </span>
+                </div>
+              </Link>
+            )}
+
             {context.actions.map((action) => {
               const Icon = action.icon;
               return (
