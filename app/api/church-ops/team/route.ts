@@ -14,6 +14,13 @@ const InviteSchema = z.object({
   role: z.enum(['ADMIN', 'PASTOR', 'STAFF', 'VIEWER']).default('VIEWER'),
 });
 
+const ModifyMemberSchema = z.object({
+  churchId: z.string().trim().min(3).optional(),
+  memberId: z.string().trim().min(3),
+  role: z.enum(['ADMIN', 'PASTOR', 'STAFF', 'VIEWER']).optional(),
+  status: z.enum(['ACTIVE', 'SUSPENDED', 'REMOVED']).optional(),
+}).refine((value) => Boolean(value.role || value.status), { message: 'A role or status change is required.' });
+
 const RevokeSchema = z.object({
   churchId: z.string().trim().min(3).optional(),
   invitationId: z.string().trim().min(3),
@@ -194,6 +201,91 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('Church team invitation failed:', error?.message || error);
     return NextResponse.json({ error: 'Church team invitation is unavailable.', migrationRequired: true }, { status: 503 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Request body must be valid JSON.' }, { status: 400 });
+  }
+
+  const parsed = ModifyMemberSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid member access change.', details: parsed.error.flatten() }, { status: 400 });
+  }
+
+  try {
+    const resolved = await resolveChurchWorkspaceAccess(session.user.id, parsed.data.churchId);
+    if (!resolved.access) return workspaceError(resolved.requiresSelection);
+    if (!canAdminChurchWorkspace(resolved.access.role)) {
+      return NextResponse.json({ error: 'Only a church owner or admin can change workspace access.' }, { status: 403 });
+    }
+
+    const targets = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+      SELECT
+        cpm.id,
+        cpm.user_id,
+        cpm.role,
+        cpm.status,
+        cp.owner_id,
+        u.name,
+        u.email
+      FROM church_profile_members cpm
+      JOIN church_profiles cp ON cp.id = cpm.church_id
+      JOIN "User" u ON u.id = cpm.user_id
+      WHERE cpm.id = ${parsed.data.memberId}
+        AND cpm.church_id = ${resolved.access.id}
+      LIMIT 1
+    `);
+    const target = targets[0];
+    if (!target) return NextResponse.json({ error: 'Church team member not found.' }, { status: 404 });
+
+    if (target.user_id === target.owner_id || target.role === 'OWNER') {
+      return NextResponse.json({ error: 'The church owner cannot be downgraded, suspended, or removed through team management.' }, { status: 403 });
+    }
+    if (target.user_id === session.user.id) {
+      return NextResponse.json({ error: 'You cannot change or remove your own workspace access from this screen.' }, { status: 403 });
+    }
+    if ((target.role === 'ADMIN' || parsed.data.role === 'ADMIN') && resolved.access.role !== 'OWNER') {
+      return NextResponse.json({ error: 'Only the church owner can grant, change, suspend, or remove an ADMIN membership.' }, { status: 403 });
+    }
+
+    const nextRole = parsed.data.role || target.role;
+    const nextStatus = parsed.data.status || target.status;
+    const rows = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+      UPDATE church_profile_members
+      SET role = ${nextRole}, status = ${nextStatus}, updated_at = now()
+      WHERE id = ${target.id}
+        AND church_id = ${resolved.access.id}
+      RETURNING id, church_id, user_id, role, status, updated_at
+    `);
+
+    await AuditLogger.log({
+      actorId: session.user.id,
+      action: 'CHURCH_TEAM_MEMBER_ACCESS_CHANGED',
+      entityType: 'church_profile_members',
+      entityId: rows[0].id,
+      metadata: {
+        churchId: resolved.access.id,
+        previousRole: target.role,
+        nextRole,
+        previousStatus: target.status,
+        nextStatus,
+        memberEmailStoredInAudit: false,
+      },
+      req,
+    });
+
+    return NextResponse.json({ success: true, church: resolved.access, member: rows[0] });
+  } catch (error: any) {
+    console.error('Church member access change failed:', error?.message || error);
+    return NextResponse.json({ error: 'Church team management is unavailable.', migrationRequired: true }, { status: 503 });
   }
 }
 
