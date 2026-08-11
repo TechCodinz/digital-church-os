@@ -1,4 +1,5 @@
 import { ScriptureStudyWorkspace } from '@/components/scripture/ScriptureStudyWorkspace';
+import { ScriptureInsightLab } from '@/components/scripture/ScriptureInsightLab';
 import { BookOpenText, Languages, ShieldCheck, Sparkles } from 'lucide-react';
 
 export default function ScripturePage() {
@@ -42,6 +43,7 @@ export default function ScripturePage() {
       <section className="px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <ScriptureStudyWorkspace />
+          <ScriptureInsightLab />
         </div>
       </section>
     </main>
