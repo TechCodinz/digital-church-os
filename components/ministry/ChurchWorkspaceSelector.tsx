@@ -24,7 +24,44 @@ export function ChurchWorkspaceSelector() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeId, setActiveId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [switching, setSwitching] = useState(false);
   const [message, setMessage] = useState('');
+
+  const activateWorkspace = async (id: string, silent = false) => {
+    setSwitching(true);
+    try {
+      if (!id) {
+        await fetch('/api/church-ops/active', { method: 'DELETE' });
+        window.localStorage.removeItem(ACTIVE_CHURCH_STORAGE_KEY);
+        setActiveId('');
+        broadcastWorkspace('');
+        if (!silent) setMessage('No shared church workspace is selected. Operational drafts remain private to this browser.');
+        return true;
+      }
+
+      const response = await fetch('/api/church-ops/active', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ churchId: id }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        if (!silent) setMessage(data?.error || 'That church workspace could not be activated.');
+        return false;
+      }
+
+      window.localStorage.setItem(ACTIVE_CHURCH_STORAGE_KEY, id);
+      setActiveId(id);
+      broadcastWorkspace(id);
+      if (!silent) setMessage(`Active church changed to ${data?.church?.name || 'the selected workspace'}.`);
+      return true;
+    } catch {
+      if (!silent) setMessage('Church workspace selection is unavailable right now.');
+      return false;
+    } finally {
+      setSwitching(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -50,17 +87,15 @@ export function ChurchWorkspaceSelector() {
         const resolved = validSaved || (next.length === 1 ? next[0].id : '');
 
         if (resolved) {
-          window.localStorage.setItem(ACTIVE_CHURCH_STORAGE_KEY, resolved);
-          setActiveId(resolved);
+          const activated = await activateWorkspace(resolved, true);
+          if (!activated && !cancelled) {
+            window.localStorage.removeItem(ACTIVE_CHURCH_STORAGE_KEY);
+            setActiveId('');
+            broadcastWorkspace('');
+          }
         } else {
-          window.localStorage.removeItem(ACTIVE_CHURCH_STORAGE_KEY);
-          setActiveId('');
+          await activateWorkspace('', true);
         }
-
-        // Sibling operational modules may mount before workspace discovery has
-        // finished. Broadcast the resolved value even when it was auto-selected
-        // so every module switches to the same tenant deterministically.
-        broadcastWorkspace(resolved);
       } catch {
         if (!cancelled) setMessage('Church workspace discovery is unavailable right now.');
       } finally {
@@ -68,17 +103,11 @@ export function ChurchWorkspaceSelector() {
       }
     };
 
-    load();
+    void load();
     return () => { cancelled = true; };
+    // activateWorkspace intentionally remains local to the mounted selector.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const chooseWorkspace = (id: string) => {
-    setActiveId(id);
-    setMessage('');
-    if (id) window.localStorage.setItem(ACTIVE_CHURCH_STORAGE_KEY, id);
-    else window.localStorage.removeItem(ACTIVE_CHURCH_STORAGE_KEY);
-    broadcastWorkspace(id);
-  };
 
   const active = workspaces.find((workspace) => workspace.id === activeId);
 
@@ -100,13 +129,20 @@ export function ChurchWorkspaceSelector() {
                 <p className="mt-4 inline-flex items-center text-sm text-stone-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading accessible church workspaces…</p>
               ) : workspaces.length ? (
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <select value={activeId} onChange={(event) => chooseWorkspace(event.target.value)} className="min-w-[260px] rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-800 outline-none focus:ring-2 focus:ring-sage-200">
+                  <select
+                    value={activeId}
+                    disabled={switching}
+                    onChange={(event) => void activateWorkspace(event.target.value)}
+                    className="min-w-[260px] rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-800 outline-none focus:ring-2 focus:ring-sage-200 disabled:opacity-60"
+                  >
                     <option value="">Select a church workspace</option>
                     {workspaces.map((workspace) => (
                       <option key={workspace.id} value={workspace.id}>{workspace.name}{workspace.city ? ` · ${workspace.city}` : ''}</option>
                     ))}
                   </select>
-                  {active && <span className="inline-flex items-center text-xs font-semibold text-sage-700"><Check className="mr-1.5 h-4 w-4" /> Shared operations will target {active.name}</span>}
+                  {switching
+                    ? <span className="inline-flex items-center text-xs font-semibold text-stone-500"><Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Validating church access…</span>
+                    : active && <span className="inline-flex items-center text-xs font-semibold text-sage-700"><Check className="mr-1.5 h-4 w-4" /> Shared operations target {active.name}</span>}
                 </div>
               ) : (
                 <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -121,7 +157,7 @@ export function ChurchWorkspaceSelector() {
         </div>
         <div className="border-t border-stone-100 bg-stone-950 p-5 text-white lg:border-l lg:border-t-0">
           <ShieldCheck className="h-5 w-5 text-sage-300" />
-          <p className="mt-2 max-w-xs text-xs leading-5 text-stone-300">Church membership is checked on every shared-record API request. A global UI role alone does not grant cross-church data access.</p>
+          <p className="mt-2 max-w-xs text-xs leading-5 text-stone-300">The server validates membership before setting the HttpOnly active-church cookie, and every shared-record API verifies membership again.</p>
         </div>
       </div>
     </section>
