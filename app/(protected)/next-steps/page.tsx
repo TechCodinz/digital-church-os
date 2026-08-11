@@ -13,8 +13,8 @@ import {
 const steps = [
   {
     title: 'I chose to follow Christ',
-    description: 'Begin a gentle new-believer pathway with Scripture, prayer, human follow-up, and room for questions.',
-    href: '/journey',
+    description: 'Begin a gentle new-believer pathway with Scripture, prayer, human follow-up, Christian foundations, and room for questions.',
+    href: '/formation',
     icon: Sparkles,
   },
   {
@@ -25,15 +25,21 @@ const steps = [
   },
   {
     title: 'I want to prepare for baptism',
-    description: 'Review the meaning of baptism, record your decision, and connect with church leadership for the next step.',
-    href: '/spiritual',
+    description: 'Study the meaning of baptism, record questions, and connect with church leadership for the local preparation process.',
+    href: '/formation',
     icon: Droplets,
   },
   {
     title: 'I want to belong to a church',
-    description: 'Discover church communities, follow their activities, and take a clear path toward membership and participation.',
-    href: '/church-network',
+    description: 'Discover church communities, review membership/belonging preparation, and take a clear path toward participation.',
+    href: '/formation',
     icon: Church,
+  },
+  {
+    title: 'I want a small group or community',
+    description: 'Find the community pathway where relationships, Scripture, prayer, care, and everyday discipleship can continue beyond Sunday.',
+    href: '/groups',
+    icon: UsersRound,
   },
   {
     title: 'I want to grow in Scripture',
@@ -72,8 +78,8 @@ export default function NextStepsPage() {
                 Whether you responded during a service, asked AI Pastor a question, received prayer, or simply want to grow, choose what you need now. Sensitive care remains human-led and AI guidance stays advisory.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link href="/journey" className="inline-flex items-center rounded-full bg-sage-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage-700">
-                  Continue my journey <ArrowRight className="ml-2 h-4 w-4" />
+                <Link href="/formation" className="inline-flex items-center rounded-full bg-sage-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-sage-700">
+                  Begin formation <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
                 <Link href="/care" className="inline-flex items-center rounded-full border border-stone-200 bg-white px-6 py-3 text-sm font-semibold text-stone-700 transition hover:border-sage-300 hover:text-sage-700">
                   Talk to a person
@@ -85,7 +91,7 @@ export default function NextStepsPage() {
               <HeartHandshake className="h-9 w-9 text-sage-300" />
               <h2 className="mt-6 text-3xl font-light">A response should lead to relationship, not a dead end.</h2>
               <p className="mt-4 text-sm leading-7 text-stone-300">
-                Digital Church OS connects spiritual response to discipleship, church belonging, pastoral care, service, and transparent generosity so people can keep moving with support.
+                Digital Church OS connects spiritual response to formation, baptism preparation, church belonging, small-group community, pastoral care, Scripture, service, and transparent generosity so people can keep moving with support.
               </p>
               <div className="mt-8 rounded-2xl border border-sage-300/20 bg-sage-300/10 p-5">
                 <p className="text-xs font-bold uppercase tracking-wider text-sage-300">Pastoral safeguard</p>
@@ -100,7 +106,7 @@ export default function NextStepsPage() {
         <section className="mt-10">
           <div className="mb-6">
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-sage-700">Choose what describes you</p>
-            <h2 className="mt-2 text-3xl font-light text-stone-900">Move from inspiration to formation.</h2>
+            <h2 className="mt-2 text-3xl font-light text-stone-900">Move from inspiration to formation and community.</h2>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {steps.map((step) => {
