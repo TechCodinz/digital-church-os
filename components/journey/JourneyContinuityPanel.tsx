@@ -42,19 +42,34 @@ export function JourneyContinuityPanel() {
 
   useEffect(() => {
     let active = true;
-    fetch('/api/journey/continuity', { cache: 'no-store' })
-      .then(async (response) => {
+
+    const load = async (showLoader = false) => {
+      if (showLoader && active) setLoading(true);
+      try {
+        const response = await fetch('/api/journey/continuity', { cache: 'no-store' });
         const data = await response.json().catch(() => ({}));
         if (!active) return;
         if (!response.ok) {
           setMessage(response.status === 401 ? 'Sign in to see continuity across your private ministry moments.' : (data.error || 'Continuity is temporarily unavailable.'));
           return;
         }
+        setMessage('');
         setPayload(data);
-      })
-      .catch(() => active && setMessage('Continuity is temporarily unavailable.'))
-      .finally(() => active && setLoading(false));
-    return () => { active = false; };
+      } catch {
+        if (active) setMessage('Continuity is temporarily unavailable.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void load(true);
+    const handleJourneyUpdate = () => { void load(false); };
+    window.addEventListener('digital-church:journey-updated', handleJourneyUpdate);
+
+    return () => {
+      active = false;
+      window.removeEventListener('digital-church:journey-updated', handleJourneyUpdate);
+    };
   }, []);
 
   const activeSources = useMemo(() => {
