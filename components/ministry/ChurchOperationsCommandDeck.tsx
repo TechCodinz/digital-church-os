@@ -34,6 +34,8 @@ const areas: Area[] = [
   { id: 'worship', title: 'Worship & choir', description: 'Songs, hymns, rehearsals, keys, choir structure, playlists, and projection.', href: '/choir', icon: Music2 },
   { id: 'care', title: 'Prayer & pastoral care', description: 'Prayer requests, human care, safeguarding, sensitive escalations, and accountable follow-up.', href: '/care', icon: HeartHandshake, critical: true },
   { id: 'follow-up', title: 'Discipleship follow-up', description: 'Consent-aware response ownership across contact, foundations, baptism, belonging, groups, and serving.', href: '/admin/follow-up', icon: UsersRound, critical: true },
+  { id: 'attendance', title: 'Attendance & assimilation', description: 'Aggregate attendance, guest flow, response ownership, and connection signals without individual surveillance.', href: '/admin/attendance', icon: UsersRound },
+  { id: 'groups', title: 'Small groups & community', description: 'Group leadership depth, meeting rhythm, healthy capacity, and places for people to belong.', href: '/groups', icon: Church },
   { id: 'people', title: 'Workers & volunteers', description: 'Rota coverage, roles, primaries/backups, call times, gaps, appreciation, and ministry ownership.', href: '/workers', icon: UsersRound },
   { id: 'children', title: 'Children & family', description: 'Age-aware teaching, guardian controls, family discipleship, and trusted-adult pathways.', href: '/children', icon: Baby, critical: true },
   { id: 'giving', title: 'Giving & benevolence', description: 'Giving operations, aid requests, stewardship review, and accountable disbursement.', href: '/giving', icon: CircleDollarSign },
