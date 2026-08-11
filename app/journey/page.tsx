@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { JourneyContinuityLive } from '@/components/journey/JourneyContinuityLive';
+import { JourneyContinuityPanel } from '@/components/journey/JourneyContinuityPanel';
 import { QuickContinuityCapture } from '@/components/journey/QuickContinuityCapture';
 import { SpiritualJourneyPanel } from '@/components/journey/SpiritualJourneyPanel';
 import { JourneyMemoryControls } from '@/components/journey/JourneyMemoryControls';
@@ -22,7 +22,7 @@ export default function JourneyPage() {
           </div>
           <div className="space-y-8">
             <QuickContinuityCapture />
-            <JourneyContinuityLive />
+            <JourneyContinuityPanel />
             <SpiritualJourneyPanel />
             <JourneyMemoryControls />
           </div>
