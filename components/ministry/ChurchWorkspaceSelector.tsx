@@ -16,6 +16,10 @@ type Workspace = {
 
 export const ACTIVE_CHURCH_STORAGE_KEY = 'digital-church-active-church-id';
 
+function broadcastWorkspace(churchId: string) {
+  window.dispatchEvent(new CustomEvent('digital-church-workspace-change', { detail: { churchId } }));
+}
+
 export function ChurchWorkspaceSelector() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeId, setActiveId] = useState('');
@@ -52,6 +56,11 @@ export function ChurchWorkspaceSelector() {
           window.localStorage.removeItem(ACTIVE_CHURCH_STORAGE_KEY);
           setActiveId('');
         }
+
+        // Sibling operational modules may mount before workspace discovery has
+        // finished. Broadcast the resolved value even when it was auto-selected
+        // so every module switches to the same tenant deterministically.
+        broadcastWorkspace(resolved);
       } catch {
         if (!cancelled) setMessage('Church workspace discovery is unavailable right now.');
       } finally {
@@ -68,7 +77,7 @@ export function ChurchWorkspaceSelector() {
     setMessage('');
     if (id) window.localStorage.setItem(ACTIVE_CHURCH_STORAGE_KEY, id);
     else window.localStorage.removeItem(ACTIVE_CHURCH_STORAGE_KEY);
-    window.dispatchEvent(new CustomEvent('digital-church-workspace-change', { detail: { churchId: id } }));
+    broadcastWorkspace(id);
   };
 
   const active = workspaces.find((workspace) => workspace.id === activeId);
