@@ -2,6 +2,7 @@ import { SermonGeneratorConsole } from '@/components/sermon/SermonGeneratorConso
 import { SermonPackConsole } from '@/components/sermon/SermonPackConsole';
 import { LiveSermonCommandCenter } from '@/components/sermon/LiveSermonCommandCenter';
 import { LiveSermonCompanion } from '@/components/sermon/LiveSermonCompanion';
+import { SermonIntelligenceWorkbench } from '@/components/sermon/SermonIntelligenceWorkbench';
 import { BookOpenText, ShieldCheck } from 'lucide-react';
 
 export default function SermonsPage() {
@@ -19,6 +20,7 @@ export default function SermonsPage() {
 
           <div className="space-y-10">
             <LiveSermonCommandCenter />
+            <SermonIntelligenceWorkbench />
             <LiveSermonCompanion />
             <SermonGeneratorConsole />
             <SermonPackConsole />
