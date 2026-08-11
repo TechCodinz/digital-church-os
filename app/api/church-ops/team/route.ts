@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
           ${tokenHash},
           'PENDING',
           ${session.user.id},
-          ${expiresAt},
+          ${expiresAt}
         )
         RETURNING id, email, role, status, expires_at, created_at
       `);
