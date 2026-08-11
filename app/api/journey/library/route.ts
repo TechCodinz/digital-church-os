@@ -8,10 +8,14 @@ const allowedSources = new Set([
   'Scripture',
   'Prayer',
   'Fasting',
+  'Fasting & Prayer',
   'Family Altar',
   'Choir',
+  'Choir Studio',
   'Sermon',
+  'Live Sermon',
   'Service Response',
+  'Pastoral Reflection',
 ]);
 
 function parseMood(mood: string | null) {
@@ -36,14 +40,14 @@ export async function GET(request: NextRequest) {
   }
 
   const q = (request.nextUrl.searchParams.get('q') || '').trim().slice(0, 120);
-  const source = (request.nextUrl.searchParams.get('source') || '').trim().slice(0, 40);
+  const source = (request.nextUrl.searchParams.get('source') || '').trim().slice(0, 60);
   const sourceFilter = source && allowedSources.has(source) ? source : '';
 
   try {
     const rows = await prisma.journalEntry.findMany({
       where: {
         userId: session.user.id,
-        mood: { startsWith: sourceFilter ? `Continuity:${sourceFilter}` : 'Continuity:' },
+        mood: { startsWith: sourceFilter ? `Continuity:${sourceFilter}:` : 'Continuity:' },
         ...(q ? {
           OR: [
             { title: { contains: q, mode: 'insensitive' } },
