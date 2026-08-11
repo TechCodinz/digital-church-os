@@ -9,7 +9,6 @@ const churchAdminUiPrefixes = [
   '/facilities',
   '/testimonies',
   '/outreach',
-  '/departments',
   '/requests',
   '/intelligence',
   '/council',
