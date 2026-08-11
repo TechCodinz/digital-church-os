@@ -26,6 +26,32 @@ SELECT cp.id, cp.owner_id, 'OWNER', 'ACTIVE'
 FROM church_profiles cp
 ON CONFLICT (church_id, user_id) DO NOTHING;
 
+-- Invitations never grant access by themselves. The raw token is shown/sent
+-- once; only a SHA-256 hash is persisted. Acceptance requires an authenticated
+-- account whose normalized email matches the invitation.
+CREATE TABLE IF NOT EXISTS church_profile_invitations (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  church_id TEXT NOT NULL REFERENCES church_profiles(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'VIEWER',
+  token_hash TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'PENDING',
+  invited_by TEXT REFERENCES "User"(id) ON DELETE SET NULL,
+  accepted_by TEXT REFERENCES "User"(id) ON DELETE SET NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  accepted_at TIMESTAMPTZ,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT church_profile_invitations_role_check CHECK (role IN ('ADMIN', 'PASTOR', 'STAFF', 'VIEWER')),
+  CONSTRAINT church_profile_invitations_status_check CHECK (status IN ('PENDING', 'ACCEPTED', 'REVOKED', 'EXPIRED'))
+);
+
+CREATE INDEX IF NOT EXISTS church_profile_invitations_church_idx
+  ON church_profile_invitations(church_id, status, expires_at);
+CREATE INDEX IF NOT EXISTS church_profile_invitations_email_idx
+  ON church_profile_invitations(lower(email), status, expires_at);
+
 CREATE TABLE IF NOT EXISTS church_operational_records (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   church_id TEXT NOT NULL REFERENCES church_profiles(id) ON DELETE CASCADE,
@@ -66,6 +92,8 @@ CREATE INDEX IF NOT EXISTS church_operational_record_history_record_idx
 CREATE INDEX IF NOT EXISTS church_operational_record_history_church_idx
   ON church_operational_record_history(church_id, module, created_at DESC);
 
+COMMENT ON TABLE church_profile_invitations IS
+  'Invitation tokens are stored as hashes and do not grant tenant access until accepted by the matching authenticated email.';
 COMMENT ON TABLE church_operational_records IS
   'Tenant-scoped church operations data. Do not store counseling notes, abuse reports, medical records, credentials, or other restricted case data here.';
 COMMENT ON COLUMN church_operational_records.classification IS
