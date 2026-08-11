@@ -2,7 +2,13 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarClock, CheckCircle2, HeartHandshake, Save, ShieldCheck, UsersRound } from 'lucide-react';
+import { CalendarClock, CheckCircle2, HeartHandshake, Loader2, RotateCcw, Save, ShieldCheck, UsersRound } from 'lucide-react';
+import {
+  getActiveChurchId,
+  loadChurchOperationalRecord,
+  saveChurchOperationalRecord,
+  subscribeToChurchWorkspace,
+} from '@/lib/church-ops/client-record';
 
 type CareLane = {
   id: string;
@@ -31,27 +37,52 @@ const defaultState: PastoralDeskState = {
   updatedAt: '',
 };
 
-const STORAGE_KEY = 'digital-church-os:pastoral-care-coordination';
+const localPrefix = 'digital-church-pastoral-coordination:v2';
+
+function normalizeState(value: unknown): PastoralDeskState {
+  const data = value && typeof value === 'object' ? value as Partial<PastoralDeskState> : {};
+  const savedLanes = Array.isArray(data.lanes) ? data.lanes : [];
+  const laneState = new Map(savedLanes.filter((lane): lane is CareLane => Boolean(lane && typeof lane === 'object' && typeof (lane as CareLane).id === 'string')).map((lane) => [lane.id, lane.ready === true]));
+
+  return {
+    focus: typeof data.focus === 'string' ? data.focus : defaultState.focus,
+    handoffNote: typeof data.handoffNote === 'string' ? data.handoffNote : '',
+    lanes: defaultState.lanes.map((lane) => ({ ...lane, ready: laneState.get(lane.id) === true })),
+    updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : '',
+  };
+}
 
 export function PastoralCareCoordinationBoard() {
   const [state, setState] = useState<PastoralDeskState>(defaultState);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [activeChurchId, setActiveChurchId] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('Loading pastoral coordination…');
+
+  const loadWorkspace = async (churchId: string) => {
+    setActiveChurchId(churchId);
+    setSyncing(true);
+    setSyncMessage(churchId ? 'Loading active church pastoral coordination…' : 'Waiting for an active church workspace…');
+    try {
+      const result = await loadChurchOperationalRecord({
+        churchId,
+        module: 'pastoral-coordination',
+        recordKey: 'current',
+        localStoragePrefix: localPrefix,
+        defaultValue: defaultState,
+        normalize: normalizeState,
+      });
+      setState(result.value);
+      setSyncMessage(result.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Partial<PastoralDeskState>;
-      const next = {
-        ...defaultState,
-        ...parsed,
-        lanes: Array.isArray(parsed.lanes) && parsed.lanes.length ? parsed.lanes : defaultState.lanes,
-      };
-      setState(next);
-      setSavedAt(next.updatedAt || null);
-    } catch {
-      // Local recovery is best-effort only.
-    }
+    void loadWorkspace(getActiveChurchId());
+    return subscribeToChurchWorkspace((churchId) => void loadWorkspace(churchId));
+    // Workspace selection is the explicit reload boundary.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const completeCount = useMemo(() => state.lanes.filter((lane) => lane.ready).length, [state.lanes]);
@@ -63,13 +94,35 @@ export function PastoralCareCoordinationBoard() {
     }));
   };
 
-  const save = () => {
-    const updatedAt = new Date().toISOString();
-    const next = { ...state, updatedAt };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    setState(next);
-    setSavedAt(updatedAt);
-  };
+  async function persist(nextState: PastoralDeskState, message: string) {
+    setSyncing(true);
+    setSyncMessage(message);
+    try {
+      const result = await saveChurchOperationalRecord({
+        churchId: activeChurchId,
+        module: 'pastoral-coordination',
+        recordKey: 'current',
+        title: 'Pastoral coordination readiness',
+        classification: 'SENSITIVE_OPERATIONAL',
+        localStoragePrefix: localPrefix,
+        value: nextState,
+      });
+      setState(nextState);
+      setSyncMessage(result.message);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function save() {
+    const next = { ...state, updatedAt: new Date().toISOString() };
+    await persist(next, 'Saving pastoral coordination…');
+  }
+
+  async function reset() {
+    const next = { ...defaultState, updatedAt: new Date().toISOString() };
+    await persist(next, 'Resetting pastoral coordination…');
+  }
 
   return (
     <section className="border-y border-cream-200 bg-white/75 px-4 py-12 sm:px-6 lg:px-8">
@@ -79,13 +132,18 @@ export function PastoralCareCoordinationBoard() {
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-sage-600">Pastoral coordination desk</p>
             <h2 className="mt-2 text-3xl font-light text-stone-900 sm:text-4xl">Know what needs human pastoral attention today.</h2>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
-              This desk tracks operational readiness only. Do not enter counseling narratives, abuse reports, medical details, crisis descriptions, or confidential case notes here.
+              This selected-church desk tracks non-case operational readiness only. Do not enter counseling narratives, abuse reports, medical details, crisis descriptions, safeguarding case notes, or confidential member histories here.
             </p>
           </div>
           <div className="rounded-2xl border border-sage-200 bg-sage-50 px-5 py-4 text-center">
             <p className="text-2xl font-semibold text-sage-800">{completeCount}/{state.lanes.length}</p>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-sage-700">care checks ready</p>
           </div>
+        </div>
+
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs text-stone-600">
+          <span>{syncing ? 'Syncing…' : syncMessage}</span>
+          <span>{activeChurchId ? 'Active church workspace' : 'No active church selected'}</span>
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1fr_0.85fr]">
@@ -139,11 +197,12 @@ export function PastoralCareCoordinationBoard() {
             </label>
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
-              <button type="button" onClick={save} className="inline-flex min-h-11 items-center rounded-xl bg-sage-600 px-4 text-sm font-semibold text-white hover:bg-sage-700">
-                <Save className="mr-2 h-4 w-4" /> Save private desk
+              <button type="button" onClick={() => void save()} disabled={syncing || !activeChurchId} className="inline-flex min-h-11 items-center rounded-xl bg-sage-600 px-4 text-sm font-semibold text-white hover:bg-sage-700 disabled:cursor-not-allowed disabled:opacity-50">
+                {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save church desk
               </button>
-              <p className="text-xs text-stone-500">{savedAt ? `Saved ${new Date(savedAt).toLocaleString()}.` : 'Not yet saved in this browser.'}</p>
+              <button type="button" onClick={() => void reset()} disabled={syncing || !activeChurchId} className="inline-flex min-h-11 items-center rounded-xl border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-600 disabled:cursor-not-allowed disabled:opacity-50"><RotateCcw className="mr-2 h-4 w-4" /> Reset shared desk</button>
             </div>
+            <p className="mt-3 text-xs text-stone-500">Old unscoped browser drafts are deliberately not auto-imported into a church workspace.</p>
           </div>
 
           <div className="space-y-5">
