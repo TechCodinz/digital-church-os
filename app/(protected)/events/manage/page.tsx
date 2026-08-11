@@ -1,5 +1,6 @@
 import { ChurchWorkspaceSelector } from '@/components/ministry/ChurchWorkspaceSelector';
 import { EventMinistryPlanner } from '@/components/ministry/EventMinistryPlanner';
+import { TenantConferenceManager } from '@/components/ministry/TenantConferenceManager';
 import { requireChurchWorkspace } from '@/lib/church-ops/server';
 
 export default async function EventManagementPage() {
@@ -12,6 +13,7 @@ export default async function EventManagementPage() {
           allowedRoles={['OWNER', 'ADMIN', 'PASTOR', 'STAFF']}
           emptyMessage="No church workspace with event-operations access is attached to this account."
         />
+        <TenantConferenceManager />
         <EventMinistryPlanner />
       </div>
     </main>
