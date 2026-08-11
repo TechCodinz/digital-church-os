@@ -45,6 +45,14 @@ export default withAuth(
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
+    // Church-ops persistence deliberately does NOT use the global CHURCH_ADMIN
+    // role as its tenant authorization decision. Middleware guarantees an
+    // authenticated identity; each API request then verifies church ownership
+    // or church_profile_members access for the requested church.
+    if (path.startsWith('/api/church-ops') && !token?.sub) {
+      return NextResponse.json({ error: 'Authenticated church workspace access required' }, { status: 401 });
+    }
+
     if (path.startsWith('/api/ai') && !['CHURCH_ADMIN', 'AI_DEPARTMENT', 'MEMBER'].includes(token?.role as string)) {
       return NextResponse.json({ error: 'Authenticated member access required' }, { status: 403 });
     }
@@ -71,6 +79,7 @@ export const config = {
     '/admin/:path*',
     '/api/admin/:path*',
     '/api/ai/:path*',
+    '/api/church-ops/:path*',
     '/api/user/:path*',
     '/api/offerings/:path*',
     '/api/aid/:path*',
