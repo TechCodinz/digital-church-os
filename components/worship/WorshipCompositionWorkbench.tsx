@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import {
   BookOpenText,
   Check,
-  ClipboardMusic,
+  ClipboardCheck,
   Copyright,
   Headphones,
   Music2,
@@ -77,7 +77,7 @@ export function WorshipCompositionWorkbench() {
           <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
             <div>
               <div className="inline-flex items-center rounded-full bg-purple-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-purple-700">
-                <ClipboardMusic className="mr-2 h-4 w-4" /> Worship composition workbench
+                <ClipboardCheck className="mr-2 h-4 w-4" /> Worship composition workbench
               </div>
               <h2 className="mt-4 max-w-3xl text-3xl font-light leading-tight text-stone-900 md:text-4xl">Write hymns, praise songs, choir anthems, and rehearsal-ready worship plans with structure and accountability.</h2>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">Use Scripture and a clear ministry theme first, then shape lyrics, arrangement, vocal parts, key, tempo, and rights posture. This workspace does not claim to auto-correct pitch or create mastered audio unless a real audio-processing provider is connected.</p>
