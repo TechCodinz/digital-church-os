@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
-  CalendarDays,
   Check,
   Clock3,
   Plus,
@@ -14,6 +13,12 @@ import {
   Trash2,
   UsersRound,
 } from 'lucide-react';
+import {
+  getActiveChurchId,
+  loadChurchOperationalRecord,
+  saveChurchOperationalRecord,
+  subscribeToChurchWorkspace,
+} from '@/lib/church-ops/client-record';
 
 type ServiceBlockKind = 'gather' | 'worship' | 'scripture' | 'sermon' | 'prayer' | 'communion' | 'announcement' | 'response' | 'sending' | 'other';
 type ReadinessKey = 'stream' | 'slides' | 'audio' | 'accessibility' | 'workers' | 'children' | 'care' | 'rights' | 'backup';
@@ -26,6 +31,18 @@ type ServiceBlock = {
   minutes: number;
   cue: string;
   notes: string;
+};
+
+type ServicePlanState = {
+  serviceName: string;
+  serviceDate: string;
+  startTime: string;
+  location: string;
+  serviceLead: string;
+  backupLead: string;
+  blocks: ServiceBlock[];
+  ready: ReadinessKey[];
+  risk: string;
 };
 
 const kinds: Array<{ id: ServiceBlockKind; label: string }> = [
@@ -62,8 +79,34 @@ const defaultBlocks: ServiceBlock[] = [
   { id: 'sending', kind: 'sending', title: 'Benediction & next steps', owner: '', minutes: 5, cue: 'Response links visible', notes: '' },
 ];
 
-function key() {
-  return 'digital-church-service-operations-plan:v1';
+const defaultPlan: ServicePlanState = {
+  serviceName: 'Sunday Worship Service',
+  serviceDate: '',
+  startTime: '10:00',
+  location: 'Main sanctuary + online',
+  serviceLead: '',
+  backupLead: '',
+  blocks: defaultBlocks,
+  ready: [],
+  risk: '',
+};
+
+const localPrefix = 'digital-church-service-operations-plan:v2';
+const legacyLocalKey = 'digital-church-service-operations-plan:v1';
+
+function normalizePlan(value: unknown): ServicePlanState {
+  const data = value && typeof value === 'object' ? value as Partial<ServicePlanState> : {};
+  return {
+    serviceName: typeof data.serviceName === 'string' ? data.serviceName : defaultPlan.serviceName,
+    serviceDate: typeof data.serviceDate === 'string' ? data.serviceDate : '',
+    startTime: typeof data.startTime === 'string' ? data.startTime : defaultPlan.startTime,
+    location: typeof data.location === 'string' ? data.location : defaultPlan.location,
+    serviceLead: typeof data.serviceLead === 'string' ? data.serviceLead : '',
+    backupLead: typeof data.backupLead === 'string' ? data.backupLead : '',
+    blocks: Array.isArray(data.blocks) ? data.blocks : defaultBlocks,
+    ready: Array.isArray(data.ready) ? data.ready.filter((item): item is ReadinessKey => readinessItems.some((entry) => entry.id === item)) : [],
+    risk: typeof data.risk === 'string' ? data.risk : '',
+  };
 }
 
 function formatClock(totalMinutes: number, startTime: string) {
@@ -76,47 +119,83 @@ function formatClock(totalMinutes: number, startTime: string) {
 }
 
 export function ServiceOperationsPlanner() {
-  const [serviceName, setServiceName] = useState('Sunday Worship Service');
+  const [serviceName, setServiceName] = useState(defaultPlan.serviceName);
   const [serviceDate, setServiceDate] = useState('');
-  const [startTime, setStartTime] = useState('10:00');
-  const [location, setLocation] = useState('Main sanctuary + online');
+  const [startTime, setStartTime] = useState(defaultPlan.startTime);
+  const [location, setLocation] = useState(defaultPlan.location);
   const [serviceLead, setServiceLead] = useState('');
   const [backupLead, setBackupLead] = useState('');
   const [blocks, setBlocks] = useState<ServiceBlock[]>(defaultBlocks);
   const [ready, setReady] = useState<ReadinessKey[]>([]);
   const [risk, setRisk] = useState('');
   const [saved, setSaved] = useState(false);
+  const [activeChurchId, setActiveChurchId] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('Private browser draft');
+
+  const applyPlan = (plan: ServicePlanState) => {
+    setServiceName(plan.serviceName);
+    setServiceDate(plan.serviceDate);
+    setStartTime(plan.startTime);
+    setLocation(plan.location);
+    setServiceLead(plan.serviceLead);
+    setBackupLead(plan.backupLead);
+    setBlocks(plan.blocks);
+    setReady(plan.ready);
+    setRisk(plan.risk);
+  };
+
+  const loadWorkspace = async (churchId: string) => {
+    setActiveChurchId(churchId);
+    setSaved(false);
+    setSyncing(true);
+    setSyncMessage(churchId ? 'Loading active church service plan…' : 'Loading private service draft…');
+    try {
+      const result = await loadChurchOperationalRecord({
+        churchId,
+        module: 'service-planner',
+        recordKey: 'current',
+        localStoragePrefix: localPrefix,
+        legacyLocalStorageKey: legacyLocalKey,
+        defaultValue: defaultPlan,
+        normalize: normalizePlan,
+      });
+      applyPlan(result.value);
+      setSyncMessage(result.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(key());
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      setServiceName(data.serviceName || 'Sunday Worship Service');
-      setServiceDate(data.serviceDate || '');
-      setStartTime(data.startTime || '10:00');
-      setLocation(data.location || 'Main sanctuary + online');
-      setServiceLead(data.serviceLead || '');
-      setBackupLead(data.backupLead || '');
-      if (Array.isArray(data.blocks)) setBlocks(data.blocks);
-      if (Array.isArray(data.ready)) setReady(data.ready);
-      setRisk(data.risk || '');
-    } catch {
-      // Local operational planning is optional.
-    }
+    void loadWorkspace(getActiveChurchId());
+    return subscribeToChurchWorkspace((churchId) => void loadWorkspace(churchId));
+    // Workspace changes are the explicit reload boundary.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const totalMinutes = useMemo(() => blocks.reduce((sum, block) => sum + (Number(block.minutes) || 0), 0), [blocks]);
   const readiness = useMemo(() => Math.round((ready.length / readinessItems.length) * 100), [ready.length]);
   const missingOwners = useMemo(() => blocks.filter((block) => !block.owner.trim()).length, [blocks]);
 
-  const save = () => {
+  const save = async () => {
+    const value: ServicePlanState = { serviceName, serviceDate, startTime, location, serviceLead, backupLead, blocks, ready, risk };
+    setSyncing(true);
+    setSyncMessage(activeChurchId ? 'Saving service plan to active church…' : 'Saving private service draft…');
     try {
-      window.localStorage.setItem(key(), JSON.stringify({ serviceName, serviceDate, startTime, location, serviceLead, backupLead, blocks, ready, risk, updatedAt: new Date().toISOString() }));
+      const result = await saveChurchOperationalRecord({
+        churchId: activeChurchId,
+        module: 'service-planner',
+        recordKey: 'current',
+        title: serviceDate ? `${serviceName} · ${serviceDate}` : serviceName,
+        localStoragePrefix: localPrefix,
+        value,
+      });
       setSaved(true);
+      setSyncMessage(result.message);
       window.setTimeout(() => setSaved(false), 1600);
-    } catch {
-      setSaved(false);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -133,7 +212,8 @@ export function ServiceOperationsPlanner() {
             <div>
               <div className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-blue-700"><Radio className="mr-2 h-4 w-4" /> Service operations planner</div>
               <h2 className="mt-4 max-w-4xl text-3xl font-light leading-tight text-stone-900 md:text-4xl">Run the entire service from one accountable timeline—not disconnected chats and last-minute memory.</h2>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">Coordinate people, timing, cues, broadcast, slides, accessibility, children, prayer/care response, media rights, and contingencies. This planning surface stays local until a church-owned operations backend is connected.</p>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">Coordinate people, timing, cues, broadcast, slides, accessibility, children, prayer/care response, media rights, and contingencies. With an active church workspace, this plan is shared only with authorized leaders of that church.</p>
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold text-stone-600"><ShieldCheck className="h-3.5 w-3.5 text-blue-700" /> {syncing ? 'Syncing…' : syncMessage}</div>
             </div>
             <div className="min-w-[200px] rounded-2xl bg-stone-950 p-4 text-white">
               <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Planned service</p>
@@ -179,7 +259,7 @@ export function ServiceOperationsPlanner() {
 
           <div className="mt-5 flex flex-wrap gap-3">
             <button type="button" onClick={addBlock} className="inline-flex items-center rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-800"><Plus className="mr-2 h-4 w-4" /> Add service moment</button>
-            <button type="button" onClick={save} className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700">{saved ? <Check className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}{saved ? 'Saved privately' : 'Save operations plan'}</button>
+            <button type="button" onClick={() => void save()} disabled={syncing} className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700 disabled:opacity-60">{saved ? <Check className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}{syncing ? 'Syncing…' : saved ? 'Saved' : activeChurchId ? 'Save to active church' : 'Save private plan'}</button>
           </div>
         </div>
 
@@ -204,7 +284,7 @@ export function ServiceOperationsPlanner() {
           <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-xs leading-5 text-amber-100"><AlertTriangle className="mb-2 h-4 w-4" /> A checked item means a leader reviewed it; it does not prove the underlying system is healthy. Critical technical, safeguarding, financial, or care checks should still use their dedicated systems and human owners.</div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <Link href="/workers" className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sage-200"><UsersRound className="mr-2 h-4 w-4" /> Check volunteer coverage</Link>
+            <Link href="/admin/workers" className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sage-200"><UsersRound className="mr-2 h-4 w-4" /> Check volunteer coverage</Link>
             <Link href="/presentation" className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-blue-200">Review presentation →</Link>
             <Link href="/live-service" className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white"><Radio className="mr-2 h-4 w-4" /> Open live service</Link>
           </div>
