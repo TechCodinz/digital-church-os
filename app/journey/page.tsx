@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { JourneyContinuityPanel } from '@/components/journey/JourneyContinuityPanel';
+import { QuickContinuityCapture } from '@/components/journey/QuickContinuityCapture';
 import { SpiritualJourneyPanel } from '@/components/journey/SpiritualJourneyPanel';
 import { BookOpenText, Footprints } from 'lucide-react';
 
@@ -19,6 +20,7 @@ export default function JourneyPage() {
             <Link href="/journey/library" className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-2xl border border-stone-200 bg-white px-5 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-sage-300 hover:text-sage-800"><BookOpenText className="mr-2 h-4 w-4 text-sage-700" /> Search saved references</Link>
           </div>
           <div className="space-y-8">
+            <QuickContinuityCapture />
             <JourneyContinuityPanel />
             <SpiritualJourneyPanel />
           </div>
