@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   Sparkles,
   Utensils,
-  SmartphoneOff,
+  Smartphone,
 } from 'lucide-react';
 
 const focusOptions = ['Repentance & renewal', 'Family', 'Church', 'Healing & comfort', 'Wisdom', 'Outreach & mission', 'Justice & mercy', 'Gratitude'];
@@ -52,7 +52,7 @@ export default function FastingPrayerPage() {
               <div className="mt-7 grid gap-3 sm:grid-cols-3">
                 {[
                   { id: 'food', label: 'Food-related fast', icon: Utensils, note: 'Only if appropriate for you.' },
-                  { id: 'media', label: 'Media / distraction fast', icon: SmartphoneOff, note: 'Reduce selected distractions.' },
+                  { id: 'media', label: 'Media / distraction fast', icon: Smartphone, note: 'Reduce selected distractions.' },
                   { id: 'other', label: 'Custom discipline', icon: Sparkles, note: 'Choose a healthy practice.' },
                 ].map((item) => {
                   const Icon = item.icon;
