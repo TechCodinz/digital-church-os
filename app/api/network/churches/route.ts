@@ -36,15 +36,59 @@ export async function POST(req: NextRequest) {
       const parsed = ConnectionSchema.safeParse(body);
       if (!parsed.success) return NextResponse.json({ error: 'Invalid connection payload', details: parsed.error.flatten() }, { status: 400 });
       const d = parsed.data;
-      const ownerCheck = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`SELECT id FROM church_profiles WHERE id = ${d.requesterChurchId} AND owner_id = ${session.user.id} LIMIT 1`);
-      if (!ownerCheck[0] && session.user.role !== 'CHURCH_ADMIN') return NextResponse.json({ error: 'You can only connect churches you manage.' }, { status: 403 });
+
+      // A global UI role must never authorize operations on another church's
+      // tenant data. Until this legacy network endpoint is migrated fully onto
+      // church_profile_members, initiating a church-to-church connection is
+      // deliberately restricted to the profile owner.
+      const ownerCheck = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+        SELECT id
+        FROM church_profiles
+        WHERE id = ${d.requesterChurchId}
+          AND owner_id = ${session.user.id}
+        LIMIT 1
+      `);
+      if (!ownerCheck[0]) {
+        return NextResponse.json({ error: 'You can only connect a church profile you own.' }, { status: 403 });
+      }
+
+      if (d.requesterChurchId === d.receiverChurchId) {
+        return NextResponse.json({ error: 'A church cannot create a network connection with itself.' }, { status: 400 });
+      }
+
+      const receiver = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+        SELECT id
+        FROM church_profiles
+        WHERE id = ${d.receiverChurchId}
+        LIMIT 1
+      `);
+      if (!receiver[0]) return NextResponse.json({ error: 'Receiving church profile was not found.' }, { status: 404 });
 
       const rows = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
         INSERT INTO church_connections (requester_church_id, receiver_church_id, status, connection_type, message)
         VALUES (${d.requesterChurchId}, ${d.receiverChurchId}, 'PENDING', ${d.connectionType}, ${d.message || null})
-        ON CONFLICT (requester_church_id, receiver_church_id) DO UPDATE SET message = EXCLUDED.message, connection_type = EXCLUDED.connection_type, updated_at = now()
+        ON CONFLICT (requester_church_id, receiver_church_id)
+        DO UPDATE SET
+          message = EXCLUDED.message,
+          connection_type = EXCLUDED.connection_type,
+          updated_at = now()
         RETURNING *
       `);
+
+      await AuditLogger.log({
+        actorId: session.user.id,
+        action: 'CHURCH_CONNECTION_REQUESTED',
+        entityType: 'church_connections',
+        entityId: rows[0].id,
+        metadata: {
+          requesterChurchId: d.requesterChurchId,
+          receiverChurchId: d.receiverChurchId,
+          connectionType: d.connectionType,
+          messageStoredInAudit: false,
+        },
+        req,
+      });
+
       return NextResponse.json({ connection: rows[0] }, { status: 201 });
     }
 
