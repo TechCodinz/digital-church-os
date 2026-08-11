@@ -27,6 +27,21 @@ const SponsorshipSchema = z.object({
   reason: z.string().trim().min(5).max(2000),
 });
 
+const ManagerActionSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('review-sponsorship'),
+    conferenceId: z.string().trim().min(3),
+    requestId: z.string().trim().min(3),
+    status: z.enum(['PENDING', 'APPROVED', 'REJECTED']),
+  }),
+  z.object({
+    action: z.literal('check-in-registration'),
+    conferenceId: z.string().trim().min(3),
+    registrationId: z.string().trim().min(3),
+    checkedIn: z.boolean(),
+  }),
+]);
+
 function migrationResponse() {
   return NextResponse.json(
     { error: 'Conference tenant storage is waiting for the database migration.', migrationRequired: true },
@@ -58,6 +73,21 @@ async function canUseConference(conferenceId: string, userId?: string | null) {
   };
 }
 
+async function requireConferenceManager(userId: string, conferenceId: string) {
+  const scope = await getConferenceTenantScope(conferenceId);
+  if (!scope) return { scope: null, allowed: false, status: 404, error: 'Conference not found' };
+  if (!scope.churchProfileId) {
+    return { scope, allowed: false, status: 403, error: 'Legacy quarantined conferences cannot use tenant management actions.' };
+  }
+  const management = await canManageConference(userId, scope, false);
+  return {
+    scope,
+    allowed: management.allowed,
+    status: management.allowed ? 200 : 403,
+    error: management.allowed ? null : 'You do not have management access for this conference.',
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -79,8 +109,6 @@ export async function POST(req: NextRequest) {
       if (!access.allowed) return NextResponse.json({ error: access.reason }, { status: 403 });
 
       const registration = await prisma.$transaction(async (tx) => {
-        // Serialize registration changes per conference so capacity cannot be
-        // bypassed by simultaneous requests.
         const conferenceRows = await tx.$queryRaw<Array<{ maxAttendees: number | null }>>(Prisma.sql`
           SELECT "maxAttendees" AS "maxAttendees"
           FROM "Conference"
@@ -183,8 +211,6 @@ export async function POST(req: NextRequest) {
     if (!access.scope) return NextResponse.json({ error: access.reason }, { status: 404 });
     if (!access.allowed) return NextResponse.json({ error: access.reason }, { status: 403 });
 
-    // This is a purpose-built sensitive request table. The free-text reason is
-    // intentionally not copied into generic audit metadata.
     const rows = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
       INSERT INTO conference_sponsorship_requests
         (conference_id, user_id, request_type, amount_requested, currency, reason, status)
@@ -248,9 +274,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ sponsorships, registrations, scope: manager ? 'tenant-manager' : 'legacy-admin' });
     }
 
-    // No global admin sweep: ordinary users and product admins both receive
-    // only their own sensitive registration/sponsorship records unless an
-    // explicit conference is supplied and management access is verified.
     const sponsorships = conferenceId
       ? await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
           SELECT * FROM conference_sponsorship_requests
@@ -280,5 +303,53 @@ export async function GET(req: NextRequest) {
     if (conferenceTenantMigrationRequired(error)) return migrationResponse();
     console.error('Conference sponsorship lookup error:', error);
     return NextResponse.json({ error: 'Failed to load conference requests.' }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const parsed = ManagerActionSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid conference management action', details: parsed.error.flatten() }, { status: 400 });
+    }
+
+    const d = parsed.data;
+    const management = await requireConferenceManager(session.user.id, d.conferenceId);
+    if (!management.allowed) {
+      return NextResponse.json({ error: management.error }, { status: management.status });
+    }
+
+    if (d.action === 'review-sponsorship') {
+      const rows = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+        UPDATE conference_sponsorship_requests
+        SET
+          status = ${d.status},
+          reviewed_by = ${session.user.id},
+          reviewed_at = now()
+        WHERE id = ${d.requestId}
+          AND conference_id = ${d.conferenceId}
+        RETURNING *
+      `);
+      if (!rows[0]) return NextResponse.json({ error: 'Sponsorship request not found for this conference.' }, { status: 404 });
+      return NextResponse.json({ request: rows[0] });
+    }
+
+    const rows = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+      UPDATE conference_registrations
+      SET checked_in_at = ${d.checkedIn ? new Date() : null}
+      WHERE id = ${d.registrationId}
+        AND conference_id = ${d.conferenceId}
+        AND status <> 'CANCELLED'
+      RETURNING *
+    `);
+    if (!rows[0]) return NextResponse.json({ error: 'Active registration not found for this conference.' }, { status: 404 });
+    return NextResponse.json({ registration: rows[0] });
+  } catch (error) {
+    if (conferenceTenantMigrationRequired(error)) return migrationResponse();
+    console.error('Conference management action failed:', error);
+    return NextResponse.json({ error: 'Conference management action failed.' }, { status: 500 });
   }
 }
