@@ -117,6 +117,8 @@ export const config = {
     '/dream-discernment/:path*',
     '/family-altar/:path*',
     '/fasting-prayer/:path*',
+    '/fasting/:path*',
+    '/prayer-practice/:path*',
     '/daily-guide/:path*',
     '/care/:path*',
     '/council/:path*',
