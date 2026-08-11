@@ -48,6 +48,11 @@ function cleanSourceKey(value: unknown) {
     .replace(/^-+|-+$/g, '');
 }
 
+function defaultDailySourceKey(source: string) {
+  const day = new Date().toISOString().slice(0, 10);
+  return `${source.toLowerCase().replace(/\s+/g, '-')}:${day}`;
+}
+
 function parseContinuityMood(mood: string | null) {
   if (!mood?.startsWith('Continuity:')) return null;
   const remainder = mood.slice('Continuity:'.length);
@@ -128,7 +133,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as ContinuityBody;
     const source = cleanString(body.source, 40);
-    const sourceKey = cleanSourceKey(body.sourceKey);
+    const requestedSourceKey = cleanSourceKey(body.sourceKey);
     const title = cleanString(body.title, 120);
     const content = cleanString(body.content, 3500);
     const nextStep = cleanString(body.nextStep, 800);
@@ -141,24 +146,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Add a reflection or next step before saving.' }, { status: 400 });
     }
 
+    const sourceKey = requestedSourceKey || defaultDailySourceKey(source);
     const sections = [
       content,
       scriptureRefs.length ? `Scripture: ${scriptureRefs.join(', ')}` : '',
       nextStep ? `Next step: ${nextStep}` : '',
     ].filter(Boolean);
-    const mood = sourceKey ? `Continuity:${source}:${sourceKey}` : `Continuity:${source}`;
+    const mood = `Continuity:${source}:${sourceKey}`;
     const data = {
       title: `${source} · ${title || 'Journey moment'}`,
       content: sections.join('\n\n'),
       mood,
     };
 
-    const existing = sourceKey
-      ? await prisma.journalEntry.findFirst({
-          where: { userId: session.user.id, mood },
-          select: { id: true },
-        })
-      : null;
+    const existing = await prisma.journalEntry.findFirst({
+      where: { userId: session.user.id, mood },
+      select: { id: true },
+    });
 
     const entry = existing
       ? await prisma.journalEntry.update({
@@ -174,6 +178,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       entry,
       operation: existing ? 'updated' : 'created',
+      sourceKey,
       privacy: 'Private to your signed-in account and included in your Journey timeline.',
     }, { status: existing ? 200 : 201 });
   } catch (error) {
