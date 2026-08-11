@@ -19,11 +19,20 @@ type PrepState = {
   updatedAt: string;
 };
 
+type ReadinessKey =
+  | 'messageReady'
+  | 'worshipReady'
+  | 'teamReady'
+  | 'presentationReady'
+  | 'responseReady'
+  | 'communicationsReady'
+  | 'followupReady';
+
 const emptyState: PrepState = {
   serviceTheme: '', scripture: '', messageReady: false, worshipReady: false, teamReady: false, presentationReady: false, responseReady: false, communicationsReady: false, followupReady: false, riskNote: '', priority: '', updatedAt: '',
 };
 
-const checks: { key: keyof PrepState; title: string; description: string; href: string }[] = [
+const checks: { key: ReadinessKey; title: string; description: string; href: string }[] = [
   { key: 'messageReady', title: 'Message & Scripture', description: 'Theme, passage, context, application, delivery, and response posture are prepared.', href: '/sermons' },
   { key: 'worshipReady', title: 'Worship flow', description: 'Songs, transitions, rights posture, rehearsal, and service atmosphere are coordinated.', href: '/choir' },
   { key: 'teamReady', title: 'People & assignments', description: 'Primary/backup workers, call times, responsibilities, and critical coverage are clear.', href: '/workers/manage' },
@@ -49,11 +58,15 @@ export function MinisterPreparationBoard() {
     }
   }, []);
 
-  const complete = useMemo(() => checks.filter((item) => Boolean(state[item.key])).length, [state]);
+  const complete = useMemo(() => checks.filter((item) => state[item.key]).length, [state]);
   const readiness = Math.round((complete / checks.length) * 100);
 
   function update<K extends keyof PrepState>(key: K, value: PrepState[K]) {
     setState((current) => ({ ...current, [key]: value }));
+  }
+
+  function toggleReadiness(key: ReadinessKey) {
+    setState((current) => ({ ...current, [key]: !current[key] }));
   }
 
   function save() {
@@ -81,7 +94,7 @@ export function MinisterPreparationBoard() {
         <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
           <div className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm sm:p-7">
             <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-stone-700">Service theme<input value={state.serviceTheme} onChange={(e) => update('serviceTheme', e.target.value)} placeholder="Theme / emphasis" className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 outline-none focus:border-sage-400" /></label><label className="text-sm font-medium text-stone-700">Primary Scripture<input value={state.scripture} onChange={(e) => update('scripture', e.target.value)} placeholder="Reference only" className="mt-2 min-h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 outline-none focus:border-sage-400" /></label></div>
-            <div className="mt-6 space-y-3">{checks.map((item) => <div key={item.title} className={`rounded-2xl border p-4 transition ${state[item.key] ? 'border-sage-200 bg-sage-50' : 'border-stone-200 bg-white'}`}><div className="flex items-start gap-3"><button type="button" onClick={() => update(item.key, !Boolean(state[item.key]) as never)} aria-label={`Toggle ${item.title}`} className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${state[item.key] ? 'border-sage-600 bg-sage-600 text-white' : 'border-stone-300 bg-white text-transparent'}`}><CheckCircle2 className="h-4 w-4" /></button><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold text-stone-800">{item.title}</p><Link href={item.href} className="text-xs font-semibold text-sage-700">Open workspace</Link></div><p className="mt-1 text-sm leading-5 text-stone-500">{item.description}</p></div></div></div>)}</div>
+            <div className="mt-6 space-y-3">{checks.map((item) => <div key={item.title} className={`rounded-2xl border p-4 transition ${state[item.key] ? 'border-sage-200 bg-sage-50' : 'border-stone-200 bg-white'}`}><div className="flex items-start gap-3"><button type="button" onClick={() => toggleReadiness(item.key)} aria-label={`Toggle ${item.title}`} className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${state[item.key] ? 'border-sage-600 bg-sage-600 text-white' : 'border-stone-300 bg-white text-transparent'}`}><CheckCircle2 className="h-4 w-4" /></button><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold text-stone-800">{item.title}</p><Link href={item.href} className="text-xs font-semibold text-sage-700">Open workspace</Link></div><p className="mt-1 text-sm leading-5 text-stone-500">{item.description}</p></div></div></div>)}</div>
             <div className="mt-5 flex flex-wrap gap-2"><button onClick={save} type="button" className="inline-flex min-h-11 items-center rounded-xl bg-sage-600 px-4 text-sm font-semibold text-white"><Save className="mr-2 h-4 w-4" /> Save readiness</button><button onClick={reset} type="button" className="inline-flex min-h-11 items-center rounded-xl border border-stone-200 px-4 text-sm font-semibold text-stone-600"><RotateCcw className="mr-2 h-4 w-4" /> Reset</button></div><p className="mt-3 text-xs text-stone-500">{savedAt ? `Private browser plan saved ${new Date(savedAt).toLocaleString()}.` : 'This readiness board is currently private to this browser.'}</p>
           </div>
 
