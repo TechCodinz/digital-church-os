@@ -47,7 +47,12 @@ function selectionError(requiresSelection: boolean) {
   );
 }
 
+function jsonByteLength(value: string) {
+  return new TextEncoder().encode(value).length;
+}
+
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -106,7 +111,13 @@ export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = await req.json();
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Request body must be valid JSON.' }, { status: 400 });
+  }
+
   const parsed = PutRecordSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid operational record payload.', details: parsed.error.flatten() }, { status: 400 });
@@ -120,7 +131,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const serializedPayload = JSON.stringify(parsed.data.payload);
-  if (Buffer.byteLength(serializedPayload, 'utf8') > 250_000) {
+  if (jsonByteLength(serializedPayload) > 250_000) {
     return NextResponse.json({ error: 'Operational payload is too large.' }, { status: 413 });
   }
 
@@ -131,77 +142,80 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'This church role does not have operations write access.' }, { status: 403 });
     }
 
-    const previous = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
-      SELECT id, version, archived_at
-      FROM church_operational_records
-      WHERE church_id = ${resolved.access.id}
-        AND module = ${parsed.data.module}
-        AND record_key = ${parsed.data.key}
-      LIMIT 1
-    `);
+    const mutation = await prisma.$transaction(async (tx) => {
+      const previous = await tx.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+        SELECT id, version, archived_at
+        FROM church_operational_records
+        WHERE church_id = ${resolved.access!.id}
+          AND module = ${parsed.data.module}
+          AND record_key = ${parsed.data.key}
+        LIMIT 1
+      `);
 
-    const action = previous[0]?.archived_at ? 'RESTORE' : previous[0] ? 'UPDATE' : 'CREATE';
+      const action = previous[0]?.archived_at ? 'RESTORE' : previous[0] ? 'UPDATE' : 'CREATE';
 
-    const rows = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
-      INSERT INTO church_operational_records (
-        church_id, module, record_key, title, classification, payload, version, created_by, updated_by
-      ) VALUES (
-        ${resolved.access.id},
-        ${parsed.data.module},
-        ${parsed.data.key},
-        ${parsed.data.title || null},
-        ${parsed.data.classification},
-        ${serializedPayload}::jsonb,
-        1,
-        ${session.user.id},
-        ${session.user.id}
-      )
-      ON CONFLICT (church_id, module, record_key)
-      DO UPDATE SET
-        title = EXCLUDED.title,
-        classification = EXCLUDED.classification,
-        payload = EXCLUDED.payload,
-        version = church_operational_records.version + 1,
-        updated_by = EXCLUDED.updated_by,
-        archived_at = NULL,
-        updated_at = now()
-      RETURNING id, church_id, module, record_key, title, classification, payload, version, updated_by, created_at, updated_at
-    `);
+      const rows = await tx.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+        INSERT INTO church_operational_records (
+          church_id, module, record_key, title, classification, payload, version, created_by, updated_by
+        ) VALUES (
+          ${resolved.access!.id},
+          ${parsed.data.module},
+          ${parsed.data.key},
+          ${parsed.data.title || null},
+          ${parsed.data.classification},
+          ${serializedPayload}::jsonb,
+          1,
+          ${session.user.id},
+          ${session.user.id}
+        )
+        ON CONFLICT (church_id, module, record_key)
+        DO UPDATE SET
+          title = EXCLUDED.title,
+          classification = EXCLUDED.classification,
+          payload = EXCLUDED.payload,
+          version = church_operational_records.version + 1,
+          updated_by = EXCLUDED.updated_by,
+          archived_at = NULL,
+          updated_at = now()
+        RETURNING id, church_id, module, record_key, title, classification, payload, version, updated_by, created_at, updated_at
+      `);
 
-    const record = rows[0];
+      const record = rows[0];
+      await tx.$executeRaw(Prisma.sql`
+        INSERT INTO church_operational_record_history (
+          record_id, church_id, module, record_key, action, version, changed_by, metadata
+        ) VALUES (
+          ${record.id},
+          ${resolved.access!.id},
+          ${parsed.data.module},
+          ${parsed.data.key},
+          ${action},
+          ${record.version},
+          ${session.user.id},
+          ${JSON.stringify({ classification: parsed.data.classification })}::jsonb
+        )
+      `);
 
-    await prisma.$executeRaw(Prisma.sql`
-      INSERT INTO church_operational_record_history (
-        record_id, church_id, module, record_key, action, version, changed_by, metadata
-      ) VALUES (
-        ${record.id},
-        ${resolved.access.id},
-        ${parsed.data.module},
-        ${parsed.data.key},
-        ${action},
-        ${record.version},
-        ${session.user.id},
-        ${JSON.stringify({ classification: parsed.data.classification })}::jsonb
-      )
-    `);
+      return { record, action };
+    });
 
     await AuditLogger.log({
       actorId: session.user.id,
-      action: `CHURCH_OPS_${action}`,
+      action: `CHURCH_OPS_${mutation.action}`,
       entityType: 'church_operational_records',
-      entityId: record.id,
+      entityId: mutation.record.id,
       metadata: {
         churchId: resolved.access.id,
         module: parsed.data.module,
         key: parsed.data.key,
-        version: record.version,
+        version: mutation.record.version,
         classification: parsed.data.classification,
         payloadStoredInAudit: false,
       },
       req,
     });
 
-    return NextResponse.json({ church: resolved.access, record });
+    return NextResponse.json({ church: resolved.access, record: mutation.record });
   } catch (error: any) {
     console.error('Church operations record write failed:', error?.message || error);
     return NextResponse.json({ error: 'Church operations persistence is unavailable.', migrationRequired: true }, { status: 503 });
@@ -228,41 +242,47 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Only a church owner or admin can archive shared operational records.' }, { status: 403 });
     }
 
-    const rows = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
-      UPDATE church_operational_records
-      SET archived_at = now(),
-          version = version + 1,
-          updated_by = ${session.user.id},
-          updated_at = now()
-      WHERE church_id = ${resolved.access.id}
-        AND module = ${moduleResult.data}
-        AND record_key = ${keyResult.data}
-        AND archived_at IS NULL
-      RETURNING id, version
-    `);
+    const archived = await prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+        UPDATE church_operational_records
+        SET archived_at = now(),
+            version = version + 1,
+            updated_by = ${session.user.id},
+            updated_at = now()
+        WHERE church_id = ${resolved.access!.id}
+          AND module = ${moduleResult.data}
+          AND record_key = ${keyResult.data}
+          AND archived_at IS NULL
+        RETURNING id, version
+      `);
 
-    if (!rows[0]) return NextResponse.json({ error: 'Operational record not found.' }, { status: 404 });
+      if (!rows[0]) return null;
 
-    await prisma.$executeRaw(Prisma.sql`
-      INSERT INTO church_operational_record_history (
-        record_id, church_id, module, record_key, action, version, changed_by, metadata
-      ) VALUES (
-        ${rows[0].id},
-        ${resolved.access.id},
-        ${moduleResult.data},
-        ${keyResult.data},
-        'ARCHIVE',
-        ${rows[0].version},
-        ${session.user.id},
-        '{}'::jsonb
-      )
-    `);
+      await tx.$executeRaw(Prisma.sql`
+        INSERT INTO church_operational_record_history (
+          record_id, church_id, module, record_key, action, version, changed_by, metadata
+        ) VALUES (
+          ${rows[0].id},
+          ${resolved.access!.id},
+          ${moduleResult.data},
+          ${keyResult.data},
+          'ARCHIVE',
+          ${rows[0].version},
+          ${session.user.id},
+          '{}'::jsonb
+        )
+      `);
+
+      return rows[0];
+    });
+
+    if (!archived) return NextResponse.json({ error: 'Operational record not found.' }, { status: 404 });
 
     await AuditLogger.log({
       actorId: session.user.id,
       action: 'CHURCH_OPS_ARCHIVE',
       entityType: 'church_operational_records',
-      entityId: rows[0].id,
+      entityId: archived.id,
       metadata: { churchId: resolved.access.id, module: moduleResult.data, key: keyResult.data, payloadStoredInAudit: false },
       req,
     });
