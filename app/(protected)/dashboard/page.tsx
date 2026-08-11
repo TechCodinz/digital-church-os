@@ -3,17 +3,8 @@
 import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import {
-    Activity,
-    MessageSquare,
-    Heart,
-    Calendar,
-    Users,
-    Zap,
-    ChevronRight,
-    Play,
-    PlusCircle,
-    BookOpen,
-    ExternalLink
+    Activity, MessageSquare, Heart, Calendar, Users, Zap, ChevronRight,
+    Play, PlusCircle, BookOpen, ExternalLink
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -21,6 +12,16 @@ import { AIPastorModal } from '@/components/ai/AIPastorModal';
 import { ScriptureDepthExperience } from '@/components/scripture/ScriptureDepthExperience';
 import { LivingSanctuaryMissionControl } from '@/components/ministry/LivingSanctuaryMissionControl';
 import { DailyMinistryFlow } from '@/components/ministry/DailyMinistryFlow';
+
+async function safeJson(url: string) {
+    try {
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) return null;
+        return await response.json();
+    } catch {
+        return null;
+    }
+}
 
 export default function DashboardPage() {
     const { data: session } = useSession();
@@ -30,16 +31,24 @@ export default function DashboardPage() {
     const [isAiPastorOpen, setIsAiPastorOpen] = useState(false);
 
     useEffect(() => {
-        Promise.all([
-            fetch('/api/user/prayers').then(res => res.json()),
-            fetch('/api/user/offerings').then(res => res.json()),
-            fetch('/api/conferences?upcoming=true').then(res => res.json()),
-            fetch('/api/user/goals').then(res => res.json()),
-            fetch('/api/user/activity').then(res => res.json()),
-        ]).then(([prayers, offerings, conferences, goals, activityLog]) => {
+        let cancelled = false;
+
+        const loadDashboard = async () => {
+            const [prayers, offerings, conferences, goals, activityLog] = await Promise.all([
+                safeJson('/api/user/prayers'),
+                safeJson('/api/user/offerings'),
+                safeJson('/api/conferences?upcoming=true'),
+                safeJson('/api/user/goals'),
+                safeJson('/api/user/activity'),
+            ]);
+
+            if (cancelled) return;
+
             const prayerCount = Array.isArray(prayers) ? prayers.length : 0;
             const goalCount = Array.isArray(goals) ? goals.length : 0;
-            const offeringTotal = Array.isArray(offerings) ? offerings.reduce((sum: number, o: any) => sum + o.amount, 0) : 0;
+            const offeringTotal = Array.isArray(offerings)
+                ? offerings.reduce((sum: number, offering: any) => sum + (Number(offering.amount) || 0), 0)
+                : 0;
             const engagementScore = Math.min(100, Math.round(
                 (prayerCount * 10) +
                 (goalCount * 15) +
@@ -48,9 +57,12 @@ export default function DashboardPage() {
             ));
 
             setStats({ prayers: prayerCount, goals: goalCount, offerings: offeringTotal, engagement: engagementScore || 5 });
-            if (Array.isArray(conferences) && conferences.length > 0) setUpcomingConference(conferences[0]);
-            if (Array.isArray(activityLog)) setActivities(activityLog);
-        }).catch(err => console.error('Dashboard fetch error:', err));
+            setUpcomingConference(Array.isArray(conferences) && conferences.length > 0 ? conferences[0] : null);
+            setActivities(Array.isArray(activityLog) ? activityLog : []);
+        };
+
+        loadDashboard();
+        return () => { cancelled = true; };
     }, []);
 
     const quickActions = [
@@ -64,9 +76,7 @@ export default function DashboardPage() {
             <div className="mx-auto max-w-7xl px-4">
                 <header className="mb-10 flex flex-col justify-between gap-6 md:flex-row md:items-center">
                     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-                        <h1 className="text-4xl font-light text-stone-800">
-                            Welcome back, {session?.user?.name?.split(' ')[0] || 'friend'}
-                        </h1>
+                        <h1 className="text-4xl font-light text-stone-800">Welcome back, {session?.user?.name?.split(' ')[0] || 'friend'}</h1>
                         <p className="mt-1 italic text-stone-500">“The Lord is my shepherd; I shall not want.”</p>
                     </motion.div>
                     <Link href="/live-service" className="flex items-center rounded-2xl bg-sage-500 px-6 py-3 text-white shadow-lg shadow-sage-200 transition-all hover:bg-sage-600">
@@ -110,9 +120,7 @@ export default function DashboardPage() {
                                 {quickActions.map((action) => (
                                     <Link key={action.title} href={action.href}>
                                         <div className="group flex cursor-pointer items-center rounded-2xl border border-transparent bg-cream-50 p-4 transition-all hover:border-sage-100 hover:bg-cream-100">
-                                            <div className={`${action.color} mr-4 rounded-xl p-3 text-white shadow-sm transition-transform group-hover:scale-110`}>
-                                                <action.icon size={20} />
-                                            </div>
+                                            <div className={`${action.color} mr-4 rounded-xl p-3 text-white shadow-sm transition-transform group-hover:scale-110`}><action.icon size={20} /></div>
                                             <span className="font-medium text-stone-700">{action.title}</span>
                                             <ChevronRight className="ml-auto text-stone-400" size={18} />
                                         </div>
@@ -127,9 +135,7 @@ export default function DashboardPage() {
                                 <div className="rounded-2xl border border-sage-100 bg-sage-50 p-6">
                                     <span className="mb-3 inline-block rounded bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-sage-600">Starting Soon</span>
                                     <h4 className="mb-2 text-lg font-medium text-stone-800">{upcomingConference.title}</h4>
-                                    <p className="mb-4 flex items-center text-sm text-stone-600">
-                                        <Calendar size={14} className="mr-2" /> {new Date(upcomingConference.startDate).toLocaleDateString()}
-                                    </p>
+                                    <p className="mb-4 flex items-center text-sm text-stone-600"><Calendar size={14} className="mr-2" /> {new Date(upcomingConference.startDate).toLocaleDateString()}</p>
                                     <Link href="/conferences" className="block w-full rounded-xl border border-sage-200 bg-white py-3 text-center font-medium text-stone-700 transition-all hover:bg-sage-500 hover:text-white">View Details</Link>
                                 </div>
                             ) : (
