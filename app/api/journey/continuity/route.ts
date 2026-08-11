@@ -8,10 +8,14 @@ const allowedSources = new Set([
   'Scripture',
   'Prayer',
   'Fasting',
+  'Fasting & Prayer',
   'Family Altar',
   'Choir',
+  'Choir Studio',
   'Sermon',
+  'Live Sermon',
   'Service Response',
+  'Pastoral Reflection',
 ]);
 
 type ContinuityBody = {
@@ -32,8 +36,13 @@ function cleanString(value: unknown, max: number) {
 }
 
 function cleanRefs(value: unknown) {
-  if (!Array.isArray(value)) return [] as string[];
-  return value
+  const raw = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(/[\n,;]+/)
+      : [];
+
+  return raw
     .filter((item): item is string => typeof item === 'string')
     .map((item) => item.trim())
     .filter(Boolean)
@@ -42,7 +51,7 @@ function cleanRefs(value: unknown) {
 }
 
 function cleanSourceKey(value: unknown) {
-  return cleanString(value, 120)
+  return cleanString(value, 160)
     .toLowerCase()
     .replace(/[^a-z0-9:_-]+/g, '-')
     .replace(/^-+|-+$/g, '');
@@ -50,7 +59,7 @@ function cleanSourceKey(value: unknown) {
 
 function defaultDailySourceKey(source: string) {
   const day = new Date().toISOString().slice(0, 10);
-  return `${source.toLowerCase().replace(/\s+/g, '-')}:${day}`;
+  return `${source.toLowerCase().replace(/[^a-z0-9]+/g, '-')}:${day}`;
 }
 
 function parseContinuityMood(mood: string | null) {
@@ -81,7 +90,7 @@ export async function GET() {
         mood: { startsWith: 'Continuity:' },
       },
       orderBy: { createdAt: 'desc' },
-      take: 18,
+      take: 24,
       select: {
         id: true,
         title: true,
@@ -132,11 +141,11 @@ export async function POST(request: Request) {
 
   try {
     const body = (await request.json().catch(() => ({}))) as ContinuityBody;
-    const source = cleanString(body.source, 40);
+    const source = cleanString(body.source, 60);
     const requestedSourceKey = cleanSourceKey(body.sourceKey);
     const title = cleanString(body.title, 120);
-    const content = cleanString(body.content, 3500);
-    const nextStep = cleanString(body.nextStep, 800);
+    const content = cleanString(body.content, 6000);
+    const nextStep = cleanString(body.nextStep, 1000);
     const scriptureRefs = cleanRefs(body.scriptureRefs);
 
     if (!allowedSources.has(source)) {
