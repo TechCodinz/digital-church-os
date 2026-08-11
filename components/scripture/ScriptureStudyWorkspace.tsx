@@ -6,22 +6,36 @@ import {
   BookOpenText,
   Check,
   Languages,
+  Loader2,
   Mic,
   Square,
   NotebookPen,
+  Search,
   Sparkles,
   ShieldCheck,
   Presentation,
   Church,
 } from 'lucide-react';
 
-const translations = [
-  { id: 'KJV', label: 'King James Version', posture: 'Public-domain friendly where applicable' },
-  { id: 'WEB', label: 'World English Bible', posture: 'Public-domain friendly' },
-  { id: 'ASV', label: 'American Standard Version', posture: 'Public-domain friendly' },
-  { id: 'NIV', label: 'New International Version', posture: 'Licensed provider required' },
-  { id: 'NLT', label: 'New Living Translation', posture: 'Licensed provider required' },
-  { id: 'ESV', label: 'English Standard Version', posture: 'Licensed provider required' },
+type BibleVersion = {
+  code: string;
+  name: string;
+  language: string;
+  public_domain: boolean;
+  offline_allowed: boolean;
+  license_notes?: string | null;
+};
+
+type Passage = {
+  id: string;
+  version_code: string;
+  reference: string;
+  text: string;
+};
+
+const fallbackVersions: BibleVersion[] = [
+  { code: 'KJV', name: 'King James Version', language: 'English', public_domain: true, offline_allowed: true },
+  { code: 'WEB', name: 'World English Bible', language: 'English', public_domain: true, offline_allowed: true },
 ];
 
 const studyPrompts = [
@@ -37,10 +51,16 @@ function todayKey() {
 
 export function ScriptureStudyWorkspace() {
   const [reference, setReference] = useState('John 15:1-8');
-  const [primaryVersion, setPrimaryVersion] = useState('KJV');
-  const [compareVersion, setCompareVersion] = useState('WEB');
+  const [query, setQuery] = useState('');
+  const [versions, setVersions] = useState<BibleVersion[]>(fallbackVersions);
+  const [selectedVersions, setSelectedVersions] = useState<string[]>(['KJV', 'WEB']);
+  const [passages, setPassages] = useState<Passage[]>([]);
+  const [loadingVersions, setLoadingVersions] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [status, setStatus] = useState('');
   const [note, setNote] = useState('');
-  const [saved, setSaved] = useState(false);
+  const [savedLocal, setSavedLocal] = useState(false);
+  const [savingJournal, setSavingJournal] = useState(false);
   const [recording, setRecording] = useState(false);
   const [voiceUrl, setVoiceUrl] = useState<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -56,13 +76,109 @@ export function ScriptureStudyWorkspace() {
     }
   }, [storageKey]);
 
-  const saveNote = () => {
+  useEffect(() => {
+    let cancelled = false;
+    const loadVersions = async () => {
+      try {
+        const res = await fetch('/api/scripture/search', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled || !Array.isArray(data.versions) || !data.versions.length) return;
+        setVersions(data.versions);
+        const available = data.versions.map((item: BibleVersion) => item.code);
+        const preferred = ['KJV', 'WEB'].filter((code) => available.includes(code));
+        setSelectedVersions(preferred.length ? preferred : available.slice(0, 2));
+      } catch {
+        // Public-domain fallbacks keep the UI useful until provider metadata is reachable.
+      } finally {
+        if (!cancelled) setLoadingVersions(false);
+      }
+    };
+    loadVersions();
+    return () => { cancelled = true; };
+  }, []);
+
+  const grouped = useMemo(() => {
+    return passages.reduce<Record<string, Passage[]>>((acc, passage) => {
+      (acc[passage.reference] ||= []).push(passage);
+      return acc;
+    }, {});
+  }, [passages]);
+
+  const toggleVersion = (code: string) => {
+    setSelectedVersions((current) => {
+      if (current.includes(code)) return current.length === 1 ? current : current.filter((item) => item !== code);
+      return current.length >= 4 ? [...current.slice(1), code] : [...current, code];
+    });
+  };
+
+  const searchPassage = async () => {
+    if ((!reference.trim() && !query.trim()) || !selectedVersions.length) return;
+    setSearching(true);
+    setStatus('');
+    try {
+      const res = await fetch('/api/scripture/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reference: reference.trim() || undefined,
+          query: query.trim() || undefined,
+          versionCodes: selectedVersions,
+        }),
+      });
+      if (res.status === 401) {
+        setPassages([]);
+        setStatus('Sign in to search and compare the Bible translations enabled for your church workspace.');
+        return;
+      }
+      const data = await res.json();
+      const next = Array.isArray(data.passages) ? data.passages : [];
+      setPassages(next);
+      setStatus(next.length ? (data.licensingNote || '') : 'No matching licensed or public-domain passage is currently available for this search.');
+    } catch {
+      setStatus('Scripture search is temporarily unavailable. Your private notes still work on this device.');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const saveLocalNote = () => {
     try {
       window.localStorage.setItem(storageKey, note);
-      setSaved(true);
-      window.setTimeout(() => setSaved(false), 1800);
+      setSavedLocal(true);
+      window.setTimeout(() => setSavedLocal(false), 1800);
     } catch {
-      setSaved(false);
+      setSavedLocal(false);
+    }
+  };
+
+  const saveToJournal = async () => {
+    if (!note.trim() && passages.length === 0) return;
+    setSavingJournal(true);
+    setStatus('');
+    const scriptureSnapshot = passages
+      .slice(0, 8)
+      .map((passage) => `${passage.reference} (${passage.version_code}) — ${passage.text}`)
+      .join('\n\n');
+    const content = [scriptureSnapshot, note.trim() ? `My reflection:\n${note.trim()}` : ''].filter(Boolean).join('\n\n');
+    try {
+      const res = await fetch('/api/user/journal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: `Scripture study — ${reference || 'reflection'}`, content, mood: 'Seeking' }),
+      });
+      if (res.status === 401) {
+        setStatus('Sign in to move this study into your private Spiritual Journal.');
+      } else if (!res.ok) {
+        setStatus('The journal could not save this study right now. Your local note has not been removed.');
+      } else {
+        saveLocalNote();
+        setStatus('Saved to your private Spiritual Journal for future reference.');
+      }
+    } catch {
+      setStatus('The journal could not save this study right now. Your local note has not been removed.');
+    } finally {
+      setSavingJournal(false);
     }
   };
 
@@ -81,6 +197,7 @@ export function ScriptureStudyWorkspace() {
       recorderRef.current = recorder;
       setRecording(true);
     } catch {
+      setStatus('Microphone access is unavailable. You can continue with written notes.');
       setRecording(false);
     }
   };
@@ -98,45 +215,42 @@ export function ScriptureStudyWorkspace() {
             <div className="inline-flex items-center rounded-full bg-sage-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-sage-700">
               <BookOpenText className="mr-2 h-4 w-4" /> Scripture study desk
             </div>
-            <h2 className="mt-5 text-3xl font-light leading-tight text-stone-900 md:text-4xl">Compare responsibly, jot what matters, and carry one truth into the day.</h2>
+            <h2 className="mt-5 text-3xl font-light leading-tight text-stone-900 md:text-4xl">Compare real enabled translations, jot what matters, and carry one truth into the day.</h2>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
-              Choose a reference and translation posture, then use your own Bible provider or licensed text source. Digital Church OS keeps notes and voice reflections separate from copyrighted Bible text.
+              Named Bible versions come only from public-domain content or configured licensed providers. AI may explain context elsewhere in the platform, but it never fabricates published translation wording here.
             </p>
 
-            <div className="mt-7 grid gap-4 md:grid-cols-3">
-              <label className="md:col-span-1">
-                <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Passage</span>
-                <input value={reference} onChange={(e) => setReference(e.target.value)} className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-stone-800 outline-none focus:ring-2 focus:ring-sage-200" />
+            <div className="mt-7 grid gap-4 md:grid-cols-2">
+              <label>
+                <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Passage / reference</span>
+                <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="John 3:16" className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-stone-800 outline-none focus:ring-2 focus:ring-sage-200" />
               </label>
               <label>
-                <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Primary version</span>
-                <select value={primaryVersion} onChange={(e) => setPrimaryVersion(e.target.value)} className="w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-stone-800">
-                  {translations.map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}
-                </select>
-              </label>
-              <label>
-                <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Compare with</span>
-                <select value={compareVersion} onChange={(e) => setCompareVersion(e.target.value)} className="w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-stone-800">
-                  {translations.map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}
-                </select>
+                <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">Optional word / phrase</span>
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="grace, peace, faith..." className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-stone-800 outline-none focus:ring-2 focus:ring-sage-200" />
               </label>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {[primaryVersion, compareVersion].map((version) => {
-                const item = translations.find((entry) => entry.id === version)!;
-                return (
-                  <div key={version} className="rounded-2xl border border-stone-100 bg-stone-50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-semibold text-stone-900">{item.id}</span>
-                      <Languages className="h-4 w-4 text-sage-600" />
-                    </div>
-                    <p className="mt-1 text-xs text-stone-500">{item.label}</p>
-                    <p className="mt-3 text-xs font-medium text-sage-700">{item.posture}</p>
-                  </div>
-                );
-              })}
+            <div className="mt-5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Enabled translations · select up to 4</span>
+                {loadingVersions && <Loader2 className="h-4 w-4 animate-spin text-sage-600" />}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {versions.map((item) => {
+                  const active = selectedVersions.includes(item.code);
+                  return (
+                    <button key={item.code} type="button" onClick={() => toggleVersion(item.code)} title={item.license_notes || item.name} className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${active ? 'border-sage-600 bg-sage-600 text-white' : 'border-stone-200 bg-white text-stone-600 hover:border-sage-300'}`}>
+                      {active && <Check className="mr-1 inline h-3 w-3" />}{item.code}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            <button type="button" onClick={searchPassage} disabled={searching || !selectedVersions.length} className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-stone-900 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-50">
+              {searching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}{searching ? 'Searching...' : 'Search & compare'}
+            </button>
           </div>
 
           <aside className="bg-stone-950 p-6 text-white sm:p-8 lg:p-10">
@@ -157,56 +271,51 @@ export function ScriptureStudyWorkspace() {
         </div>
       </section>
 
+      <section className="rounded-[2rem] border border-stone-200 bg-white p-5 shadow-sm sm:p-8">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <div><p className="text-xs font-bold uppercase tracking-[0.2em] text-sage-700">Translation comparison</p><h3 className="mt-2 text-2xl font-light text-stone-900">Available passage text</h3></div>
+          <Languages className="h-6 w-6 text-sage-600" />
+        </div>
+        {Object.keys(grouped).length ? (
+          <div className="space-y-6">
+            {Object.entries(grouped).map(([passageReference, items]) => (
+              <div key={passageReference}>
+                <h4 className="mb-3 font-semibold text-stone-800">{passageReference}</h4>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  {items.map((passage) => (
+                    <article key={passage.id} className="rounded-2xl border border-stone-100 bg-stone-50 p-4">
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-sage-700">{passage.version_code}</p>
+                      <p className="text-sm leading-7 text-stone-700">{passage.text}</p>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : <div className="py-10 text-center text-sm text-stone-400">Search a passage to load text from enabled Bible sources.</div>}
+        {status && <p className="mt-4 rounded-xl bg-stone-50 px-4 py-3 text-xs leading-5 text-stone-600">{status}</p>}
+      </section>
+
       <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <div className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sage-700">Auto-jot workspace</p>
-              <h3 className="mt-2 text-2xl font-light text-stone-900">What are you seeing in {reference}?</h3>
-            </div>
+            <div><p className="text-xs font-bold uppercase tracking-[0.2em] text-sage-700">Auto-jot workspace</p><h3 className="mt-2 text-2xl font-light text-stone-900">What are you seeing in {reference}?</h3></div>
             <NotebookPen className="h-6 w-6 text-sage-600" />
           </div>
           <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Context, observations, prayer, questions, application..." className="mt-5 min-h-[220px] w-full resize-y rounded-2xl border border-stone-200 bg-stone-50 p-5 leading-7 text-stone-700 outline-none focus:ring-2 focus:ring-sage-200" />
           <div className="mt-4 flex flex-wrap gap-3">
-            <button onClick={saveNote} className="inline-flex items-center rounded-xl bg-sage-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sage-700">
-              {saved ? <Check className="mr-2 h-4 w-4" /> : <NotebookPen className="mr-2 h-4 w-4" />} {saved ? 'Saved privately' : 'Save today’s note'}
-            </button>
-            {!recording ? (
-              <button onClick={startRecording} className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700 transition hover:border-sage-300">
-                <Mic className="mr-2 h-4 w-4" /> Record voice reflection
-              </button>
-            ) : (
-              <button onClick={stopRecording} className="inline-flex items-center rounded-xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white">
-                <Square className="mr-2 h-4 w-4" /> Stop recording
-              </button>
-            )}
+            <button onClick={saveLocalNote} className="inline-flex items-center rounded-xl bg-sage-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sage-700">{savedLocal ? <Check className="mr-2 h-4 w-4" /> : <NotebookPen className="mr-2 h-4 w-4" />}{savedLocal ? 'Saved privately' : 'Save on this device'}</button>
+            <button onClick={saveToJournal} disabled={savingJournal} className="inline-flex items-center rounded-xl border border-sage-200 bg-sage-50 px-5 py-3 text-sm font-semibold text-sage-800 transition hover:bg-sage-100 disabled:opacity-50">{savingJournal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookOpenText className="mr-2 h-4 w-4" />}Save to journal</button>
+            {!recording ? <button onClick={startRecording} className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700 transition hover:border-sage-300"><Mic className="mr-2 h-4 w-4" /> Record voice reflection</button> : <button onClick={stopRecording} className="inline-flex items-center rounded-xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white"><Square className="mr-2 h-4 w-4" /> Stop recording</button>}
           </div>
           {voiceUrl && <audio className="mt-5 w-full" controls src={voiceUrl} />}
-          <p className="mt-3 text-xs text-stone-400">Text notes persist on this device for this passage/day. Voice reflections stay in this browser session unless you explicitly export or upload them later.</p>
+          <p className="mt-3 text-xs text-stone-400">Local text notes stay on this device. Journal saving is explicit. Voice reflections stay in this browser session unless you deliberately export or upload them later.</p>
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-3xl border border-sage-100 bg-sage-50 p-6">
-            <Sparkles className="h-5 w-5 text-sage-700" />
-            <h3 className="mt-4 text-xl font-semibold text-stone-900">Daily alignment</h3>
-            <p className="mt-2 text-sm leading-6 text-stone-600">Read → observe → pray → choose one faithful action → revisit tonight. Keep the rhythm simple enough to repeat.</p>
-            <Link href="/journey" className="mt-5 inline-flex text-sm font-semibold text-sage-700">Continue spiritual journey →</Link>
-          </div>
-          <div className="rounded-3xl border border-blue-100 bg-blue-50 p-6">
-            <Presentation className="h-5 w-5 text-blue-700" />
-            <h3 className="mt-4 text-xl font-semibold text-stone-900">Teaching & projection</h3>
-            <p className="mt-2 text-sm leading-6 text-stone-600">Move references into sermon preparation or the presentation system without copying unlicensed translation text.</p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/sermons" className="text-sm font-semibold text-blue-700">Sermon studio →</Link>
-              <Link href="/presentation" className="text-sm font-semibold text-blue-700">Presentation →</Link>
-            </div>
-          </div>
-          <div className="rounded-3xl border border-stone-200 bg-white p-6">
-            <ShieldCheck className="h-5 w-5 text-stone-700" />
-            <h3 className="mt-4 text-xl font-semibold text-stone-900">Church alignment</h3>
-            <p className="mt-2 text-sm leading-6 text-stone-600">For doctrinal questions or interpretation that affects teaching, use accountable church leadership rather than treating AI output as authority.</p>
-            <Link href="/church-network" className="mt-5 inline-flex items-center text-sm font-semibold text-stone-700"><Church className="mr-2 h-4 w-4" /> Find church connection</Link>
-          </div>
+          <div className="rounded-3xl border border-sage-100 bg-sage-50 p-6"><Sparkles className="h-5 w-5 text-sage-700" /><h3 className="mt-4 text-xl font-semibold text-stone-900">Daily alignment</h3><p className="mt-2 text-sm leading-6 text-stone-600">Read → observe → pray → choose one faithful action → revisit tonight. Keep the rhythm simple enough to repeat.</p><Link href="/journey" className="mt-5 inline-flex text-sm font-semibold text-sage-700">Continue spiritual journey →</Link></div>
+          <div className="rounded-3xl border border-blue-100 bg-blue-50 p-6"><Presentation className="h-5 w-5 text-blue-700" /><h3 className="mt-4 text-xl font-semibold text-stone-900">Teaching & projection</h3><p className="mt-2 text-sm leading-6 text-stone-600">Move references into sermon preparation or the presentation system without copying unlicensed translation text.</p><div className="mt-5 flex flex-wrap gap-3"><Link href="/sermons" className="text-sm font-semibold text-blue-700">Sermon studio →</Link><Link href="/presentation" className="text-sm font-semibold text-blue-700">Presentation →</Link></div></div>
+          <div className="rounded-3xl border border-stone-200 bg-white p-6"><ShieldCheck className="h-5 w-5 text-stone-700" /><h3 className="mt-4 text-xl font-semibold text-stone-900">Church alignment</h3><p className="mt-2 text-sm leading-6 text-stone-600">For doctrinal questions or interpretation that affects teaching, use accountable church leadership rather than treating AI output as authority.</p><Link href="/church-network" className="mt-5 inline-flex items-center text-sm font-semibold text-stone-700"><Church className="mr-2 h-4 w-4" /> Find church connection</Link></div>
         </div>
       </section>
     </div>
