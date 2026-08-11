@@ -67,6 +67,8 @@ export const config = {
   matcher: [
     '/dashboard/:path*',
     '/ministry-command-center/:path*',
+    '/minister-portal/:path*',
+    '/prayer-watch/:path*',
     '/leader-onboarding/:path*',
     '/admin/:path*',
     '/api/admin/:path*',
@@ -130,6 +132,8 @@ export const config = {
     '/workers/:path*',
     '/groups/:path*',
     '/events/:path*',
+    '/follow-up/:path*',
+    '/attendance/:path*',
     '/church-team/:path*',
     '/conference-sponsorship/:path*',
     '/church-network/:path*',
