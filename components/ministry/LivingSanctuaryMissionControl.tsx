@@ -66,29 +66,29 @@ const ministryMap = [
   {
     label: 'Spiritual growth',
     items: [
-      { title: 'Family Altar', href: '/daily-guide', description: 'Shared Scripture, prayer, reflection, and daily household rhythm.', icon: Home },
-      { title: 'Fasting Companion', href: '/fasting-prayer', description: 'Scripture-led fasting plans, intentions, reflections, and responsible safeguards.', icon: HeartHandshake },
-      { title: 'Dream Discernment', href: '/spiritual', description: 'Record and reflect without treating AI interpretation as revelation or prophecy.', icon: Sparkles },
-      { title: 'Growth DNA', href: '/formation', description: 'Private discipleship pathway, habits, formation goals, and next-step planning.', icon: Activity },
-      { title: 'Scripture Immersion', href: '/scripture', description: 'Translation-aware study, insight lab, auto-jot notes, prayer, and daily alignment.', icon: BookOpenText },
+      { title: 'Family Altar', href: '/family-altar', description: 'Shared Scripture, prayer, reflection, and daily household rhythm.', icon: Home },
+      { title: 'Fasting Companion', href: '/fasting-companion', description: 'Scripture-led fasting plans, intentions, reflections, and responsible safeguards.', icon: HeartHandshake },
+      { title: 'Dream Discernment', href: '/dream-discernment', description: 'Record and reflect without treating AI interpretation as revelation or prophecy.', icon: Sparkles },
+      { title: 'Growth DNA', href: '/growth-dna', description: 'Private discipleship pathway, habits, formation goals, and next-step planning.', icon: Activity },
+      { title: 'Scripture Immersion', href: '/scripture-immersion', description: 'Translation-aware study, insight lab, auto-jot notes, prayer, and daily alignment.', icon: BookOpenText },
     ],
   },
   {
     label: 'Ministry & worship',
     items: [
-      { title: 'Minister Portal', href: '/ministry-command-center', description: 'Operational command surface for teams, services, follow-up, events, and ministry work.', icon: UsersRound },
-      { title: 'Pastoral Hub', href: '/care', description: 'Pastoral care pathways with protected follow-up and human-led sensitive decisions.', icon: HandHeart },
-      { title: 'Sunday School', href: '/children', description: 'Age-aware Bible learning, family oversight, trusted-adult boundaries, and formation.', icon: School },
-      { title: 'Denominations', href: '/church-network', description: 'Church discovery and network context without flattening doctrinal differences.', icon: Church },
-      { title: 'Choir Studio', href: '/choir', description: 'Hymns, gospel, praise, worship, SATB parts, rehearsal recording, metronome, and song drafting.', icon: Music2 },
+      { title: 'Minister Portal', href: '/minister-portal', description: 'Operational command surface for teams, services, follow-up, events, and ministry work.', icon: UsersRound },
+      { title: 'Pastoral Hub', href: '/pastoral-hub', description: 'Pastoral care pathways with protected follow-up and human-led sensitive decisions.', icon: HandHeart },
+      { title: 'Sunday School', href: '/sunday-school', description: 'Age-aware Bible learning, family oversight, trusted-adult boundaries, and formation.', icon: School },
+      { title: 'Denominations', href: '/denominations', description: 'Church discovery and network context without flattening doctrinal differences.', icon: Church },
+      { title: 'Choir Studio', href: '/choir-studio', description: 'Hymns, gospel, praise, worship, SATB parts, rehearsal recording, metronome, and song drafting.', icon: Music2 },
     ],
   },
   {
     label: 'Global community',
     items: [
-      { title: 'Global Network', href: '/church-network', description: 'Discover churches, gatherings, resources, and ministry relationships across communities.', icon: Church },
-      { title: 'Prayer Watch', href: '/prayer-practice', description: 'Private prayer rhythm, Scripture prompts, recording, reflection, and answered-prayer notes.', icon: HeartHandshake },
-      { title: 'Give & Offering', href: '/offering', description: 'Purpose-aware giving with transparent ministry pathways and protected financial actions.', icon: WalletCards },
+      { title: 'Global Network', href: '/global-network', description: 'Discover churches, gatherings, resources, and ministry relationships across communities.', icon: Church },
+      { title: 'Prayer Watch', href: '/prayer-watch', description: 'Private prayer rhythm, Scripture prompts, recording, reflection, and answered-prayer notes.', icon: HeartHandshake },
+      { title: 'Give & Offering', href: '/give-offering', description: 'Purpose-aware giving with transparent ministry pathways and protected financial actions.', icon: WalletCards },
       { title: 'Community Wall', href: '/community-wall', description: 'Moderated testimonies, encouragement, Scripture references, search, sharing, and care handoffs.', icon: UsersRound },
     ],
   },
@@ -164,8 +164,8 @@ export function LivingSanctuaryMissionControl() {
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-sage-700">All ministry destinations</p>
           <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h3 className="text-2xl font-light text-stone-900 sm:text-3xl">The mobile menu now points into real ministry workspaces.</h3>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">Each familiar menu label is connected to the strongest existing destination instead of becoming another isolated page. Specialized pages retain their own tools, while shared ministry routes inherit the persistent action workspace.</p>
+              <h3 className="text-2xl font-light text-stone-900 sm:text-3xl">Every destination opens the actual ministry workspace.</h3>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">The sanctuary map and mobile navigation now share the same dedicated destinations. Mature engines such as fasting, Scripture, choir, and offering keep their specialized implementations behind their named entry routes.</p>
             </div>
             <Link href="/command-center" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-sage-200 bg-white px-5 text-sm font-semibold text-sage-700 transition hover:bg-sage-50">Church command center</Link>
           </div>
