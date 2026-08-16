@@ -13,6 +13,7 @@
         "db:migrate:deploy": "prisma migrate deploy",
         "db:seed:staging": "node scripts/seed-staging.mjs",
         "smoke:staging": "node scripts/smoke-staging.mjs",
+        "smoke:phase11": "node scripts/smoke-phase11.mjs",
         "db:studio": "prisma studio"
     },
     "dependencies": {

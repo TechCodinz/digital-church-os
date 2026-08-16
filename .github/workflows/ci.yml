@@ -26,6 +26,7 @@ jobs:
       NEXTAUTH_SECRET: ci-secret-ci-secret-ci-secret-ci-secret
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/digital_church_os_test
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/digital_church_os_test
+      STAGING_SEED_PASSWORD: 'CI-Staging-1234!'
 
     services:
       postgres:
@@ -72,3 +73,39 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Runtime smoke on fresh migrated database
+        run: |
+          set -euo pipefail
+          npm run db:seed:staging
+
+          npm start > /tmp/digital-church-os-next.log 2>&1 &
+          APP_PID=$!
+          trap 'kill "$APP_PID" >/dev/null 2>&1 || true' EXIT
+
+          READY=0
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://localhost:3000/ >/dev/null; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$READY" -ne 1 ]; then
+            echo "Next.js server did not become ready."
+            cat /tmp/digital-church-os-next.log
+            exit 1
+          fi
+
+          if ! npm run smoke:staging; then
+            echo "Legacy staging smoke failed."
+            cat /tmp/digital-church-os-next.log
+            exit 1
+          fi
+
+          if ! npm run smoke:phase11; then
+            echo "Phase 11 runtime smoke failed."
+            cat /tmp/digital-church-os-next.log
+            exit 1
+          fi
