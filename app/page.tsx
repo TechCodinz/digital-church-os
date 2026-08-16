@@ -17,7 +17,7 @@ const pillars = [
   },
   {
     title: 'Live Service OS',
-    description: 'Conference, worship, choir, live chat, reflections, and sermon support for modern church services.',
+    description: 'Live worship, choir, Scripture, private sermon notes, service response, and human-care pathways for modern church services.',
     href: '/live-service',
     icon: Mic2,
   },
@@ -133,7 +133,7 @@ export default function HomePage() {
               The system is structured for multiple communities, transparent operations, protected member journeys, AI-assisted workflows, and scalable ministry deployment.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              {['Pastor dashboard', 'Member care', 'Children profiles', 'Offerings', 'Aid review', 'Live chat'].map((tag) => (
+              {['Pastor dashboard', 'Member care', 'Children profiles', 'Offerings', 'Aid review', 'Service response'].map((tag) => (
                 <span key={tag} className="rounded-full bg-white/10 px-4 py-2 text-sm text-stone-100">{tag}</span>
               ))}
             </div>
