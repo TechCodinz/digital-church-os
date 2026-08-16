@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { TheologicalGuardrails } from '@/lib/ai/guardrails/theologicalGuardrails';
 
 const PostSchema = z.object({
   title: z.string().min(3).max(100),
@@ -25,7 +26,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ errors: validation.error.errors }, { status: 400 });
     }
 
-    // Auto-moderate content
+    // Auto-moderate content. Provider-dependent moderation is constructed only
+    // during the request so missing deployment credentials cannot break builds.
     const moderationResult = await moderateContent(validation.data.content);
 
     const post = await prisma.communityPost.create({
@@ -108,10 +110,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-import { TheologicalGuardrails } from '@/lib/ai/guardrails/theologicalGuardrails';
-
-const guardrails = new TheologicalGuardrails();
-
 async function moderateContent(content: string) {
   // 1. Basic prohibited word check
   const prohibited = ['spam', 'scam', 'inappropriate', 'offensive'];
@@ -121,26 +119,36 @@ async function moderateContent(content: string) {
     return {
       approved: false,
       reason: 'Contains prohibited content',
-      safeContent: content
+      safeContent: content,
     };
   }
 
-  // 2. Theological guardrails check
+  // 2. Provider-backed theological guardrails. If the deployment has no AI
+  // credential, fail closed to manual review rather than failing the app build.
+  if (!process.env.OPENAI_API_KEY) {
+    return {
+      approved: false,
+      reason: 'Automated safety review unavailable',
+      safeContent: content,
+    };
+  }
+
   try {
+    const guardrails = new TheologicalGuardrails();
     const safeContent = await guardrails.apply(content);
     const isModified = safeContent !== content;
 
     return {
-      approved: true, // We auto-approve if we can fix it or if it's safe
+      approved: true,
       reason: isModified ? 'Theologically refined' : null,
-      safeContent
+      safeContent,
     };
   } catch (error) {
     console.error('Moderation AI error:', error);
     return {
       approved: false,
       reason: 'Safety check failed',
-      safeContent: content
+      safeContent: content,
     };
   }
 }
