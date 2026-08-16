@@ -13,6 +13,7 @@ import {
   Plus,
   Save,
   ShieldCheck,
+  Sparkles,
   Square,
   X,
 } from 'lucide-react';
