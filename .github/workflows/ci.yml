@@ -12,6 +12,11 @@ on:
       - phase11-ministry-experience-enhancements
   workflow_dispatch:
 
+# Temporary write permission is used only to persist the Prisma-generated
+# historical baseline exactly once. Remove this after the baseline commit lands.
+permissions:
+  contents: write
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -40,10 +45,11 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Checkout
+      - name: Checkout exact feature head
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -52,7 +58,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=dev
 
       - name: Generate Prisma client
         run: npx prisma generate
@@ -60,35 +66,36 @@ jobs:
       - name: Validate Prisma schema
         run: npx prisma validate
 
-      # Diagnostic bridge for the repository's historical database gap. The
-      # first committed raw-SQL migration (20260518235000) assumed the Prisma
-      # core schema already existed. Generate that exact pre-migration schema
-      # from the parent commit with Prisma itself, then exercise it as the
-      # earliest migration on a blank PostgreSQL database. Once this artifact
-      # is proven, the generated SQL is committed as a static baseline and this
-      # diagnostic generation step is removed.
-      - name: Generate historical Prisma core baseline
+      - name: Generate historical Prisma core baseline if missing
         run: |
           set -euo pipefail
           BASELINE_SCHEMA=/tmp/prisma-core-baseline.prisma
           BASELINE_DIR=prisma/migrations/20260518000000_prisma_core_baseline
-          git show a2687acff0db94a8dd5cd6bdb8d39f2d9616b433:prisma/schema.prisma > "$BASELINE_SCHEMA"
-          mkdir -p "$BASELINE_DIR"
-          npx prisma migrate diff \
-            --from-empty \
-            --to-schema-datamodel "$BASELINE_SCHEMA" \
-            --script > "$BASELINE_DIR/migration.sql"
+          if [ ! -s "$BASELINE_DIR/migration.sql" ]; then
+            git show a2687acff0db94a8dd5cd6bdb8d39f2d9616b433:prisma/schema.prisma > "$BASELINE_SCHEMA"
+            mkdir -p "$BASELINE_DIR"
+            npx prisma migrate diff \
+              --from-empty \
+              --to-schema-datamodel "$BASELINE_SCHEMA" \
+              --script > "$BASELINE_DIR/migration.sql"
+          fi
           test -s "$BASELINE_DIR/migration.sql"
-          echo "Generated baseline lines: $(wc -l < "$BASELINE_DIR/migration.sql")"
+          echo "Baseline lines: $(wc -l < "$BASELINE_DIR/migration.sql")"
           sha256sum "$BASELINE_DIR/migration.sql"
 
-      - name: Upload generated core baseline
-        uses: actions/upload-artifact@v4
-        with:
-          name: prisma-core-baseline
-          path: prisma/migrations/20260518000000_prisma_core_baseline/migration.sql
-          if-no-files-found: error
-          retention-days: 1
+      - name: Persist generated core baseline once
+        if: github.event_name == 'pull_request' && github.head_ref == 'phase11-ministry-experience-enhancements'
+        run: |
+          set -euo pipefail
+          git add prisma/migrations/20260518000000_prisma_core_baseline/migration.sql
+          if git diff --cached --quiet; then
+            echo "Historical core baseline is already committed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(db): restore historical Prisma core baseline"
+          git push origin HEAD:phase11-ministry-experience-enhancements
 
       - name: Apply migrations to fresh CI database
         run: npx prisma migrate deploy
