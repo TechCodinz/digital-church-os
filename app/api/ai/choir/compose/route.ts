@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
+import { findVersesForQuery } from '@/lib/ai/shared/offlineWisdom';
 
 export async function POST(req: Request) {
     try {
@@ -66,7 +67,7 @@ export async function POST(req: Request) {
                     tenor: 'Counter-melody call and response on "Faithful and True".',
                     bass: 'Root note grounding foundation with rhythmic syncopation.'
                 },
-                scriptureAnchors: ['Hebrews 6:19', 'Psalm 46:1', 'Isaiah 40:31']
+                scriptureAnchors: findVersesForQuery(theme, 3).map((v) => v.reference)
             };
         }
 

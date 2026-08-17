@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useSanctuaryTheme } from '@/components/theme/ThemeContext';
 import { Sun, BookOpen, Heart, Sparkles, RefreshCw } from 'lucide-react';
 import { VoicePlayer } from '@/components/ai/VoicePlayer';
+import { ScriptureText } from '@/components/scripture/ScriptureReference';
 
 export default function DailyDevotionalPage() {
     const { theme } = useSanctuaryTheme();
@@ -96,7 +97,7 @@ export default function DailyDevotionalPage() {
                                 <BookOpen className="w-4 h-4" /> Scripture Focus
                             </h3>
                             <p className={`text-base italic leading-relaxed ${isLight ? 'text-stone-800' : 'text-slate-200'}`}>
-                                "{devotional.scriptureVerse}"
+                                "<ScriptureText text={devotional.scriptureVerse} />"
                             </p>
                         </div>
 

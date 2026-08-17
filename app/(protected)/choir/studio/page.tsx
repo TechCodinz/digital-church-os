@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Music, Sparkles, Volume2, Play, Square, RefreshCw, BookOpen, Layers, Guitar } from 'lucide-react';
+import { ScriptureReference } from '@/components/scripture/ScriptureReference';
 
 export default function WorshipChoirStudioPage() {
     const [theme, setTheme] = useState('Unshakeable Grace & Peace');
@@ -10,7 +11,9 @@ export default function WorshipChoirStudioPage() {
     const [tempo, setTempo] = useState('72 BPM');
     const [loading, setLoading] = useState(false);
     const [isPlayingSynth, setIsPlayingSynth] = useState(false);
+    const [activeChord, setActiveChord] = useState(-1);
     const audioCtxRef = useRef<AudioContext | null>(null);
+    const schedulerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [song, setSong] = useState<any>({
         title: 'Anchor of My Soul (Unshakeable Grace)',
@@ -47,38 +50,91 @@ export default function WorshipChoirStudioPage() {
         }
     };
 
+    // Root-note semitone offset from C for each supported key.
+    const KEY_ROOT: Record<string, number> = {
+        'C Major': 60, 'G Major': 67, 'D Major': 62, 'E Major': 64, 'F# Major': 66,
+    };
+    const CHORD_LABELS = ['I', 'V', 'vi', 'IV'];
+
+    const midiToFreq = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
+
+    // I – V – vi – IV progression built from the selected key's root.
+    const buildProgression = (rootMidi: number): number[][] => {
+        const triad = (base: number, thirdSemis: number) => [base, base + thirdSemis, base + 7];
+        return [
+            triad(rootMidi, 4),        // I  (major)
+            triad(rootMidi + 7, 4),    // V  (major)
+            triad(rootMidi + 9, 3),    // vi (minor)
+            triad(rootMidi + 5, 4),    // IV (major)
+        ];
+    };
+
+    const bpmFromTempo = (t: string) => {
+        const m = t.match(/(\d+)/);
+        return m ? parseInt(m[1], 10) : 72;
+    };
+
+    const stopSynth = () => {
+        if (schedulerRef.current) { clearTimeout(schedulerRef.current); schedulerRef.current = null; }
+        if (audioCtxRef.current) { audioCtxRef.current.close(); audioCtxRef.current = null; }
+        setIsPlayingSynth(false);
+        setActiveChord(-1);
+    };
+
     const toggleSynthPreview = () => {
         if (isPlayingSynth) {
-            if (audioCtxRef.current) {
-                audioCtxRef.current.close();
-                audioCtxRef.current = null;
-            }
-            setIsPlayingSynth(false);
-        } else {
-            const ctx = new AudioContext();
-            audioCtxRef.current = ctx;
+            stopSynth();
+            return;
+        }
+        const ctx = new AudioContext();
+        audioCtxRef.current = ctx;
 
-            // Play C Major Chord Harmony (C4, E4, G4, C5)
-            const freqs = [261.63, 329.63, 392.00, 523.25];
-            freqs.forEach(f => {
+        const rootMidi = KEY_ROOT[key] ?? 60;
+        const progression = buildProgression(rootMidi);
+        const bpm = bpmFromTempo(tempo);
+        const chordDurMs = (60 / bpm) * 2 * 1000; // two beats per chord
+
+        let step = 0;
+        const playChord = () => {
+            if (!audioCtxRef.current) return;
+            const now = ctx.currentTime;
+            const durSec = chordDurMs / 1000;
+            const chord = progression[step % progression.length];
+            // Add a soft octave-up voice on the root for shimmer.
+            [...chord, chord[0] + 12].forEach((midi) => {
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
                 osc.type = 'triangle';
-                osc.frequency.value = f;
-                gain.gain.value = 0.04;
+                osc.frequency.value = midiToFreq(midi);
+                // Gentle attack/release envelope
+                gain.gain.setValueAtTime(0.0001, now);
+                gain.gain.exponentialRampToValueAtTime(0.05, now + 0.04);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + durSec * 0.95);
                 osc.connect(gain);
                 gain.connect(ctx.destination);
-                osc.start();
+                osc.start(now);
+                osc.stop(now + durSec);
             });
+            setActiveChord(step % progression.length);
+            step += 1;
+            schedulerRef.current = setTimeout(playChord, chordDurMs);
+        };
 
-            setIsPlayingSynth(true);
-        }
+        playChord();
+        setIsPlayingSynth(true);
     };
 
+    // Restart the progression if key/tempo changes mid-playback.
     useEffect(() => {
-        return () => {
-            if (audioCtxRef.current) audioCtxRef.current.close();
-        };
+        if (isPlayingSynth) {
+            stopSynth();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [key, tempo]);
+
+    useEffect(() => {
+        return () => stopSynth();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
@@ -144,7 +200,21 @@ export default function WorshipChoirStudioPage() {
                             }`}
                         >
                             {isPlayingSynth ? <Square className="w-4 h-4 text-purple-400 fill-current" /> : <Play className="w-4 h-4 text-purple-400" />}
-                            <span>{isPlayingSynth ? 'Stop Web Synth Preview' : 'Play Chord Audio Preview'}</span>
+                            <span>{isPlayingSynth ? 'Stop Progression' : 'Play Chord Progression'}</span>
+                            {isPlayingSynth && (
+                                <span className="flex items-center gap-1 ml-1">
+                                    {CHORD_LABELS.map((lbl, i) => (
+                                        <span
+                                            key={lbl}
+                                            className={`text-[10px] font-mono px-1 rounded transition-all ${
+                                                activeChord === i ? 'bg-purple-400 text-slate-950 scale-110' : 'text-purple-400/50'
+                                            }`}
+                                        >
+                                            {lbl}
+                                        </span>
+                                    ))}
+                                </span>
+                            )}
                         </button>
 
                         <button
@@ -168,11 +238,9 @@ export default function WorshipChoirStudioPage() {
                                 <p className="text-xs text-purple-400 font-mono">Key: {song.key} • Tempo: {song.tempo}</p>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 {song.scriptureAnchors?.map((anc: string) => (
-                                    <span key={anc} className="px-3 py-1 bg-purple-950/50 border border-purple-500/30 text-purple-300 rounded-full text-xs font-semibold">
-                                        📖 {anc}
-                                    </span>
+                                    <ScriptureReference key={anc} reference={anc} />
                                 ))}
                             </div>
                         </div>

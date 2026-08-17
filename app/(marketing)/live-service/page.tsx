@@ -7,6 +7,7 @@ import {
     Play, Pause, Users, MessageSquare, Heart, Share2, Volume2, VolumeX,
     Maximize, Settings, Send, Loader2, X, Mic, MonitorPlay, Sparkles, BookOpen, Globe, ShieldCheck, HeartHandshake, HelpCircle
 } from 'lucide-react';
+import { ScriptureReference, ScriptureText } from '@/components/scripture/ScriptureReference';
 
 interface ChatMessage { id: string; user: string; msg: string; color: string; time: string; }
 const COLORS = ['text-amber-400', 'text-rose-400', 'text-emerald-400', 'text-sky-400', 'text-purple-400', 'text-cyan-400'];
@@ -50,7 +51,16 @@ export default function LiveServicePage() {
         { time: '10:15 AM', point: 'The enemy attacks your peace by targeting your focus, but God guards your mind when anchored in prayer.', scripture: 'Philippians 4:6-7' },
         { time: '10:28 AM', point: 'Original Greek "Eirene" (peace) implies wholeness where nothing is missing and nothing is broken.', scripture: 'John 14:27' },
         { time: '10:42 AM', point: 'True spiritual authority begins with surrender to the lordship of Christ.', scripture: 'James 4:7' },
+        { time: '10:55 AM', point: 'Casting your cares is an act of trust — you release what you were never designed to carry alone.', scripture: '1 Peter 5:7' },
     ]);
+
+    // Live co-pilot "transcription": reveal notes progressively for a real-time feel.
+    const [revealedNotes, setRevealedNotes] = useState(1);
+    useEffect(() => {
+        if (revealedNotes >= liveSermonNotes.length) return;
+        const t = setTimeout(() => setRevealedNotes((n) => Math.min(n + 1, liveSermonNotes.length)), 9000);
+        return () => clearTimeout(t);
+    }, [revealedNotes, liveSermonNotes.length]);
 
     // Load stream URL from admin settings
     useEffect(() => {
@@ -335,22 +345,41 @@ export default function LiveServicePage() {
 
                             {/* Tab 1: Live Sermon Notes Co-Pilot */}
                             {activeTab === 'copilot' && (
-                                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                                     <div className="p-3 bg-amber-950/20 border border-amber-500/20 rounded-xl text-xs text-amber-300 flex items-start gap-2">
                                         <BookOpen className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
-                                        <span>AI is live-transcribing and summarizing key sermon exegesis points below.</span>
+                                        <span>AI is live-transcribing key sermon points. Tap any verse to read it instantly.</span>
                                     </div>
-                                    {liveSermonNotes.map((note, idx) => (
-                                        <div key={idx} className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl space-y-2">
-                                            <div className="flex items-center justify-between text-[11px] text-amber-400 font-mono">
-                                                <span>⏱️ {note.time}</span>
-                                                <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-full font-sans font-semibold text-amber-300">
-                                                    📜 {note.scripture}
-                                                </span>
-                                            </div>
-                                            <p className="text-xs text-slate-200 leading-relaxed">{note.point}</p>
+                                    <AnimatePresence initial={false}>
+                                        {liveSermonNotes.slice(0, revealedNotes).map((note, idx) => (
+                                            <motion.div
+                                                key={idx}
+                                                initial={{ opacity: 0, y: 12 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className={`p-4 bg-slate-950/70 border rounded-xl space-y-2 ${
+                                                    idx === revealedNotes - 1 && revealedNotes < liveSermonNotes.length
+                                                        ? 'border-amber-500/40 holy-spirit-glow'
+                                                        : 'border-slate-800'
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between text-[11px] text-amber-400 font-mono">
+                                                    <span>⏱️ {note.time}</span>
+                                                    <ScriptureReference reference={note.scripture} />
+                                                </div>
+                                                <p className="text-xs text-slate-200 leading-relaxed">{note.point}</p>
+                                            </motion.div>
+                                        ))}
+                                    </AnimatePresence>
+                                    {revealedNotes < liveSermonNotes.length && (
+                                        <div className="flex items-center gap-2 text-[11px] text-amber-400/80 px-1">
+                                            <span className="inline-flex gap-1">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 glow-pulse" />
+                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 glow-pulse" style={{ animationDelay: '0.4s' }} />
+                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 glow-pulse" style={{ animationDelay: '0.8s' }} />
+                                            </span>
+                                            Sanctuary AI is listening to the message…
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
                             )}
 
@@ -371,7 +400,7 @@ export default function LiveServicePage() {
                                                         <span className="text-[10px] text-slate-500">{item.time}</span>
                                                     </div>
                                                     <div className="text-slate-300 leading-relaxed border-t border-slate-800 pt-2">
-                                                        {item.a}
+                                                        <ScriptureText text={item.a} />
                                                     </div>
                                                 </div>
                                             ))
