@@ -88,3 +88,129 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #5f7c50;
 }
+
+/* ============================================================
+   LIVING SANCTUARY — ambient motion & intelligent-UI utilities
+   A cohesive "alive" layer used across every page. All motion
+   is GPU-friendly and disabled under prefers-reduced-motion.
+   ============================================================ */
+
+/* --- Previously-referenced-but-undefined utilities --- */
+.animate-spin-slow { animation: spin 9s linear infinite; }
+.animate-fade-in { animation: fadeIn 0.6s ease-out both; }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.custom-scrollbar { scrollbar-width: thin; scrollbar-color: #789b64 transparent; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(120,155,100,0.5); border-radius: 999px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(120,155,100,0.8); }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Ambient "living" keyframes --- */
+@keyframes auroraDrift {
+  0%   { transform: translate3d(-6%, -4%, 0) scale(1.05); }
+  50%  { transform: translate3d(6%, 4%, 0) scale(1.15); }
+  100% { transform: translate3d(-6%, -4%, 0) scale(1.05); }
+}
+@keyframes auroraDriftAlt {
+  0%   { transform: translate3d(5%, 3%, 0) scale(1.1); }
+  50%  { transform: translate3d(-5%, -3%, 0) scale(1.2); }
+  100% { transform: translate3d(5%, 3%, 0) scale(1.1); }
+}
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0) translateX(0); opacity: 0.6; }
+  50%      { transform: translateY(-26px) translateX(10px); opacity: 1; }
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.8); }
+  50%      { opacity: 0.9; transform: scale(1.15); }
+}
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 0.9; }
+}
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* --- Ambient background layers (mounted globally) --- */
+.ambient-root {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ambient-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.5;
+  will-change: transform;
+}
+.ambient-orb--a { animation: auroraDrift 22s ease-in-out infinite; }
+.ambient-orb--b { animation: auroraDriftAlt 28s ease-in-out infinite; }
+.ambient-orb--c { animation: auroraDrift 34s ease-in-out infinite reverse; }
+.ambient-particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.7);
+  animation: floatSlow 12s ease-in-out infinite, twinkle 6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Living gradient text + emphasis */
+.living-gradient-text {
+  background: linear-gradient(90deg, #10b981, #34d399, #6ee7b7, #10b981);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 6s ease infinite;
+}
+.glow-pulse { animation: glowPulse 3.5s ease-in-out infinite; }
+
+/* Shimmer skeleton primitive */
+.skeleton-shimmer {
+  background: linear-gradient(
+    100deg,
+    rgba(148, 163, 184, 0.12) 30%,
+    rgba(148, 163, 184, 0.28) 50%,
+    rgba(148, 163, 184, 0.12) 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 0.75rem;
+}
+
+/* Keep page content above the ambient layer */
+main { position: relative; z-index: 1; }
+
+/* Respect user motion preferences everywhere */
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin-slow,
+  .animate-fade-in,
+  .float-animation,
+  .ambient-orb,
+  .ambient-orb--a,
+  .ambient-orb--b,
+  .ambient-orb--c,
+  .ambient-particle,
+  .living-gradient-text,
+  .glow-pulse,
+  .skeleton-shimmer {
+    animation: none !important;
+  }
+}

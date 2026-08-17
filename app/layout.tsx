@@ -6,6 +6,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Providers } from './providers';
 
 import { SanctuaryOmnibox } from '@/components/ai/SanctuaryOmnibox';
+import { AmbientBackground } from '@/components/experience/AmbientBackground';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -23,6 +24,7 @@ export default function RootLayout({
         <html lang="en" className="scroll-smooth">
             <body className={`${inter.className} bg-cream-50 text-gray-800`}>
                 <Providers>
+                    <AmbientBackground />
                     <div className="min-h-screen flex flex-col">
                         <Navbar />
                         <main className="flex-grow">{children}</main>

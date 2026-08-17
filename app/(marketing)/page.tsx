@@ -126,7 +126,7 @@ export default function HomePage() {
                         <h1 className={`text-4xl md:text-6xl font-light tracking-tight leading-tight max-w-5xl mx-auto ${
                             isLight ? 'text-stone-800' : 'text-white'
                         }`}>
-                            Digital Church OS
+                            Digital Church <span className="living-gradient-text font-normal">OS</span>
                         </h1>
 
                         <p className={`text-lg md:text-xl font-light max-w-3xl mx-auto leading-relaxed ${

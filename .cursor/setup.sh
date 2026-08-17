@@ -32,21 +32,11 @@ bash .cursor/postgres.sh ensure
 echo "[setup] syncing Prisma schema"
 npx prisma db push --skip-generate
 
-# 5. Seed baseline data.
-DB_URL="postgresql://postgres:password@localhost:5432/digital_church_os"
-
-# Admin login (upsert -> idempotent).
+# 5. Seed baseline data (both seeds are idempotent).
 echo "[setup] seeding admin user"
 npx tsx scripts/seed-admin.ts
 
-# Religion + AI modules. prisma/seed.ts uses create() for modules, so only run
-# it when none exist to keep this step idempotent.
-MODULE_COUNT="$(PGPASSWORD=password psql "$DB_URL" -tAc 'SELECT COUNT(*) FROM "AIModule";' 2>/dev/null | tr -d '[:space:]' || echo 0)"
-if [ "${MODULE_COUNT:-0}" = "0" ]; then
-  echo "[setup] seeding religion + AI modules"
-  npx tsx prisma/seed.ts
-else
-  echo "[setup] AI modules already present (${MODULE_COUNT}); skipping base seed"
-fi
+echo "[setup] seeding faith traditions + AI modules"
+npx tsx prisma/seed.ts
 
 echo "[setup] done"
