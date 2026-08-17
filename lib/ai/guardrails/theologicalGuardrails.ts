@@ -1,4 +1,5 @@
 import { OpenAI } from 'openai';
+import { hasOpenAI } from '@/lib/ai/shared/offlineWisdom';
 
 export class TheologicalGuardrails {
     private openai: OpenAI | null = null;
@@ -95,7 +96,13 @@ export class TheologicalGuardrails {
     }
 
     private async verifyWithAI(text: string): Promise<string> {
-        const completion = await this.getOpenAI().chat.completions.create({
+        // Without a configured LLM, the deterministic regex passes above already
+        // stripped prohibited phrasing and added qualifiers. Return that safe text
+        // rather than throwing on a missing key.
+        if (!hasOpenAI()) return text;
+
+        try {
+            const completion = await this.getOpenAI().chat.completions.create({
             model: 'gpt-3.5-turbo',
             messages: [
                 {
@@ -114,8 +121,12 @@ export class TheologicalGuardrails {
             ],
             temperature: 0.3,
             max_tokens: Math.min(text.length + 500, 4000),
-        });
+            });
 
-        return completion.choices[0].message.content || text;
+            return completion.choices[0].message.content || text;
+        } catch (error) {
+            console.error('Guardrail AI verification failed; using deterministic-safe text:', error);
+            return text;
+        }
     }
 }

@@ -2,6 +2,7 @@ import { OpenAI } from 'openai';
 import { ScriptureLoader } from '@/lib/ai/scripture/loader';
 import { AILogger } from '@/lib/audit/aiLogger';
 import { TheologicalGuardrails } from '@/lib/ai/guardrails/theologicalGuardrails';
+import { hasOpenAI, extractThemes, findVersesForQuery, themeLabel } from '@/lib/ai/shared/offlineWisdom';
 
 interface CounselingSession {
     userId: string;
@@ -34,9 +35,10 @@ export class RealCounselor {
     ];
 
     constructor() {
-        this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
+        // Construct the client only when a key exists; the offline path never uses it.
+        this.openai = process.env.OPENAI_API_KEY
+            ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+            : (null as unknown as OpenAI);
         this.scriptureLoader = new ScriptureLoader();
         this.guardrails = new TheologicalGuardrails();
     }
@@ -46,6 +48,11 @@ export class RealCounselor {
 
         if (isCrisis) {
             return this.handleCrisis();
+        }
+
+        // Offline / no-key mode: provide scripture-based encouragement locally.
+        if (!hasOpenAI()) {
+            return this.composeOfflineCounsel(session);
         }
 
         const searchResults = await this.scriptureLoader.semanticSearch(session.concern, 8);
@@ -91,6 +98,38 @@ export class RealCounselor {
                 practicalSteps: responseData.practicalSteps || []
             },
             disclaimer: "This AI provides spiritual support and does not replace professional therapy."
+        };
+    }
+
+    /** Scripture-grounded pastoral counsel used when no LLM is configured. */
+    private composeOfflineCounsel(session: CounselingSession): CounselingResponse {
+        const themes = extractThemes(session.concern, 3);
+        const verses = findVersesForQuery(session.concern, 3);
+        const focus = themeLabel(themes[0]);
+
+        const reflection =
+            `Thank you for sharing what\u2019s on your heart. What you\u2019re facing around ${focus.toLowerCase()} is real, ` +
+            `and Scripture speaks directly into it. According to scripture, God draws near to the brokenhearted and ` +
+            `invites you to bring every care to Him. You don\u2019t have to have it all figured out today \u2014 take the ` +
+            `next faithful step, and let His presence steady you.`;
+
+        return {
+            type: 'counseling',
+            content: {
+                reflection,
+                scriptures: verses.map((v) => ({
+                    reference: v.reference,
+                    text: v.text,
+                    application: `Sit with this verse for a moment \u2014 it speaks directly to ${focus.toLowerCase()}.`,
+                })),
+                practicalSteps: [
+                    'Take five quiet minutes to pray honestly, naming this concern to God.',
+                    `Write down one verse above and revisit it whenever the weight of ${focus.toLowerCase()} returns.`,
+                    'Reach out to one trusted person in your community this week \u2014 you were not meant to carry this alone.',
+                    'Consider speaking with a pastor or licensed counselor for ongoing support.',
+                ],
+            },
+            disclaimer: 'This AI provides spiritual support and does not replace professional therapy.',
         };
     }
 

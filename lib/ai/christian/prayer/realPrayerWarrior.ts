@@ -2,6 +2,7 @@ import { OpenAI } from 'openai';
 import { ScriptureLoader } from '@/lib/ai/scripture/loader';
 import { AILogger } from '@/lib/audit/aiLogger';
 import { TheologicalGuardrails } from '@/lib/ai/guardrails/theologicalGuardrails';
+import { hasOpenAI, extractThemes, findVersesForQuery, themeLabel } from '@/lib/ai/shared/offlineWisdom';
 
 interface PrayerRequest {
     userId: string;
@@ -37,14 +38,21 @@ export class RealPrayerWarrior {
     private guardrails: TheologicalGuardrails;
 
     constructor() {
-        this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
+        // Construct the client only when a key exists; the offline path never uses it.
+        this.openai = process.env.OPENAI_API_KEY
+            ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+            : (null as unknown as OpenAI);
         this.scriptureLoader = new ScriptureLoader();
         this.guardrails = new TheologicalGuardrails();
     }
 
     async generatePrayer(request: PrayerRequest): Promise<PrayerResponse> {
+        // Offline / no-key mode: compose a scripture-grounded prayer locally so the
+        // Prayer Warrior always performs beautifully without an external provider.
+        if (!hasOpenAI()) {
+            return this.composeOfflinePrayer(request);
+        }
+
         // 1. Analyze themes
         const themes = await this.analyzeThemes(request.content);
 
@@ -93,6 +101,41 @@ export class RealPrayerWarrior {
         });
 
         return finalResponse;
+    }
+
+    /** Deterministic, scripture-grounded prayer used when no LLM is configured. */
+    private composeOfflinePrayer(request: PrayerRequest): PrayerResponse {
+        const themes = extractThemes(`${request.title} ${request.content}`, 3);
+        const verses = findVersesForQuery(`${request.title} ${request.content}`, 3);
+        const focus = themeLabel(themes[0]);
+
+        const scriptureReadings = verses.map((v) => ({
+            reference: v.reference,
+            text: v.text,
+            reflection: `This word anchors your heart in ${focus.toLowerCase()} — carry it with you as a promise you can return to today.`,
+        }));
+
+        return {
+            prayer: {
+                opening:
+                    `Heavenly Father, we come before You concerning ${request.title.toLowerCase()}. ` +
+                    `You are near to all who call on You in truth, and You already know the depths of this need.`,
+                scriptureReadings,
+                intercession:
+                    `Lord, we lift up this request for ${focus.toLowerCase()}. Where there is worry, grant Your peace; ` +
+                    `where there is weakness, be strength; where there is confusion, give clear direction. ` +
+                    `Move by Your Spirit in ways seen and unseen, and let Your will be done.`,
+                thanksgiving:
+                    `We thank You that You hear us, that Your compassions never fail, and that they are new every morning. ` +
+                    `Thank You for being a very present help in this moment.`,
+                closing: `We rest in Your faithfulness and commit this into Your hands. In Jesus\u2019 name, Amen.`,
+            },
+            themes,
+            suggestedScriptures: verses.map((v) => v.reference),
+            encouragement:
+                `Be encouraged: you are not carrying this alone. Return to these scriptures through the day, ` +
+                `and let the peace of God guard your heart and mind.`,
+        };
     }
 
     private async analyzeThemes(content: string): Promise<string[]> {
