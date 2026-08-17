@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
-import { buildApologetic } from '@/lib/ai/shared/offlineTheology';
+import { buildApologetic, buildTheologicalInsight, detectTone, toneVoice } from '@/lib/ai/shared/offlineTheology';
 
 export async function POST(req: Request) {
     try {
@@ -88,8 +88,22 @@ export async function POST(req: Request) {
                 verses = ['Ephesians 6:12', 'James 5:16'];
             }
 
+            // Deepen the pastor & counselor replies with original-language insight,
+            // cross-references, and tone-aware warmth (Scripture used with depth).
+            const finalPersona = requestedPersona && requestedPersona !== 'apologist' ? requestedPersona : persona;
+            if (finalPersona === 'pastor' || finalPersona === 'counselor') {
+                const tone = detectTone(prompt);
+                const voice = toneVoice(tone);
+                const insight = buildTheologicalInsight(prompt);
+                const word = insight.wordStudies[0];
+                responseText =
+                    `${voice.opener} ${insight.exegesis} ` +
+                    `In the original language, "${word.translit}" (${word.language}: ${word.gloss}) reminds us that ${word.insight}`;
+                verses = insight.crossReferences.slice(0, 3).map((v) => v.reference);
+            }
+
             triageResult = {
-                recommendedPersona: requestedPersona || persona,
+                recommendedPersona: finalPersona,
                 triageReason: reason,
                 initialResponse: responseText,
                 suggestedVerses: verses,
