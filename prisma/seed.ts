@@ -101,6 +101,29 @@ async function main() {
         }
     }
 
+    // Sample public prayers so the Prayer Room "connect by need" wall is alive on
+    // first run. Idempotent: only seeded when no prayer requests exist yet.
+    const prayerCount = await prisma.prayerRequest.count();
+    if (prayerCount === 0) {
+        const host = await prisma.user.findFirst({ where: { role: 'CHURCH_ADMIN' } }) || await prisma.user.findFirst();
+        if (host) {
+            const samplePrayers = [
+                { title: 'Healing for my mother', content: 'Please pray for my mother who is battling illness. We are believing God for complete healing and restoration.' },
+                { title: 'Peace over my anxiety', content: 'I have been overwhelmed with worry about work and the future. Praying for God\u2019s peace to guard my heart and mind.' },
+                { title: 'Guidance for a big decision', content: 'I have an important decision ahead and I need wisdom. Asking God to make the path clear and give me discernment.' },
+                { title: 'Provision for our family', content: 'Finances have been very tight and bills are piling up. Trusting God to provide for our needs this month.' },
+                { title: 'Strength to forgive', content: 'Someone hurt me deeply and I am struggling to forgive. I need grace to release this bitterness and find freedom.' },
+                { title: 'Hope after loss', content: 'We recently lost a loved one and grief is heavy. Praying for comfort and the hope that carries us through.' },
+            ];
+            for (const p of samplePrayers) {
+                await prisma.prayerRequest.create({
+                    data: { title: p.title, content: p.content, visibility: 'PUBLIC', userId: host.id },
+                });
+            }
+            console.log(`Seeded ${samplePrayers.length} sample public prayers.`);
+        }
+    }
+
     const religionCount = await prisma.religion.count();
     const moduleCount = await prisma.aIModule.count();
     console.log(`Seed completed: ${religionCount} faith traditions, ${moduleCount} AI modules.`);
