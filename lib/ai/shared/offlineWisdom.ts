@@ -136,6 +136,11 @@ export interface WisdomVerse {
     score?: number;
 }
 
+/** Whether the exact reference exists in the curated local library. */
+export function hasVerse(reference: string): boolean {
+    return !!ALL_VERSES[reference];
+}
+
 /** Direct verse lookup; falls back to a thematically-appropriate verse. */
 export function getLocalVerse(reference: string): WisdomVerse {
     const exact = ALL_VERSES[reference];
