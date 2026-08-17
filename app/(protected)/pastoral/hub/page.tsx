@@ -4,11 +4,12 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Sparkles, ShieldCheck, HeartHandshake, BookOpen, Send,
-    User, Bot, AlertTriangle, ArrowRight, RefreshCw, Volume2, UserCheck
+    User, Bot, AlertTriangle, ArrowRight, RefreshCw, Volume2, UserCheck, Swords
 } from 'lucide-react';
 import { VoicePlayer } from '@/components/ai/VoicePlayer';
+import { ScriptureReference, ScriptureText } from '@/components/scripture/ScriptureReference';
 
-type Persona = 'pastor' | 'prayer_warrior' | 'counselor';
+type Persona = 'pastor' | 'prayer_warrior' | 'counselor' | 'apologist';
 
 interface Message {
     id: string;
@@ -40,6 +41,13 @@ const PERSONA_CONFIGS: Record<Persona, { title: string; badge: string; icon: any
         icon: ShieldCheck,
         color: 'border-indigo-500/40 text-indigo-400 bg-indigo-500/10',
         desc: 'Compassionate Christian care for anxiety, grief, relationships, and emotional restoration.'
+    },
+    apologist: {
+        title: 'Will — AI Apologist',
+        badge: '⚔️ Reason & Defense of the Faith',
+        icon: Swords,
+        color: 'border-cyan-500/40 text-cyan-400 bg-cyan-500/10',
+        desc: 'Winsome, rigorous answers for viral faith debates — evidence, logic, and Scripture with gentleness and respect.'
     }
 };
 
@@ -149,7 +157,7 @@ export default function PastoralCareHubPage() {
                 </div>
 
                 {/* Persona Switcher Tabs */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                     {(Object.keys(PERSONA_CONFIGS) as Persona[]).map(pKey => {
                         const conf = PERSONA_CONFIGS[pKey];
                         const IconComp = conf.icon;
@@ -229,14 +237,12 @@ export default function PastoralCareHubPage() {
                                             </div>
                                         )}
 
-                                        <div>{m.content}</div>
+                                        <div className="whitespace-pre-line">{isUser ? m.content : <ScriptureText text={m.content} />}</div>
 
                                         {!isUser && m.verses && m.verses.length > 0 && (
                                             <div className="flex flex-wrap gap-1.5 pt-2">
                                                 {m.verses.map(v => (
-                                                    <span key={v} className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded text-[10px]">
-                                                        📖 {v}
-                                                    </span>
+                                                    <ScriptureReference key={v} reference={v} />
                                                 ))}
                                             </div>
                                         )}

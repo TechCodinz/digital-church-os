@@ -3,6 +3,7 @@ import { ScriptureLoader } from '@/lib/ai/scripture/loader';
 import { AILogger } from '@/lib/audit/aiLogger';
 import { TheologicalGuardrails } from '@/lib/ai/guardrails/theologicalGuardrails';
 import { hasOpenAI, extractThemes, findVersesForQuery, themeLabel } from '@/lib/ai/shared/offlineWisdom';
+import { buildTheologicalInsight, detectTone, toneVoice } from '@/lib/ai/shared/offlineTheology';
 
 interface CounselingSession {
     userId: string;
@@ -101,32 +102,41 @@ export class RealCounselor {
         };
     }
 
-    /** Scripture-grounded pastoral counsel used when no LLM is configured. */
+    /**
+     * Scripture-grounded pastoral counsel used when no LLM is configured.
+     * Reads emotional tone, then answers with original-language depth and a
+     * cross-reference chain — using verses more richly than a surface reply.
+     */
     private composeOfflineCounsel(session: CounselingSession): CounselingResponse {
         const themes = extractThemes(session.concern, 3);
-        const verses = findVersesForQuery(session.concern, 3);
         const focus = themeLabel(themes[0]);
+        const tone = detectTone(session.concern);
+        const voice = toneVoice(tone);
+        const insight = buildTheologicalInsight(session.concern);
+        const word = insight.wordStudies[0];
 
         const reflection =
-            `Thank you for sharing what\u2019s on your heart. What you\u2019re facing around ${focus.toLowerCase()} is real, ` +
-            `and Scripture speaks directly into it. According to scripture, God draws near to the brokenhearted and ` +
-            `invites you to bring every care to Him. You don\u2019t have to have it all figured out today \u2014 take the ` +
-            `next faithful step, and let His presence steady you.`;
+            `${voice.opener} ` +
+            `What you\u2019re carrying touches on ${focus.toLowerCase()}, and Scripture meets it with more than sentiment. ` +
+            `In the original language, the ${word.language} word \u201C${word.translit}\u201D (${word.gloss}) shows us that ${word.insight} ` +
+            `${insight.exegesis} ` +
+            `You don\u2019t have to resolve everything today \u2014 take the next faithful step, and let His presence steady you.`;
 
         return {
             type: 'counseling',
             content: {
                 reflection,
-                scriptures: verses.map((v) => ({
+                // Cross-reference chain (Scripture interpreting Scripture).
+                scriptures: insight.crossReferences.map((v) => ({
                     reference: v.reference,
                     text: v.text,
-                    application: `Sit with this verse for a moment \u2014 it speaks directly to ${focus.toLowerCase()}.`,
+                    application: `Part of the thread on ${focus.toLowerCase()} \u2014 let it interpret the others.`,
                 })),
                 practicalSteps: [
-                    'Take five quiet minutes to pray honestly, naming this concern to God.',
-                    `Write down one verse above and revisit it whenever the weight of ${focus.toLowerCase()} returns.`,
+                    `Pray this back to God in your own words, naming ${focus.toLowerCase()} honestly.`,
+                    `Meditate on \u201C${word.translit}\u201D today \u2014 ask God to make that wholeness real in you.`,
                     'Reach out to one trusted person in your community this week \u2014 you were not meant to carry this alone.',
-                    'Consider speaking with a pastor or licensed counselor for ongoing support.',
+                    'If the weight is heavy or persistent, speak with a pastor or licensed counselor for ongoing support.',
                 ],
             },
             disclaimer: 'This AI provides spiritual support and does not replace professional therapy.',

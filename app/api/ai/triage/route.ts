@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
+import { buildApologetic } from '@/lib/ai/shared/offlineTheology';
 
 export async function POST(req: Request) {
     try {
@@ -53,6 +54,23 @@ export async function POST(req: Request) {
         // Fallback Triage Logic if API key missing or error
         if (!triageResult || !triageResult.recommendedPersona) {
             const lower = prompt.toLowerCase();
+
+            // Apologetics / viral faith-conversation detection -> "Will" the AI Apologist.
+            const apologeticsCue =
+                /\b(prove|proof|debate|argue|argument|objection|skeptic|atheis|contradict|why (does|would|is) god|doesn'?t exist|isn'?t real|no evidence|science|evolution|other religions|hypocrit|resurrection|problem of evil|refute|apolog)\b/i.test(prompt);
+
+            if (requestedPersona === 'apologist' || apologeticsCue) {
+                const apol = buildApologetic(prompt);
+                triageResult = {
+                    recommendedPersona: 'apologist',
+                    triageReason: `Detected a faith conversation on "${apol.label}" -> Routed to Will, the AI Apologist.`,
+                    initialResponse: `${apol.response}\n\n💬 To turn the conversation: ${apol.turningQuestion}`,
+                    suggestedVerses: apol.scriptures,
+                    escalateToHumanPastor: false,
+                };
+                return NextResponse.json({ success: true, ...triageResult });
+            }
+
             let persona: 'counselor' | 'prayer_warrior' | 'pastor' = 'pastor';
             let reason = 'General spiritual inquiry routed to your Lead AI Pastor.';
             let responseText = 'Grace and peace to you. I am here to shepherd your heart and explore God\'s word together.';
