@@ -6,6 +6,7 @@ import { useSanctuaryTheme } from '@/components/theme/ThemeContext';
 import { Sun, BookOpen, Heart, Sparkles, RefreshCw } from 'lucide-react';
 import { VoicePlayer } from '@/components/ai/VoicePlayer';
 import { ScriptureText } from '@/components/scripture/ScriptureReference';
+import { ShareButton } from '@/components/sharing/ShareButton';
 
 export default function DailyDevotionalPage() {
     const { theme } = useSanctuaryTheme();
@@ -77,9 +78,19 @@ export default function DailyDevotionalPage() {
                         }`}>
                             <div className="flex items-center justify-between">
                                 <span className={`text-xs uppercase font-mono tracking-widest font-bold ${isLight ? 'text-sage-700' : 'text-amber-400'}`}>Today's Audio Broadcast</span>
-                                <button onClick={fetchDevotional} className={`text-xs flex items-center gap-1 ${isLight ? 'text-stone-500 hover:text-sage-600' : 'text-slate-400 hover:text-white'}`}>
-                                    <RefreshCw className="w-3.5 h-3.5" /> Regenerate
-                                </button>
+                                <div className="flex items-center gap-4">
+                                    <ShareButton
+                                        kind="devotional"
+                                        title={devotional.title}
+                                        text={devotional.reflection}
+                                        reference={(devotional.scriptureVerse || '').split(/[—–-]/)[0].trim()}
+                                        compact
+                                        className={`inline-flex items-center gap-1.5 text-xs ${isLight ? 'text-stone-500 hover:text-sage-600' : 'text-slate-400 hover:text-white'}`}
+                                    />
+                                    <button onClick={fetchDevotional} className={`text-xs flex items-center gap-1 ${isLight ? 'text-stone-500 hover:text-sage-600' : 'text-slate-400 hover:text-white'}`}>
+                                        <RefreshCw className="w-3.5 h-3.5" /> Regenerate
+                                    </button>
+                                </div>
                             </div>
                             <h2 className={`text-2xl font-bold ${isLight ? 'text-stone-800' : 'text-white'}`}>{devotional.title}</h2>
                             <VoicePlayer

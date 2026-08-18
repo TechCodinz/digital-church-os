@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { VoicePlayer } from '@/components/ai/VoicePlayer';
 import { ScriptureReference, ScriptureText } from '@/components/scripture/ScriptureReference';
+import { ShareButton } from '@/components/sharing/ShareButton';
 
 type Persona = 'pastor' | 'prayer_warrior' | 'counselor' | 'apologist';
 
@@ -281,8 +282,19 @@ export default function PastoralCareHubPage() {
                                         )}
 
                                         {!isUser && (
-                                            <div className="pt-2 border-t border-slate-900">
+                                            <div className="pt-2 border-t border-slate-900 flex items-center gap-4">
                                                 <VoicePlayer text={m.content} context="pastoral" label="Listen Audio" compact />
+                                                {m.persona === 'apologist' && (
+                                                    <ShareButton
+                                                        kind="apologist"
+                                                        title={m.content.split(/[.!?]\s/)[0].slice(0, 90)}
+                                                        text={m.content.slice(0, 200)}
+                                                        reference={m.verses?.[0]}
+                                                        author="Will · AI Apologist"
+                                                        compact
+                                                        className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-cyan-400 transition-colors"
+                                                    />
+                                                )}
                                             </div>
                                         )}
                                     </div>
