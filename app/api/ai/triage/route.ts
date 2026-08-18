@@ -63,6 +63,7 @@ export async function POST(req: Request) {
                 const apol = buildApologetic(prompt);
                 triageResult = {
                     recommendedPersona: 'apologist',
+                    topic: apol.topic,
                     triageReason: `Detected a faith conversation on "${apol.label}" -> Routed to Will, the AI Apologist.`,
                     initialResponse: `${apol.response}\n\n💬 To turn the conversation: ${apol.turningQuestion}`,
                     suggestedVerses: apol.scriptures,

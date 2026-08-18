@@ -249,3 +249,145 @@ export function buildApologetic(query: string): Apologetic {
         scriptures: verses.length ? Array.from(new Set([...DEFAULT_APOLOGETIC.scriptures, ...verses])).slice(0, 3) : DEFAULT_APOLOGETIC.scriptures,
     };
 }
+
+// ── Multi-turn debate memory ("Will" carries the conversation forward) ──────
+
+/** Return the matching apologetic entry for a query, or null if none matches. */
+function findApologetic(query: string): Apologetic | null {
+    for (const { match, data } of APOLOGETICS) if (match.test(query)) return data;
+    return null;
+}
+
+const TOPIC_INDEX: Record<string, Apologetic> = APOLOGETICS.reduce((acc, { data }) => {
+    acc[data.topic] = data;
+    return acc;
+}, {} as Record<string, Apologetic>);
+
+interface ApologeticLayer {
+    response: string;
+    scriptures: string[];
+    turningQuestion: string;
+}
+
+/** Deeper rebuttal layers per topic — Will goes further instead of repeating himself. */
+const FOLLOWUPS: Record<string, ApologeticLayer[]> = {
+    existence: [
+        {
+            response:
+                'Fair pushback. Notice the cause of the universe can\u2019t itself be physical, since space, time, and matter are exactly what began to exist. A timeless, immaterial, personal cause is precisely what "God" names. And the fine-tuning is staggering: change gravity or the cosmological constant by a hair and no life is possible. Chance and necessity strain to explain that; design explains it naturally.',
+            scriptures: ['Psalm 19:1', 'Isaiah 40:26'],
+            turningQuestion: 'Which is the more reasonable inference from fine-tuning: a fortunate accident, or intention?',
+        },
+        {
+            response:
+                'Consider morality too. If there\u2019s no God, "cruelty is wrong" is just a preference, like a taste in music. But we know some things are really wrong, not merely disliked. Objective moral obligations point to a moral Lawgiver. The consistency of reason, the reliability of our minds, and the existence of consciousness all fit a personal Source far better than blind matter.',
+            scriptures: ['Romans 2:14-15', 'Genesis 1:27'],
+            turningQuestion: 'If atrocities are only "against the herd instinct," why do we sense they\u2019re truly evil?',
+        },
+    ],
+    evil: [
+        {
+            response:
+                'I hear you \u2014 and Scripture never trivializes pain. But logically, if you\u2019re outraged by evil, you\u2019re assuming a real standard of good that atheism struggles to ground. Christianity uniquely says God isn\u2019t indifferent: at the cross He absorbed evil into Himself. Free creatures can wound, but the resurrection promises every tear will be answered, not ignored.',
+            scriptures: ['John 16:33', 'Revelation 21:4'],
+            turningQuestion: 'Would a world of robots who could never choose love be more loving than a world where love is real but risky?',
+        },
+        {
+            response:
+                'And notice the difference between an explanation and a defeater. We may not know God\u2019s specific reason for a particular pain, but "I can\u2019t see a reason" isn\u2019t "there is no reason." Given a good God has revealed Himself at the cross, trust in the dark is reasonable \u2014 like trusting a surgeon mid-operation you don\u2019t fully understand.',
+            scriptures: ['Isaiah 55:8-9', 'Romans 8:28'],
+            turningQuestion: 'If God stepped into suffering Himself, does that change how you read your own pain?',
+        },
+    ],
+    bible: [
+        {
+            response:
+                'On "it was changed": textual criticism actually lets us reconstruct the original to a remarkable degree precisely because we have so many manuscripts to compare. Variants are mostly spelling and word order; no core doctrine hangs on a disputed line. The embarrassing details (the disciples\u2019 failures, women as first witnesses) are marks of honesty, not invention.',
+            scriptures: ['Luke 1:1-4', 'John 21:24'],
+            turningQuestion: 'If the writers were inventing a flattering myth, why record their own cowardice and confusion?',
+        },
+    ],
+    science: [
+        {
+            response:
+                'Right \u2014 and that\u2019s the key distinction: mechanism vs. meaning. "How the kettle boils" (physics) and "why I made tea" (purpose) are both true at once. Science describes the machinery; it can\u2019t pronounce on whether there\u2019s a Maker. The very rational order science relies on is what a Creator would predict.',
+            scriptures: ['Colossians 1:17', 'Jeremiah 33:25'],
+            turningQuestion: 'Can physics, by itself, tell you why there is something rather than nothing?',
+        },
+    ],
+    exclusivity: [
+        {
+            response:
+                'It can feel arrogant, I understand. But truth by nature excludes its opposite \u2014 that\u2019s not pride, it\u2019s logic. The humbling twist of the gospel is that no one earns their way; grace levels everyone. Jesus\u2019 uniqueness isn\u2019t that Christians are better, but that He rose from the dead \u2014 a claim you can investigate historically.',
+            scriptures: ['1 Timothy 2:5', 'Acts 4:12'],
+            turningQuestion: 'If one path actually conquered death, would following it be narrow-minded \u2014 or just wise?',
+        },
+    ],
+    resurrection: [
+        {
+            response:
+                'Hallucination and legend theories both stumble. Hallucinations aren\u2019t group experiences, yet Paul reports appearances to 500 at once. Legends need generations to grow, but the creed in 1 Corinthians 15 dates to within a few years. And the tomb was empty in the very city where the claim could most easily be disproven \u2014 yet it wasn\u2019t.',
+            scriptures: ['1 Corinthians 15:6', 'Matthew 28:11-15'],
+            turningQuestion: 'Why would the authorities not simply produce the body to end the movement?',
+        },
+    ],
+    general: [
+        {
+            response:
+                'Keep the questions coming \u2014 honest doubt handled well becomes sturdier faith. Christianity doesn\u2019t ask you to switch off your mind; it invites you to follow the evidence, supremely the historical event of the resurrection, and then to test the living Christ personally.',
+            scriptures: ['John 20:29', 'Acts 17:11'],
+            turningQuestion: 'What would it take, for you, to be willing to follow the evidence wherever it leads?',
+        },
+    ],
+};
+
+const PUSHBACK_RE =
+    /\b(but|still|not convinced|that('?s| is) not|doesn'?t|does not|how do you know|prove it|what about|so what|circular|nonsense|disagree|weak|wrong)\b/i;
+
+export interface ApologeticTurn {
+    topic: string;
+    label: string;
+    response: string;
+    scriptures: string[];
+    turningQuestion: string;
+    turnIndex: number;
+}
+
+/**
+ * Turn-aware apologetics: keeps the debate topic sticky across a conversation
+ * and advances through deeper rebuttal layers instead of repeating the opener.
+ */
+export function buildApologeticTurn(
+    message: string,
+    opts: { turnIndex?: number; lastTopic?: string } = {}
+): ApologeticTurn {
+    const matched = findApologetic(message);
+    const topic = matched?.topic || opts.lastTopic || 'general';
+    const base = matched || TOPIC_INDEX[topic] || DEFAULT_APOLOGETIC;
+
+    // Advance a layer when the user has spoken before on this topic or pushes back.
+    let depth = opts.turnIndex ?? 0;
+    if (PUSHBACK_RE.test(message) && depth === 0) depth = 1;
+
+    if (depth > 0) {
+        const layers = FOLLOWUPS[topic] || FOLLOWUPS.general;
+        const layer = layers[(depth - 1) % layers.length];
+        return {
+            topic,
+            label: base.label,
+            response: layer.response,
+            scriptures: layer.scriptures,
+            turningQuestion: layer.turningQuestion,
+            turnIndex: depth,
+        };
+    }
+
+    return {
+        topic,
+        label: base.label,
+        response: base.response,
+        scriptures: base.scriptures,
+        turningQuestion: base.turningQuestion,
+        turnIndex: depth,
+    };
+}

@@ -68,6 +68,7 @@ export default function PastoralCareHubPage() {
     const [loading, setLoading] = useState(false);
     const [triageNotice, setTriageNotice] = useState<string | null>(null);
     const [humanEscalationNeeded, setHumanEscalationNeeded] = useState(false);
+    const [lastTopic, setLastTopic] = useState<string | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -94,6 +95,30 @@ export default function PastoralCareHubPage() {
         setTriageNotice(null);
 
         try {
+            // If Will (apologist) is already active, continue the debate with memory.
+            if (activePersona === 'apologist') {
+                const history = messages
+                    .filter(m => m.persona === 'apologist')
+                    .map(m => ({ role: m.role, content: m.content }));
+                const res = await fetch('/api/ai/apologist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: userText, history, lastTopic })
+                });
+                const data = await res.json();
+                if (data.topic) setLastTopic(data.topic);
+                setMessages(prev => [...prev, {
+                    id: `ai-${Date.now()}`,
+                    role: 'assistant',
+                    content: data.response || 'Let us reason together from the Scriptures.',
+                    persona: 'apologist',
+                    timestamp: new Date(),
+                    verses: data.suggestedVerses || []
+                }]);
+                setLoading(false);
+                return;
+            }
+
             // Call Intelligent Triage API
             const res = await fetch('/api/ai/triage', {
                 method: 'POST',
@@ -107,6 +132,7 @@ export default function PastoralCareHubPage() {
                 setActivePersona(data.recommendedPersona);
                 setTriageNotice(`✨ Auto-Triaged: ${data.triageReason}`);
             }
+            if (data.recommendedPersona === 'apologist' && data.topic) setLastTopic(data.topic);
 
             if (data.escalateToHumanPastor) {
                 setHumanEscalationNeeded(true);
@@ -152,8 +178,15 @@ export default function PastoralCareHubPage() {
                     </div>
                     <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Pastoral Care & Dynamic Triage Hub</h1>
                     <p className="text-slate-400 text-sm max-w-xl mx-auto">
-                        Speak freely. Our AI Triage engine automatically pairs you with your ideal companion — Pastor, Prayer Warrior, or Biblical Counselor.
+                        Speak freely. Our AI Triage engine automatically pairs you with your ideal companion — Pastor, Prayer Warrior, Biblical Counselor, or Will the Apologist.
                     </p>
+                    <a
+                        href="/minister/study"
+                        className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold hover:bg-amber-500/20 transition-all"
+                    >
+                        <BookOpen className="w-3.5 h-3.5" /> Open the Pastor Study Desk
+                        <ArrowRight className="w-3.5 h-3.5" />
+                    </a>
                 </div>
 
                 {/* Persona Switcher Tabs */}
