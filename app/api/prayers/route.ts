@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
                         avatar: true,
                     }
                 },
-                _count: { select: { intercessions: true } },
+                _count: { select: { intercessions: true, encouragements: true } },
             },
             orderBy: { createdAt: 'desc' },
         });
@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
                 themes,
                 themeLabels: themes.map((t) => themeLabel(t)),
                 intercessorCount: p._count?.intercessions ?? 0,
+                encouragementCount: p._count?.encouragements ?? 0,
             };
         });
 

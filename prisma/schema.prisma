@@ -129,6 +129,7 @@ model User {
   counselingLogs        CounselingLog[]
   aiCosts               AICost[]
   flaggedInteractions   FlagForReview[]
+  prayerEncouragements  PrayerEncouragement[]
 
   // Viral Engagement
   points                Int       @default(0)
@@ -444,6 +445,22 @@ model PrayerRequest {
   
   intercessions Intercession[]
   followUps     FollowUp[]
+  encouragements PrayerEncouragement[]
+}
+
+// Threaded encouragements / words of comfort on a prayer request
+model PrayerEncouragement {
+  id              String        @id @default(cuid())
+  prayerRequestId String
+  prayerRequest   PrayerRequest @relation(fields: [prayerRequestId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content         String
+  isAmen          Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+
+  @@index([prayerRequestId])
+  @@index([userId])
 }
 
 model Goal {
