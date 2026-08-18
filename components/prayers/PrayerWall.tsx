@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import {
-    Heart, MessageCircle, Share2, Info, User, HandHeart, Users, Sparkles, Loader2, Send,
+    Heart, MessageCircle, Info, User, HandHeart, Users, Sparkles, Loader2, Send,
 } from "lucide-react";
+import { ShareButton } from "@/components/sharing/ShareButton";
 
 interface Prayer {
     id: string;
@@ -67,6 +68,54 @@ export function PrayerWall() {
                 setLoading(false);
             });
     }, []);
+
+    // Live updates: refresh prayers + counts every 10s so new prayers and
+    // intercessions/encouragements from the community appear without a reload.
+    useEffect(() => {
+        const poll = setInterval(async () => {
+            try {
+                const res = await fetch("/api/prayers");
+                const data: Prayer[] = await res.json();
+                if (!Array.isArray(data)) return;
+                setPrayers(data);
+                setCounts((prev) => {
+                    const next = { ...prev };
+                    data.forEach((p) => (next[p.id] = Math.max(prev[p.id] || 0, p.intercessorCount || 0)));
+                    return next;
+                });
+                setEncCounts((prev) => {
+                    const next = { ...prev };
+                    data.forEach((p) => (next[p.id] = Math.max(prev[p.id] || 0, p.encouragementCount || 0)));
+                    return next;
+                });
+            } catch {
+                /* silent */
+            }
+        }, 10000);
+        return () => clearInterval(poll);
+    }, []);
+
+    // Live thread: while a thread is open, poll its encouragements every 8s.
+    useEffect(() => {
+        if (!openThread) return;
+        const id = openThread;
+        const poll = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/prayers/${id}/encouragements`);
+                const data: Encouragement[] = await res.json();
+                if (!Array.isArray(data)) return;
+                setThreads((t) => {
+                    const existing = t[id] || [];
+                    if (data.length === existing.length) return t;
+                    return { ...t, [id]: data };
+                });
+                setEncCounts((c) => ({ ...c, [id]: Math.max(c[id] || 0, data.length) }));
+            } catch {
+                /* silent */
+            }
+        }, 8000);
+        return () => clearInterval(poll);
+    }, [openThread]);
 
     const needFilters = useMemo(() => {
         const map = new Map<string, { label: string; count: number }>();
@@ -255,15 +304,24 @@ export function PrayerWall() {
                                     <span>{joined[prayer.id] ? "Praying with you" : "Join in prayer"}</span>
                                     <span className="ml-1 px-1.5 py-0.5 rounded-full bg-white/30 text-[10px]">{counts[prayer.id] || 0}</span>
                                 </button>
-                                <button
-                                    onClick={() => toggleThread(prayer.id)}
-                                    className={`flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full transition-all ${
-                                        openThread === prayer.id ? "bg-sage-100 text-sage-700" : "text-stone-400 hover:text-sage-600"
-                                    }`}
-                                >
-                                    <MessageCircle size={16} />
-                                    <span>{encCounts[prayer.id] || 0}</span>
-                                </button>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => toggleThread(prayer.id)}
+                                        className={`flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full transition-all ${
+                                            openThread === prayer.id ? "bg-sage-100 text-sage-700" : "text-stone-400 hover:text-sage-600"
+                                        }`}
+                                    >
+                                        <MessageCircle size={16} />
+                                        <span>{encCounts[prayer.id] || 0}</span>
+                                    </button>
+                                    <ShareButton
+                                        kind="prayer"
+                                        title={prayer.title}
+                                        text={prayer.content}
+                                        reference={prayer.themeLabels?.[0]}
+                                        compact
+                                    />
+                                </div>
                             </div>
 
                             {/* Encouragement thread */}
