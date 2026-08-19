@@ -173,7 +173,7 @@ export default function PrayerRoomPage() {
                                 Please sign in to access the Prayer Room
                             </h2>
                             <a
-                                href="/api/auth/signin"
+                                href="/auth/signin"
                                 className="inline-block px-6 py-3 bg-sage-500 text-white rounded-full hover:bg-sage-600"
                             >
                                 Sign In
