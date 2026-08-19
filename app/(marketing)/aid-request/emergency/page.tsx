@@ -10,10 +10,39 @@ export default function EmergencyAidPage() {
     const [description, setDescription] = useState('');
     const [location, setLocation] = useState('');
     const [phone, setPhone] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState('');
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setSubmitted(true);
+        setSubmitting(true);
+        setError('');
+        try {
+            const res = await fetch('/api/aid-requests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    category,
+                    title: `Emergency ${category.toLowerCase()} relief`,
+                    description: `[EMERGENCY] ${description}\n\nLocation: ${location}\nContact: ${phone}`,
+                    proofUrls: [],
+                }),
+            });
+            if (res.status === 401) {
+                setError('Please sign in so a relief officer can follow up with you.');
+                return;
+            }
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                setError(data.error || 'Could not submit. Please try again.');
+                return;
+            }
+            setSubmitted(true);
+        } catch {
+            setError('Network error. Please try again.');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -91,11 +120,15 @@ export default function EmergencyAidPage() {
                             </div>
                         </div>
 
+                        {error && (
+                            <div className="p-3 bg-rose-950/40 border border-rose-500/40 rounded-xl text-xs text-rose-300">{error}</div>
+                        )}
                         <button
                             type="submit"
-                            className="w-full py-4 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg flex items-center justify-center gap-2"
+                            disabled={submitting}
+                            className="w-full py-4 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
                         >
-                            <Send className="w-4 h-4" /> Submit Priority Emergency Relief Request
+                            <Send className="w-4 h-4" /> {submitting ? 'Submitting…' : 'Submit Priority Emergency Relief Request'}
                         </button>
                     </motion.form>
                 ) : (

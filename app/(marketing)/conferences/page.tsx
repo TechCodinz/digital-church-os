@@ -10,6 +10,8 @@ export default function ConferencesPage() {
     const [conferences, setConferences] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'UPCOMING' | 'LIVE' | 'COMPLETED'>('UPCOMING');
+    const [rsvped, setRsvped] = useState<Record<string, boolean>>({});
+    const [rsvping, setRsvping] = useState<string | null>(null);
 
     useEffect(() => {
         fetchConferences();
@@ -35,11 +37,30 @@ export default function ConferencesPage() {
 
     const handleRSVP = async (conferenceId: string) => {
         if (!session) {
-            alert('Please sign in to register for conferences');
+            window.location.href = '/auth/signin';
             return;
         }
-        // RSVP logic would go here
-        alert('Registration successful! (Placeholder)');
+        setRsvping(conferenceId);
+        // Optimistically mark registered and bump the visible attendee count.
+        setRsvped((r) => ({ ...r, [conferenceId]: true }));
+        setConferences((prev) =>
+            prev.map((c) =>
+                c.id === conferenceId ? { ...c, attendees: [...(c.attendees || []), { userId: 'me' }] } : c
+            )
+        );
+        // Demo conferences (no DB row) stay optimistic; real ones persist.
+        if (!String(conferenceId).startsWith('demo')) {
+            try {
+                await fetch('/api/conferences/rsvp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ conferenceId }),
+                });
+            } catch (err) {
+                console.error('RSVP failed:', err);
+            }
+        }
+        setRsvping(null);
     };
 
     return (
@@ -165,9 +186,14 @@ export default function ConferencesPage() {
                                         ) : conf.status === 'UPCOMING' ? (
                                             <button
                                                 onClick={() => handleRSVP(conf.id)}
-                                                className="flex-1 bg-cream-100 text-stone-700 py-3 rounded-xl hover:bg-sage-500 hover:text-white transition-all flex items-center justify-center font-medium"
+                                                disabled={rsvped[conf.id] || rsvping === conf.id}
+                                                className={`flex-1 py-3 rounded-xl transition-all flex items-center justify-center font-medium ${
+                                                    rsvped[conf.id]
+                                                        ? 'bg-sage-500 text-white cursor-default'
+                                                        : 'bg-cream-100 text-stone-700 hover:bg-sage-500 hover:text-white'
+                                                }`}
                                             >
-                                                Register <CheckCircle size={18} className="ml-2" />
+                                                {rsvped[conf.id] ? <>Registered <CheckCircle size={18} className="ml-2" /></> : <>Register <CheckCircle size={18} className="ml-2" /></>}
                                             </button>
                                         ) : (
                                             <button className="flex-1 bg-cream-50 text-stone-400 py-3 rounded-xl cursor-default flex items-center justify-center font-medium">

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Sparkles, BookOpen, RefreshCw } from 'lucide-react';
+import { ScriptureText } from '@/components/scripture/ScriptureReference';
 
 export default function SmallGroupsPage() {
     const [theme, setTheme] = useState('Unshakeable Peace & Trust');
@@ -18,21 +19,28 @@ export default function SmallGroupsPage() {
         actionChallenge: 'Pair up with a group partner and text an encouraging scripture verse on Wednesday.',
     });
 
-    const handleGenerate = () => {
+    const handleGenerate = async () => {
         setLoading(true);
-        setTimeout(() => {
-            setGuide({
-                groupTitle: `Sanctuary AI Study: ${theme}`,
-                icebreaker: 'What is a Bible passage that has comforted you during difficult times?',
-                discussionQuestions: [
-                    `How does the main message of ${theme} apply to our work and family life?`,
-                    'Where in your life are you currently tempted to rely on self-effort instead of faith?',
-                    'What steps can our small group take to serve those in need in our local city?'
-                ],
-                actionChallenge: 'Memorize Psalm 23:1 together as a group this week.'
+        try {
+            const res = await fetch('/api/ai/study-desk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ topic: theme }),
             });
+            const data = await res.json();
+            const sg = data.smallGroup || {};
+            setGuide({
+                groupTitle: data.sermon?.title || `Sanctuary AI Study: ${theme}`,
+                icebreaker: sg.icebreaker || 'What is a Bible passage that has comforted you this week?',
+                discussionQuestions: sg.questions || [],
+                actionChallenge: sg.challenge || 'Share one verse with a friend before we meet again.',
+                memoryVerse: data.sundaySchool?.memoryVerse,
+            });
+        } catch (err) {
+            console.error('Study guide generation failed:', err);
+        } finally {
             setLoading(false);
-        }, 600);
+        }
     };
 
     return (
@@ -85,7 +93,7 @@ export default function SmallGroupsPage() {
                                 <ul className="space-y-2">
                                     {guide.discussionQuestions.map((q: string, i: number) => (
                                         <li key={i} className="text-xs text-slate-300 flex items-start gap-2">
-                                            <span className="text-indigo-400 font-bold">{i + 1}.</span> {q}
+                                            <span className="text-indigo-400 font-bold">{i + 1}.</span> <span><ScriptureText text={q} /></span>
                                         </li>
                                     ))}
                                 </ul>
