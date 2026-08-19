@@ -5,7 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 
 export function AidReviewClient({ request, availableFunds }: { request: any, availableFunds: number }) {
     const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
-    const [allocationAmount, setAllocationAmount] = useState(request.amount.toString());
+    const [allocationAmount, setAllocationAmount] = useState((request.amount ?? 0).toString());
     const [notes, setNotes] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
 
@@ -62,7 +62,9 @@ export function AidReviewClient({ request, availableFunds }: { request: any, ava
                 </div>
                 <div className="text-right">
                     <p className="text-sm text-stone-500 uppercase tracking-wide font-medium">{request.category}</p>
-                    <p className="text-xl font-bold text-stone-900">${request.amount.toFixed(2)}</p>
+                    <p className="text-xl font-bold text-stone-900">
+                        {request.amount != null ? `$${request.amount.toFixed(2)}` : 'Unspecified'}
+                    </p>
                 </div>
             </div>
 
