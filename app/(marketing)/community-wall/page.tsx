@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Heart, Share2, Shield, Search, Filter, Send, AlertCircle } from 'lucide-react';
+import { MessageSquare, Heart, Shield, Search, Filter, Send, AlertCircle } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { ShareButton } from '@/components/sharing/ShareButton';
+import { ScriptureText } from '@/components/scripture/ScriptureReference';
 
 export default function CommunityWallPage() {
     const { data: session } = useSession();
@@ -13,6 +15,21 @@ export default function CommunityWallPage() {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [likes, setLikes] = useState<Record<string, number>>({});
+    const [liked, setLiked] = useState<Record<string, boolean>>({});
+
+    const handleLike = async (post: any) => {
+        if (liked[post.id]) return;
+        setLiked((l) => ({ ...l, [post.id]: true }));
+        setLikes((c) => ({ ...c, [post.id]: (c[post.id] ?? post.likes ?? 0) + 1 }));
+        try {
+            const res = await fetch(`/api/posts/${post.id}/like`, { method: 'POST' });
+            const data = await res.json();
+            if (typeof data.likes === 'number') setLikes((c) => ({ ...c, [post.id]: data.likes }));
+        } catch (err) {
+            console.error('Like failed:', err);
+        }
+    };
 
     useEffect(() => {
         fetchPosts();
@@ -198,22 +215,31 @@ export default function CommunityWallPage() {
 
                                 {post.scriptureRef && (
                                     <div className="bg-sage-50 p-4 rounded-xl border border-sage-100 mb-4 italic text-sage-800">
-                                        "{post.scriptureRef}"
+                                        "<ScriptureText text={post.scriptureRef} />"
                                     </div>
                                 )}
 
                                 <div className="flex items-center space-x-6 pt-4 border-t border-cream-100">
-                                    <button className="flex items-center space-x-2 text-stone-500 hover:text-rose-500 transition-colors">
-                                        <Heart size={18} />
-                                        <span>{post.likes || 0}</span>
+                                    <button
+                                        onClick={() => handleLike(post)}
+                                        className={`flex items-center space-x-2 transition-colors ${liked[post.id] ? 'text-rose-500' : 'text-stone-500 hover:text-rose-500'}`}
+                                    >
+                                        <Heart size={18} className={liked[post.id] ? 'fill-current' : ''} />
+                                        <span>{likes[post.id] ?? post.likes ?? 0}</span>
                                     </button>
-                                    <button className="flex items-center space-x-2 text-stone-500 hover:text-sage-600 transition-colors">
+                                    <div className="flex items-center space-x-2 text-stone-500">
                                         <MessageSquare size={18} />
                                         <span>{post._count?.comments || 0}</span>
-                                    </button>
-                                    <button className="flex items-center space-x-2 text-stone-500 hover:text-blue-500 transition-colors">
-                                        <Share2 size={18} />
-                                    </button>
+                                    </div>
+                                    <ShareButton
+                                        kind="verse"
+                                        title={post.title}
+                                        text={post.content}
+                                        reference={post.scriptureRef}
+                                        author={post.user?.name || 'A Member'}
+                                        compact
+                                        className="flex items-center space-x-2 text-stone-500 hover:text-blue-500 transition-colors"
+                                    />
                                 </div>
                             </motion.article>
                         ))}

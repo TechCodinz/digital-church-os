@@ -481,12 +481,21 @@ export default function LiveServicePage() {
                                             <p className="text-xs text-slate-400 leading-relaxed">
                                                 If God is touching your heart during this service, click below to request personal pastoral prayer or confirm your decision for Christ.
                                             </p>
-                                            <button
-                                                onClick={() => setDecisionMade(true)}
-                                                className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-lg"
-                                            >
-                                                I Want to Give My Life to Christ / Request Prayer
-                                            </button>
+                                        <button
+                                            onClick={async () => {
+                                                setDecisionMade(true);
+                                                try {
+                                                    await fetch('/api/pastoral/decision', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ type: 'salvation' }),
+                                                    });
+                                                } catch { /* moment is preserved regardless */ }
+                                            }}
+                                            className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-lg"
+                                        >
+                                            I Want to Give My Life to Christ / Request Prayer
+                                        </button>
                                         </>
                                     )}
                                 </div>
