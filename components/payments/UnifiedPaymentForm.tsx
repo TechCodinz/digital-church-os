@@ -22,6 +22,7 @@ export const UnifiedPaymentForm = ({
   purpose: externalPurpose,
   designation,
   designationLabel,
+  isAnonymous = false,
   amount: externalAmount,
   setAmount: externalSetAmount,
   onSuccess,
@@ -29,6 +30,7 @@ export const UnifiedPaymentForm = ({
   purpose?: Purpose;
   designation?: GivingDesignation;
   designationLabel?: string;
+  isAnonymous?: boolean;
   amount?: string | number;
   setAmount?: (value: string) => void;
   onSuccess?: (data: unknown) => void;
@@ -60,6 +62,7 @@ export const UnifiedPaymentForm = ({
           amount: numericAmount,
           purpose,
           designation,
+          isAnonymous,
           isRecurring,
           currency: 'usd',
         }),
@@ -68,7 +71,7 @@ export const UnifiedPaymentForm = ({
       if (!response.ok) throw new Error(data.error || 'Unable to start checkout.');
       if (!data.url) throw new Error('Checkout URL was not returned.');
 
-      onSuccess?.({ provider: data.provider, amount: numericAmount, purpose, designation, mode: data.mode, pending: true });
+      onSuccess?.({ provider: data.provider, amount: numericAmount, purpose, designation, isAnonymous, mode: data.mode, pending: true });
       window.location.assign(data.url);
     } catch (checkoutError: any) {
       setError(checkoutError?.message || 'Unable to start secure checkout.');
@@ -147,6 +150,13 @@ export const UnifiedPaymentForm = ({
           <span className="mt-1 block text-[11px] leading-relaxed text-stone-500">Recurring checkout is created by Stripe only when you select this option.</span>
         </span>
       </label>
+
+      {isAnonymous && (
+        <div className="flex items-start gap-2 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-[11px] leading-relaxed text-violet-800">
+          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>This gift will be stored with the anonymous preference enabled after Stripe confirms payment. Provider records still contain information Stripe requires to process the payment.</span>
+        </div>
+      )}
 
       <div className="grid gap-2 sm:grid-cols-2">
         <div className="rounded-2xl border border-dashed border-stone-200 p-4 text-stone-400">
