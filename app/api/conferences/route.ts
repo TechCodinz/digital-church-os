@@ -14,7 +14,20 @@ import {
 } from '@/lib/church-ops/conference-access';
 import { canWriteChurchOps } from '@/lib/church-ops/access';
 
-const UrlField = z.union([z.string().url(), z.literal('')]).optional();
+function isSafePublicHttpUrl(value: string) {
+  if (!value.trim()) return true;
+  try {
+    const url = new URL(value.trim());
+    return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+const UrlField = z.union([
+  z.string().trim().max(2048).refine(isSafePublicHttpUrl, 'URL must be public HTTP(S) without embedded credentials.'),
+  z.literal(''),
+]).optional();
 
 const ConferenceCreateSchema = z.object({
   churchId: z.string().trim().min(3),
@@ -34,7 +47,9 @@ const ConferenceUpdateSchema = ConferenceCreateSchema.omit({ churchId: true }).p
 });
 
 function normalizeUrl(value?: string) {
-  return value?.trim() ? value.trim() : null;
+  if (!value?.trim()) return null;
+  const url = new URL(value.trim());
+  return url.toString();
 }
 
 function migrationResponse() {
