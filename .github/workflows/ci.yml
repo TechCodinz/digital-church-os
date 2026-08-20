@@ -5,11 +5,13 @@ on:
     branches:
       - main
       - production/ultra-route-hardening
+      - phase11-ministry-experience-enhancements
   push:
     branches:
       - main
       - production/ultra-route-hardening
       - phase11-ministry-experience-enhancements
+      - 'reconcile/**'
   workflow_dispatch:
 
 permissions:
