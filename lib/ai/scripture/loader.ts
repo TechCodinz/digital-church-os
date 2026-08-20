@@ -2,6 +2,7 @@ import { Pinecone } from '@pinecone-database/pinecone';
 import { OpenAIEmbeddings } from '@langchain/openai';
 import * as fs from 'fs';
 import * as path from 'path';
+import { hasOpenAI, findVersesForQuery, getLocalVerse } from '@/lib/ai/shared/offlineWisdom';
 
 interface BibleVerse {
     reference: string;
@@ -74,20 +75,39 @@ export class ScriptureLoader {
     }
 
     async searchScripture(query: string, topK: number = 5) {
-        const queryEmbedding = await this.getEmbeddings().embedQuery(query);
-        const index = this.getPinecone().index(process.env.PINECONE_INDEX || 'scripture');
+        // Offline / no-key mode: use the curated local scripture library so
+        // scripture retrieval always works instead of throwing on a dummy key.
+        if (!hasOpenAI() || !process.env.PINECONE_API_KEY) {
+            return findVersesForQuery(query, topK).map(v => ({
+                reference: v.reference,
+                text: v.text,
+                score: v.score,
+            }));
+        }
 
-        const searchResults = await index.query({
-            vector: queryEmbedding,
-            topK,
-            includeMetadata: true
-        });
+        try {
+            const queryEmbedding = await this.getEmbeddings().embedQuery(query);
+            const index = this.getPinecone().index(process.env.PINECONE_INDEX || 'scripture');
 
-        return searchResults.matches.map(m => ({
-            reference: m.metadata?.reference,
-            text: m.metadata?.text,
-            score: m.score
-        }));
+            const searchResults = await index.query({
+                vector: queryEmbedding,
+                topK,
+                includeMetadata: true
+            });
+
+            return searchResults.matches.map(m => ({
+                reference: m.metadata?.reference,
+                text: m.metadata?.text,
+                score: m.score
+            }));
+        } catch (error) {
+            console.error('Vector scripture search failed; using local library:', error);
+            return findVersesForQuery(query, topK).map(v => ({
+                reference: v.reference,
+                text: v.text,
+                score: v.score,
+            }));
+        }
     }
 
     async semanticSearch(query: string, topK: number = 5) {
@@ -95,11 +115,10 @@ export class ScriptureLoader {
     }
 
     async getVerse(reference: string): Promise<{ text: string; reference: string } | null> {
-        // Simple mock verse lookup for demonstration if vector DB not populated
-        return {
-            reference,
-            text: "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
-        };
+        // Resolve from the curated local library (with graceful thematic fallback)
+        // so references render real text even when the vector DB is unpopulated.
+        const verse = getLocalVerse(reference);
+        return { reference: verse.reference, text: verse.text };
     }
 
     async getVerses(references: string[]): Promise<({ text: string; reference: string } | null)[]> {

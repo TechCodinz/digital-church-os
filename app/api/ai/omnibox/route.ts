@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
+import { findVersesForQuery } from '@/lib/ai/shared/offlineWisdom';
 
 export async function POST(req: Request) {
     try {
@@ -37,11 +38,20 @@ export async function POST(req: Request) {
             });
         }
 
-        // Fallback intelligent response when API key is unconfigured or in offline mode
+        // Fallback intelligent response when API key is unconfigured or in offline mode.
+        // Ground the answer in a relevant verse so the reference is tappable in the UI.
+        const verses = findVersesForQuery(query, 2);
+        const primary = verses[0];
+        const secondary = verses[1];
+        const content =
+            mode === 'prayer'
+                ? `Father, concerning "${query}", we bring this before You in faith. Anchor this heart in Your promise from ${primary?.reference}: "${primary?.text}" Let Your peace stand guard today. Amen.`
+                : `On "${query}", Scripture speaks with clarity. Consider ${primary?.reference}: "${primary?.text}"` +
+                  (secondary ? ` See also ${secondary.reference}. Meditate on these words and let them anchor your heart today.` : '');
         return NextResponse.json({
             title: mode === 'prayer' ? 'Sanctuary Intercessory Prayer' : mode === 'scripture' ? 'Scripture Insight' : 'Spiritual Insight',
-            content: `Regarding "${query}":\n\nScripture teaches us that God provides wisdom to all who ask in faith. May peace guard your heart and mind today.`,
-            scripture: 'Psalm 119:105 — Your word is a lamp to my feet and a light to my path.',
+            content,
+            scripture: primary ? `${primary.reference} — ${primary.text}` : undefined,
             actionUrl: mode === 'scripture' ? '/spiritual' : '/prayer-room'
         });
     } catch (error) {

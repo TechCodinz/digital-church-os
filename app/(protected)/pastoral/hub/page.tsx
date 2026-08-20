@@ -1,278 +1,338 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
-    Sparkles, ShieldCheck, HeartHandshake, BookOpen, Send,
-    User, Bot, AlertTriangle, ArrowRight, RefreshCw, Volume2, UserCheck
+    AlertTriangle,
+    ArrowRight,
+    BookOpen,
+    Bot,
+    Heart,
+    HeartHandshake,
+    Loader2,
+    MessageSquare,
+    Send,
+    ShieldCheck,
+    Sparkles,
+    Swords,
+    User,
+    UserCheck,
 } from 'lucide-react';
+import Link from 'next/link';
+import { ScriptureReference, ScriptureText } from '@/components/scripture/ScriptureReference';
+import { ShareButton } from '@/components/sharing/ShareButton';
 import { VoicePlayer } from '@/components/ai/VoicePlayer';
+import { useSanctuaryTheme } from '@/components/theme/ThemeContext';
 
-type Persona = 'pastor' | 'prayer_warrior' | 'counselor';
+type Persona = 'pastor' | 'prayer_warrior' | 'counselor' | 'apologist';
+type RiskLevel = 'normal' | 'sensitive' | 'urgent';
 
-interface Message {
+type Message = {
     id: string;
     role: 'user' | 'assistant';
     content: string;
     persona: Persona;
-    timestamp: Date;
     verses?: string[];
-}
+};
 
-const PERSONA_CONFIGS: Record<Persona, { title: string; badge: string; icon: any; color: string; desc: string }> = {
+const MODES: Record<Persona, { title: string; eyebrow: string; description: string; icon: typeof BookOpen }> = {
     pastor: {
-        title: 'AI Lead Pastor',
-        badge: '📖 Exegesis & Theology',
+        title: 'Scripture Guide',
+        eyebrow: 'Study & spiritual reflection',
+        description: 'Explore Scripture, doctrine, discipleship questions, and possible next steps without pretending the AI holds pastoral office.',
         icon: BookOpen,
-        color: 'border-amber-500/40 text-amber-400 bg-amber-500/10',
-        desc: 'Shepherding your heart with biblical wisdom, leadership guidance, and sound doctrine.'
     },
     prayer_warrior: {
-        title: 'AI Prayer Warrior',
-        badge: '⚔️ Intercession & Deliverance',
-        icon: HeartHandshake,
-        color: 'border-rose-500/40 text-rose-400 bg-rose-500/10',
-        desc: 'Standing with you in fervent prayer, spiritual warfare, and physical healing.'
+        title: 'Prayer Companion',
+        eyebrow: 'Put a burden into prayer',
+        description: 'Shape humble Scripture-grounded prayer without promising healing, deliverance, miracles, or a particular outcome.',
+        icon: Heart,
     },
     counselor: {
-        title: 'AI Biblical Counselor',
-        badge: '🛡️ Heart & Mental Wellbeing',
-        icon: ShieldCheck,
-        color: 'border-indigo-500/40 text-indigo-400 bg-indigo-500/10',
-        desc: 'Compassionate Christian care for anxiety, grief, relationships, and emotional restoration.'
-    }
+        title: 'Gentle Reflection',
+        eyebrow: 'Slow down difficult moments',
+        description: 'Non-clinical reflection for grief, relationships, anxiety, loss, or emotional burdens, with human support kept close.',
+        icon: HeartHandshake,
+    },
+    apologist: {
+        title: 'Will — Apologetics Guide',
+        eyebrow: 'Questions, objections & faith',
+        description: 'Explore evidence, logic, historical claims, and Scripture while keeping disagreement respectful and uncertainty visible.',
+        icon: Swords,
+    },
 };
 
 export default function PastoralCareHubPage() {
+    const { theme } = useSanctuaryTheme();
     const [activePersona, setActivePersona] = useState<Persona>('pastor');
     const [messages, setMessages] = useState<Message[]>([
         {
-            id: '1',
+            id: 'welcome',
             role: 'assistant',
-            content: 'Peace be with you. How can we walk with you today? Describe what you are experiencing, and our AI Triage engine will route you to the best spiritual companion.',
             persona: 'pastor',
-            timestamp: new Date(),
-            verses: ['Psalm 23:1']
-        }
+            content: 'You can begin with a question, a burden, a prayer request, or something you are trying to understand. I can help with Scripture and reflection, and I will keep human pastoral care visible when the situation deserves a person.',
+            verses: ['Psalm 23:1-4'],
+        },
     ]);
-
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
-    const [triageNotice, setTriageNotice] = useState<string | null>(null);
-    const [humanEscalationNeeded, setHumanEscalationNeeded] = useState(false);
+    const [triageNotice, setTriageNotice] = useState('');
+    const [riskLevel, setRiskLevel] = useState<RiskLevel>('normal');
+    const [humanCareRecommended, setHumanCareRecommended] = useState(false);
+    const [lastTopic, setLastTopic] = useState<string | null>(null);
+    const [careRequestOpen, setCareRequestOpen] = useState(false);
+    const [careConcern, setCareConcern] = useState('');
+    const [careSubmitting, setCareSubmitting] = useState(false);
+    const [careStatus, setCareStatus] = useState('');
     const chatEndRef = useRef<HTMLDivElement>(null);
+
+    const isLight = theme === 'light';
+    const currentMode = MODES[activePersona];
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+    }, [messages, loading]);
 
-    const handleSend = async (e?: React.FormEvent) => {
-        if (e) e.preventDefault();
-        if (!input.trim() || loading) return;
-
+    const handleSend = async (event?: FormEvent) => {
+        event?.preventDefault();
         const userText = input.trim();
+        if (!userText || loading) return;
+
+        setMessages((previous) => [...previous, { id: `u-${Date.now()}`, role: 'user', content: userText, persona: activePersona }]);
         setInput('');
-
-        const userMsg: Message = {
-            id: `u-${Date.now()}`,
-            role: 'user',
-            content: userText,
-            persona: activePersona,
-            timestamp: new Date(),
-        };
-
-        setMessages(prev => [...prev, userMsg]);
         setLoading(true);
-        setTriageNotice(null);
+        setTriageNotice('');
 
         try {
-            // Call Intelligent Triage API
-            const res = await fetch('/api/ai/triage', {
+            if (activePersona === 'apologist') {
+                const history = messages
+                    .filter((message) => message.persona === 'apologist')
+                    .map((message) => ({ role: message.role, content: message.content }));
+
+                const response = await fetch('/api/ai/apologist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: userText, history, lastTopic }),
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Apologetics guide unavailable');
+                if (data.topic) setLastTopic(data.topic);
+                setMessages((previous) => [...previous, {
+                    id: `a-${Date.now()}`,
+                    role: 'assistant',
+                    persona: 'apologist',
+                    content: data.response || 'I can help examine that question carefully.',
+                    verses: Array.isArray(data.suggestedVerses) ? data.suggestedVerses : [],
+                }]);
+                return;
+            }
+
+            const response = await fetch('/api/ai/triage', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: userText, requestedPersona: activePersona })
+                body: JSON.stringify({ prompt: userText, requestedPersona: activePersona }),
             });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Guide unavailable');
 
-            const data = await res.json();
-
-            if (data.recommendedPersona && data.recommendedPersona !== activePersona) {
-                setActivePersona(data.recommendedPersona);
-                setTriageNotice(`✨ Auto-Triaged: ${data.triageReason}`);
+            const recommended = (data.recommendedPersona || activePersona) as Persona;
+            if (MODES[recommended] && recommended !== activePersona) {
+                setActivePersona(recommended);
+                setTriageNotice(data.triageReason || `Moved to ${MODES[recommended].title}.`);
+            } else if (data.triageReason) {
+                setTriageNotice(data.triageReason);
             }
 
-            if (data.escalateToHumanPastor) {
-                setHumanEscalationNeeded(true);
-            }
+            const nextRisk: RiskLevel = data.riskLevel === 'urgent' || data.riskLevel === 'sensitive' ? data.riskLevel : 'normal';
+            setRiskLevel(nextRisk);
+            setHumanCareRecommended(Boolean(data.humanCareRecommended || data.escalateToHumanPastor));
 
-            const aiMsg: Message = {
-                id: `ai-${Date.now()}`,
+            if (nextRisk !== 'normal' && !careConcern) setCareConcern(userText);
+            if (data.topic) setLastTopic(data.topic);
+
+            setMessages((previous) => [...previous, {
+                id: `a-${Date.now()}`,
                 role: 'assistant',
-                content: data.initialResponse || 'I am standing with you in faith.',
-                persona: data.recommendedPersona || activePersona,
-                timestamp: new Date(),
-                verses: data.suggestedVerses || []
-            };
-
-            setMessages(prev => [...prev, aiMsg]);
-        } catch (err) {
-            setMessages(prev => [
-                ...prev,
-                {
-                    id: `err-${Date.now()}`,
-                    role: 'assistant',
-                    content: 'The Lord is close to all who call on Him in truth. Let us lift your request in prayer right now.',
-                    persona: activePersona,
-                    timestamp: new Date(),
-                    verses: ['Psalm 145:18']
-                }
-            ]);
+                persona: MODES[recommended] ? recommended : activePersona,
+                content: data.initialResponse || 'I can help you slow this down and identify a thoughtful next step.',
+                verses: Array.isArray(data.suggestedVerses) ? data.suggestedVerses : [],
+            }]);
+        } catch {
+            setMessages((previous) => [...previous, {
+                id: `err-${Date.now()}`,
+                role: 'assistant',
+                persona: activePersona,
+                content: 'The intelligent guide is unavailable right now. You can still open Scripture, move to the Prayer Room, or record a request for human pastoral follow-up.',
+                verses: [],
+            }]);
         } finally {
             setLoading(false);
         }
     };
 
-    const currentConfig = PERSONA_CONFIGS[activePersona];
-    const ActiveIcon = currentConfig.icon;
+    const submitCareRequest = async () => {
+        if (!careConcern.trim() || careSubmitting) return;
+        setCareSubmitting(true);
+        setCareStatus('');
+
+        try {
+            const response = await fetch('/api/pastoral/care-request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ concern: careConcern.trim(), urgency: riskLevel }),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Unable to record request');
+            setCareStatus(data.message || 'Pastoral follow-up request recorded.');
+        } catch (error: any) {
+            setCareStatus(error?.message || 'Unable to record the request. Sign in and try again.');
+        } finally {
+            setCareSubmitting(false);
+        }
+    };
 
     return (
-        <div className="min-h-screen pt-24 pb-12 transition-colors duration-300">
-            <div className="max-w-5xl mx-auto px-4">
-                {/* Header */}
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold text-amber-400 mb-3">
-                        <Sparkles className="w-4 h-4 animate-pulse" /> Intelligent Dynamic Spiritual Companion Studio
-                    </div>
-                    <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Pastoral Care & Dynamic Triage Hub</h1>
-                    <p className="text-slate-400 text-sm max-w-xl mx-auto">
-                        Speak freely. Our AI Triage engine automatically pairs you with your ideal companion — Pastor, Prayer Warrior, or Biblical Counselor.
-                    </p>
-                </div>
-
-                {/* Persona Switcher Tabs */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-                    {(Object.keys(PERSONA_CONFIGS) as Persona[]).map(pKey => {
-                        const conf = PERSONA_CONFIGS[pKey];
-                        const IconComp = conf.icon;
-                        const isSelected = activePersona === pKey;
-                        return (
-                            <button
-                                key={pKey}
-                                onClick={() => setActivePersona(pKey)}
-                                className={`p-4 rounded-2xl border text-left transition-all ${
-                                    isSelected
-                                        ? `${conf.color} bg-slate-900 shadow-xl ring-1 ring-amber-500/30`
-                                        : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2 font-bold text-sm text-white">
-                                        <IconComp className="w-4 h-4" /> {conf.title}
-                                    </div>
-                                    {isSelected && <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />}
-                                </div>
-                                <p className="text-xs opacity-80 leading-relaxed">{conf.desc}</p>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Triage Auto-Notification Banner */}
-                {triageNotice && (
-                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl mb-4 text-xs text-amber-300 font-semibold flex items-center justify-between">
-                        <span>{triageNotice}</span>
-                        <button onClick={() => setTriageNotice(null)} className="text-slate-400 hover:text-white">✕</button>
-                    </motion.div>
-                )}
-
-                {/* Human Pastor Escalation Banner */}
-                {humanEscalationNeeded && (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="p-4 bg-rose-950/40 border border-rose-500/40 rounded-2xl mb-6 flex flex-wrap items-center justify-between gap-3 text-xs text-rose-200 shadow-xl">
-                        <div className="flex items-center gap-2">
-                            <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
-                            <span>This situation calls for personal human care. Would you like us to dispatch a request to a local human Pastor?</span>
+        <div className={`sanctuary-page-shell min-h-screen pt-24 pb-24 ${isLight ? 'bg-[#f8f3eb]/92 text-stone-900' : 'bg-[#020807]/92 text-white'}`}>
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <section className="relative overflow-hidden rounded-[2rem] border border-white/8 bg-[#07110f] px-6 py-10 sm:px-10 sm:py-12 text-white shadow-2xl shadow-black/25">
+                    <div className="absolute inset-0 sanctuary-radiance" aria-hidden="true" />
+                    <div className="relative grid lg:grid-cols-[1.15fr_0.85fr] gap-10 items-end">
+                        <div>
+                            <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/18 bg-amber-300/7 px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-amber-200">
+                                <HeartHandshake className="h-3.5 w-3.5" /> Pastoral care gateway
+                            </div>
+                            <h1 className="mt-6 text-4xl sm:text-5xl lg:text-6xl font-light tracking-tight leading-[1.03]">Intelligence for the first conversation. People for the care that needs people.</h1>
+                            <p className="mt-5 max-w-3xl text-sm sm:text-base leading-relaxed text-slate-400">Start with Scripture, prayer, difficult questions, or gentle reflection. The AI remains a bounded companion while accountable human pastoral care stays visible throughout the journey.</p>
+                            <div className="mt-7 flex flex-wrap gap-3">
+                                <button onClick={() => setCareRequestOpen(true)} className="sacred-primary-button"><UserCheck className="h-4 w-4" /> Request human follow-up</button>
+                                <Link href="/minister/study" className="sacred-secondary-button"><BookOpen className="h-4 w-4" /> Pastor Study Desk</Link>
+                            </div>
                         </div>
-                        <a href="/aid-request/emergency" className="px-4 py-2 bg-rose-500 hover:bg-rose-400 text-white font-bold rounded-xl flex items-center gap-1">
-                            <UserCheck className="w-4 h-4" /> Request Human Pastor Call
-                        </a>
-                    </motion.div>
+
+                        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
+                            <ShieldCheck className="h-5 w-5 text-emerald-300" />
+                            <h2 className="mt-4 text-lg font-semibold">Clear roles, clear boundaries</h2>
+                            <p className="mt-2 text-xs leading-relaxed text-slate-500">The guide does not claim pastoral office, clinical credentials, prophecy, divine messages, healing authority, or emergency-response capability. Sensitive situations are routed toward real human support.</p>
+                        </div>
+                    </div>
+                </section>
+
+                {humanCareRecommended && (
+                    <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`mt-5 rounded-3xl border p-5 sm:p-6 ${riskLevel === 'urgent' ? 'border-rose-400/25 bg-rose-400/[0.06]' : isLight ? 'border-amber-200 bg-amber-50' : 'border-amber-300/16 bg-amber-300/[0.04]'}`}>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                            <AlertTriangle className={`h-5 w-5 shrink-0 ${riskLevel === 'urgent' ? 'text-rose-400' : 'text-amber-400'}`} />
+                            <div className="flex-1">
+                                <h2 className={`text-sm font-semibold ${isLight ? 'text-stone-900' : 'text-white'}`}>{riskLevel === 'urgent' ? 'Immediate human support may be important' : 'A person may be the better next step'}</h2>
+                                <p className={`mt-1 text-xs leading-relaxed ${isLight ? 'text-stone-600' : 'text-slate-400'}`}>{riskLevel === 'urgent' ? 'If there is immediate danger, contact local emergency services or a trusted person nearby now. This app is not an emergency service.' : 'You can record a pastoral follow-up request instead of relying only on generated guidance.'}</p>
+                            </div>
+                            <button onClick={() => setCareRequestOpen(true)} className={`sacred-focus-ring rounded-full px-4 py-2.5 text-xs font-bold ${riskLevel === 'urgent' ? 'bg-rose-500 text-white' : isLight ? 'bg-stone-900 text-white' : 'bg-amber-200 text-slate-950'}`}>Human follow-up</button>
+                        </div>
+                    </motion.section>
                 )}
 
-                {/* Chat Container */}
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col h-[520px]">
-                    {/* Chat Messages */}
-                    <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-                        {messages.map(m => {
-                            const isUser = m.role === 'user';
-                            const conf = PERSONA_CONFIGS[m.persona];
-                            return (
-                                <motion.div
-                                    key={m.id}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
-                                >
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
-                                        isUser ? 'bg-slate-800 text-slate-200' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                    }`}>
-                                        {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-                                    </div>
-
-                                    <div className={`max-w-[80%] p-4 rounded-2xl text-xs leading-relaxed ${
-                                        isUser
-                                            ? 'bg-amber-500 text-slate-950 font-semibold rounded-tr-none'
-                                            : 'bg-slate-950 border border-slate-800 text-slate-200 rounded-tl-none space-y-3'
-                                    }`}>
-                                        {!isUser && (
-                                            <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2 text-[10px]">
-                                                <span className="font-bold text-amber-400">{conf.title}</span>
-                                                <span className="text-slate-500">{conf.badge}</span>
+                <section className="mt-6 grid xl:grid-cols-[300px_minmax(0,1fr)] gap-5 items-start">
+                    <aside className="space-y-3 xl:sticky xl:top-24">
+                        <div className={`rounded-3xl border p-3 ${isLight ? 'border-stone-200 bg-white/80' : 'border-white/8 bg-white/[0.025]'}`}>
+                            <p className={`px-2 pt-2 pb-3 sanctuary-section-label ${isLight ? 'text-sage-700' : 'text-emerald-300'}`}>Choose a support mode</p>
+                            <div className="space-y-2">
+                                {(Object.keys(MODES) as Persona[]).map((key) => {
+                                    const mode = MODES[key];
+                                    const Icon = mode.icon;
+                                    const selected = activePersona === key;
+                                    return (
+                                        <button key={key} onClick={() => setActivePersona(key)} className={`sacred-focus-ring w-full rounded-2xl border p-4 text-left transition-all ${selected ? isLight ? 'border-sage-300 bg-sage-50' : 'border-amber-300/20 bg-amber-300/[0.055]' : isLight ? 'border-transparent hover:border-stone-200 hover:bg-[#fbf8f3]' : 'border-transparent hover:border-white/8 hover:bg-white/[0.035]'}`}>
+                                            <div className="flex items-start gap-3">
+                                                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${selected ? isLight ? 'bg-white text-sage-700' : 'bg-amber-300/10 text-amber-300' : isLight ? 'bg-white text-stone-400' : 'bg-white/[0.035] text-slate-500'}`}><Icon className="h-4 w-4" /></span>
+                                                <span>
+                                                    <span className={`block text-xs font-semibold ${isLight ? 'text-stone-800' : 'text-slate-200'}`}>{mode.title}</span>
+                                                    <span className={`mt-1 block text-[9px] uppercase tracking-[0.13em] ${isLight ? 'text-sage-700' : 'text-emerald-300'}`}>{mode.eyebrow}</span>
+                                                </span>
                                             </div>
-                                        )}
+                                            <p className={`mt-3 text-[10px] leading-relaxed ${isLight ? 'text-stone-500' : 'text-slate-600'}`}>{mode.description}</p>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
 
-                                        <div>{m.content}</div>
+                        <Link href="/prayer-room" className="sacred-panel-dark group block p-5 text-white">
+                            <Heart className="h-4 w-4 text-rose-300" />
+                            <h3 className="mt-4 text-sm font-semibold">Prefer prayer instead?</h3>
+                            <p className="mt-2 text-[10px] leading-relaxed text-slate-600">Move into the dedicated Prayer Room with privacy and community intercession options.</p>
+                            <span className="mt-4 inline-flex items-center gap-2 text-[10px] font-bold text-amber-300">Open Prayer Room <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" /></span>
+                        </Link>
+                    </aside>
 
-                                        {!isUser && m.verses && m.verses.length > 0 && (
-                                            <div className="flex flex-wrap gap-1.5 pt-2">
-                                                {m.verses.map(v => (
-                                                    <span key={v} className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded text-[10px]">
-                                                        📖 {v}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
+                    <div className={`rounded-[2rem] border overflow-hidden ${isLight ? 'border-stone-200 bg-white/85 shadow-xl shadow-stone-200/20' : 'border-white/8 bg-white/[0.03]'}`}>
+                        <div className={`border-b px-5 py-5 sm:px-6 ${isLight ? 'border-stone-100' : 'border-white/8'}`}>
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className={`sanctuary-section-label ${isLight ? 'text-sage-700' : 'text-amber-300'}`}>{currentMode.eyebrow}</p>
+                                    <h2 className={`mt-2 text-xl font-light ${isLight ? 'text-stone-900' : 'text-white'}`}>{currentMode.title}</h2>
+                                </div>
+                                <span className={`flex h-10 w-10 items-center justify-center rounded-2xl ${isLight ? 'bg-[#fbf8f3] text-sage-700' : 'bg-white/[0.04] text-amber-300'}`}><Bot className="h-4 w-4" /></span>
+                            </div>
+                            {triageNotice && <p className={`mt-4 rounded-2xl border px-4 py-3 text-[10px] leading-relaxed ${isLight ? 'border-sage-100 bg-sage-50 text-sage-800' : 'border-emerald-300/10 bg-emerald-300/[0.035] text-emerald-300'}`}>{triageNotice}</p>}
+                        </div>
 
-                                        {!isUser && (
-                                            <div className="pt-2 border-t border-slate-900">
-                                                <VoicePlayer text={m.content} context="pastoral" label="Listen Audio" compact />
-                                            </div>
-                                        )}
-                                    </div>
-                                </motion.div>
-                            );
-                        })}
-                        <div ref={chatEndRef} />
+                        <div className="h-[500px] overflow-y-auto custom-scrollbar px-4 py-5 sm:px-6 space-y-4">
+                            {messages.map((message) => {
+                                const isUser = message.role === 'user';
+                                const mode = MODES[message.persona];
+                                return (
+                                    <motion.div key={message.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
+                                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${isUser ? isLight ? 'bg-stone-900 text-white' : 'bg-amber-200 text-slate-950' : isLight ? 'bg-sage-50 text-sage-700' : 'bg-emerald-300/8 text-emerald-300'}`}>
+                                            {isUser ? <User className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
+                                        </span>
+                                        <div className={`max-w-[85%] rounded-2xl p-4 ${isUser ? isLight ? 'bg-stone-900 text-white rounded-tr-md' : 'bg-amber-200 text-slate-950 rounded-tr-md' : isLight ? 'border border-stone-100 bg-[#fbf8f3] text-stone-700 rounded-tl-md' : 'border border-white/7 bg-black/16 text-slate-300 rounded-tl-md'}`}>
+                                            {!isUser && <p className={`mb-3 text-[9px] font-bold uppercase tracking-[0.16em] ${isLight ? 'text-sage-700' : 'text-emerald-300'}`}>{mode.title}</p>}
+                                            <div className="whitespace-pre-line text-xs sm:text-sm leading-6">{isUser ? message.content : <ScriptureText text={message.content} />}</div>
+                                            {!isUser && message.verses?.length ? <div className="mt-4 flex flex-wrap gap-2">{message.verses.map((verse) => <ScriptureReference key={verse} reference={verse} />)}</div> : null}
+                                            {!isUser && (
+                                                <div className={`mt-4 flex flex-wrap items-center gap-4 border-t pt-3 ${isLight ? 'border-stone-200' : 'border-white/7'}`}>
+                                                    <VoicePlayer text={message.content} context="pastoral" label="Listen" compact />
+                                                    {message.persona === 'apologist' && <ShareButton kind="apologist" title="Faith reflection" text={message.content.slice(0, 200)} reference={message.verses?.[0]} author="Will · Apologetics Guide" compact />}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                            {loading && <div className={`flex items-center gap-2 text-xs ${isLight ? 'text-stone-400' : 'text-slate-600'}`}><Loader2 className="h-4 w-4 animate-spin" /> Preparing a bounded response…</div>}
+                            <div ref={chatEndRef} />
+                        </div>
+
+                        <form onSubmit={handleSend} className={`border-t p-4 sm:p-5 ${isLight ? 'border-stone-100 bg-[#fffdf9]' : 'border-white/8 bg-black/12'}`}>
+                            <div className={`flex items-end gap-3 rounded-2xl border p-3 ${isLight ? 'border-stone-200 bg-[#fbf8f3]' : 'border-white/8 bg-black/18'}`}>
+                                <MessageSquare className={`mb-2 h-4 w-4 shrink-0 ${isLight ? 'text-sage-700' : 'text-amber-300'}`} />
+                                <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder={`Write to ${currentMode.title}…`} rows={2} className={`flex-1 resize-none bg-transparent py-1 text-sm leading-relaxed outline-none ${isLight ? 'text-stone-900 placeholder:text-stone-400' : 'text-white placeholder:text-slate-700'}`} />
+                                <button type="submit" disabled={loading || !input.trim()} className={`sacred-focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-xl disabled:opacity-35 ${isLight ? 'bg-stone-900 text-white' : 'bg-amber-200 text-slate-950'}`} aria-label="Send"><Send className="h-4 w-4" /></button>
+                            </div>
+                            <p className={`mt-3 flex items-start gap-2 text-[9px] leading-relaxed ${isLight ? 'text-stone-400' : 'text-slate-600'}`}><ShieldCheck className="mt-0.5 h-3 w-3 shrink-0" /> AI responses are reflective assistance, not clergy, clinical care, prophecy, diagnosis, or emergency service.</p>
+                        </form>
                     </div>
-
-                    {/* Input Bar */}
-                    <form onSubmit={handleSend} className="pt-4 border-t border-slate-800 flex gap-2">
-                        <input
-                            type="text"
-                            value={input}
-                            onChange={e => setInput(e.target.value)}
-                            placeholder={`Message your ${currentConfig.title} or describe any spiritual need...`}
-                            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
-                        />
-                        <button
-                            type="submit"
-                            disabled={loading || !input.trim()}
-                            className="px-5 py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all"
-                        >
-                            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                            <span>Send</span>
-                        </button>
-                    </form>
-                </div>
+                </section>
             </div>
+
+            {careRequestOpen && (
+                <div className="fixed inset-0 z-[85] flex items-start justify-center overflow-y-auto bg-black/75 px-4 py-16 backdrop-blur-xl">
+                    <motion.div initial={{ opacity: 0, y: 14, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className={`w-full max-w-xl rounded-[2rem] border p-6 sm:p-8 shadow-2xl ${isLight ? 'border-stone-200 bg-[#fffdf9] text-stone-900' : 'border-white/10 bg-[#07110f] text-white'}`}>
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className={`sanctuary-section-label ${isLight ? 'text-sage-700' : 'text-amber-300'}`}>Human pastoral follow-up</p>
+                                <h2 className="mt-3 text-2xl font-light">Record what you want a person to follow up on.</h2>
+                            </div>
+                            <button onClick={() => setCareRequestOpen(false)} className={`rounded-full px-3 py-2 text-xs ${isLight ? 'bg-stone-100 text-stone-600' : 'bg-white/[0.05] text-slate-400'}`}>Close</button>
+                        </div>
+                        <p className={`mt-4 text-xs leading-relaxed ${isLight ? 'text-stone-500' : 'text-slate-500'}`}>This records a request. Until a connected church workspace assigns it, the app will not claim that a particular pastor has accepted the case.</p>
+                        <textarea value={careConcern} onChange={(event) => setCareConcern(event.target.value)} rows={6} placeholder="Describe the kind of pastoral follow-up you want…" className={`mt-5 w-full resize-none rounded-2xl border px-4 py-3 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-amber-300/15 ${isLight ? 'border-stone-200 bg-[#fbf8f3]' : 'border-white/8 bg-black/18'}`} />
+                        {careStatus && <p className={`mt-4 rounded-2xl border p-3 text-xs leading-relaxed ${isLight ? 'border-sage-100 bg-sage-50 text-sage-800' : 'border-emerald-300/10 bg-emerald-300/[0.035] text-emerald-300'}`}>{careStatus}</p>}
+                        <button onClick={submitCareRequest} disabled={careSubmitting || !careConcern.trim()} className={`mt-5 sacred-focus-ring inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-bold disabled:opacity-40 ${isLight ? 'bg-stone-900 text-white' : 'bg-amber-200 text-slate-950'}`}>
+                            {careSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Recording request…</> : <><UserCheck className="h-4 w-4" /> Record human follow-up request</>}
+                        </button>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 }

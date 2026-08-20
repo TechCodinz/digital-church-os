@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <defs>
+    <pattern id="sanctuary" width="120" height="120" patternUnits="userSpaceOnUse">
+      <rect width="120" height="120" fill="none"/>
+      <g fill="none" stroke="#789b64" stroke-opacity="0.08" stroke-width="1.2">
+        <!-- Gothic sanctuary arches -->
+        <path d="M20 100 V60 a20 20 0 0 1 40 0 V100"/>
+        <path d="M60 100 V60 a20 20 0 0 1 40 0 V100"/>
+        <!-- Cross motif -->
+        <path d="M60 22 V54 M46 34 H74"/>
+        <!-- Radiant dots -->
+        <circle cx="20" cy="20" r="1.5"/>
+        <circle cx="100" cy="20" r="1.5"/>
+        <circle cx="60" cy="108" r="1.5"/>
+      </g>
+    </pattern>
+  </defs>
+  <rect width="120" height="120" fill="url(#sanctuary)"/>
+</svg>

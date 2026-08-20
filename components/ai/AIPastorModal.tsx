@@ -3,6 +3,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, User, Bot, Sparkles, ChevronRight, MessageSquare } from 'lucide-react';
+import { linkifyScripture } from '@/components/scripture/ScriptureReference';
+
+const SUGGESTED_PROMPTS = [
+    'How do I find peace when I feel anxious?',
+    'I need guidance for a big decision',
+    'Help me forgive someone who hurt me',
+    'A scripture for strength today',
+];
 
 interface Message {
     id: string;
@@ -30,13 +38,14 @@ export const AIPastorModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
         }
     }, [messages]);
 
-    const handleSend = async () => {
-        if (!input.trim() || loading) return;
+    const handleSend = async (promptText?: string) => {
+        const text = (promptText ?? input).trim();
+        if (!text || loading) return;
 
         const userMsg: Message = {
             id: Date.now().toString(),
             role: 'user',
-            content: input,
+            content: text,
             timestamp: new Date()
         };
 
@@ -48,37 +57,49 @@ export const AIPastorModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
             const res = await fetch('/api/ai/pastor', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ input })
+                body: JSON.stringify({ input: text })
             });
 
             const data = await res.json();
             const response = data.response;
 
-            // Extract the best human-readable content from the structured response
+            // Extract the best human-readable content from the structured response.
+            // Handles both flat responses and the counselor shape { content: {...} }.
             let content = '';
             if (typeof response === 'string') {
                 content = response;
             } else if (response) {
-                // Build a rich but natural-feeling reply from structured fields
+                const c = response.content || response;
                 const parts: string[] = [];
-                if (response.reflection) parts.push(response.reflection);
-                if (response.encouragement) parts.push(response.encouragement);
-                if (response.guidance) parts.push(response.guidance);
-                if (response.spiritualInsight) parts.push(response.spiritualInsight);
-                if (response.compassionateResponse) parts.push(response.compassionateResponse);
+                if (c.reflection) parts.push(c.reflection);
+                if (c.encouragement) parts.push(c.encouragement);
+                if (c.guidance) parts.push(c.guidance);
+                if (c.spiritualInsight) parts.push(c.spiritualInsight);
+                if (c.compassionateResponse) parts.push(c.compassionateResponse);
 
-                // Add a scripture reference if available
-                const scriptures = response.scriptures || response.scriptureFoundations || [];
-                const scripture = response.scripture || (Array.isArray(scriptures) && scriptures[0]) || '';
-                if (scripture) parts.push(`📖 "${scripture}"`);
-
-                // Append prayer invitation
-                const prayer = response.prayer || response.closingPrayer;
-                if (prayer && parts.length > 0) {
-                    parts.push(`🙏 Let us pray: ${prayer}`);
+                // Scriptures: render "Reference — text" so references become interactive links.
+                const scriptures = c.scriptures || c.scriptureFoundations || response.scriptures || [];
+                if (Array.isArray(scriptures) && scriptures.length > 0) {
+                    scriptures.slice(0, 3).forEach((s: any) => {
+                        if (typeof s === 'string') parts.push(`📖 ${s}`);
+                        else if (s?.reference) parts.push(`📖 ${s.reference} — “${s.text || ''}”`);
+                    });
+                } else {
+                    const scripture = response.scripture || c.scripture || '';
+                    if (scripture) parts.push(`📖 ${scripture}`);
                 }
 
-                content = parts.join('\n\n') || JSON.stringify(response);
+                // Practical steps
+                const steps = c.practicalSteps || c.steps;
+                if (Array.isArray(steps) && steps.length > 0) {
+                    parts.push('Steps you can take:\n' + steps.map((s: string, i: number) => `${i + 1}. ${s}`).join('\n'));
+                }
+
+                // Prayer invitation
+                const prayer = response.prayer || c.prayer || response.closingPrayer;
+                if (prayer) parts.push(`🙏 Let us pray: ${prayer}`);
+
+                content = parts.join('\n\n') || c.reflection || 'Let us turn to the Word of God together.';
             }
 
             const assistMsg: Message = {
@@ -155,11 +176,11 @@ export const AIPastorModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                             }`}>
                                             {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
                                         </div>
-                                        <div className={`p-4 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
+                                        <div className={`p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${msg.role === 'user'
                                             ? 'bg-stone-800 text-white rounded-tr-none'
                                             : 'bg-white text-stone-700 shadow-sm border border-stone-100 rounded-tl-none'
                                             }`}>
-                                            {msg.content}
+                                            {msg.role === 'assistant' ? linkifyScripture(msg.content) : msg.content}
                                         </div>
                                     </div>
                                 </motion.div>
@@ -177,6 +198,20 @@ export const AIPastorModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
 
                         {/* Input Area */}
                         <div className="p-6 bg-white border-t border-stone-100">
+                            {/* Suggested starter prompts */}
+                            {!loading && messages.length < 3 && (
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    {SUGGESTED_PROMPTS.map((p) => (
+                                        <button
+                                            key={p}
+                                            onClick={() => handleSend(p)}
+                                            className="text-xs px-3 py-1.5 rounded-full bg-sage-50 text-sage-700 border border-sage-200 hover:bg-sage-100 hover:border-sage-300 transition-all"
+                                        >
+                                            {p}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                             <div className="relative flex items-center">
                                 <input
                                     type="text"
@@ -187,7 +222,7 @@ export const AIPastorModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                     className="w-full bg-cream-50 border-none rounded-2xl pl-6 pr-14 py-4 outline-none focus:ring-2 focus:ring-sage-200 transition-all text-stone-700"
                                 />
                                 <button
-                                    onClick={handleSend}
+                                    onClick={() => handleSend()}
                                     disabled={!input.trim() || loading}
                                     className="absolute right-2 p-3 bg-sage-500 text-white rounded-xl hover:bg-sage-600 transition-all disabled:opacity-50"
                                 >

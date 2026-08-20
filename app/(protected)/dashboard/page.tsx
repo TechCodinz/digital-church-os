@@ -4,238 +4,247 @@ import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import {
     Activity,
-    MessageSquare,
-    Heart,
-    Calendar,
-    Users,
-    Zap,
-    ChevronRight,
-    Play,
-    PlusCircle,
+    ArrowRight,
     BookOpen,
-    ExternalLink
+    Calendar,
+    Heart,
+    HeartHandshake,
+    MessageSquare,
+    Music,
+    Play,
+    ShieldCheck,
+    Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AIPastorModal } from '@/components/ai/AIPastorModal';
 import { ScriptureDepthExperience } from '@/components/scripture/ScriptureDepthExperience';
+import { useSanctuaryTheme } from '@/components/theme/ThemeContext';
+
+type DashboardStats = {
+    prayers: number;
+    goals: number;
+    givingRecords: number;
+    recentMoments: number;
+};
 
 export default function DashboardPage() {
     const { data: session } = useSession();
-    const [stats, setStats] = useState({
-        prayers: 0,
-        goals: 0,
-        offerings: 0,
-        engagement: 0
-    });
-
+    const { theme } = useSanctuaryTheme();
+    const [mounted, setMounted] = useState(false);
+    const [daypart, setDaypart] = useState('Welcome back');
+    const [stats, setStats] = useState<DashboardStats>({ prayers: 0, goals: 0, givingRecords: 0, recentMoments: 0 });
     const [upcomingConference, setUpcomingConference] = useState<any>(null);
     const [activities, setActivities] = useState<any[]>([]);
     const [isAiPastorOpen, setIsAiPastorOpen] = useState(false);
 
     useEffect(() => {
-        // Fetch real status
-        Promise.all([
-            fetch('/api/user/prayers').then(res => res.json()),
-            fetch('/api/user/offerings').then(res => res.json()),
-            fetch('/api/conferences?upcoming=true').then(res => res.json()),
-            fetch('/api/user/goals').then(res => res.json()),
-            fetch('/api/user/activity').then(res => res.json()),
-        ]).then(([prayers, offerings, conferences, goals, activityLog]) => {
-            const prayerCount = Array.isArray(prayers) ? prayers.length : 0;
-            const goalCount = Array.isArray(goals) ? goals.length : 0;
-            const offeringTotal = Array.isArray(offerings) ? offerings.reduce((sum: number, o: any) => sum + o.amount, 0) : 0;
-            // Calculate engagement score from real activity metrics
-            const engagementScore = Math.min(100, Math.round(
-                (prayerCount * 10) + (goalCount * 15) + (Array.isArray(offerings) && offerings.length > 0 ? 25 : 0) + (Array.isArray(activityLog) ? Math.min(activityLog.length * 5, 50) : 0)
-            ));
-            setStats({
-                prayers: prayerCount,
-                goals: goalCount,
-                offerings: offeringTotal,
-                engagement: engagementScore || 5  // minimum of 5% for new users
-            });
-            if (Array.isArray(conferences) && conferences.length > 0) {
-                setUpcomingConference(conferences[0]);
-            }
-            if (Array.isArray(activityLog)) {
-                setActivities(activityLog);
-            }
-        }).catch(err => console.error('Dashboard fetch error:', err));
+        setMounted(true);
+        const hour = new Date().getHours();
+        setDaypart(hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening');
     }, []);
 
-    const quickActions = [
-        { title: 'Share Prayer', icon: Heart, href: '/prayer-room', color: 'bg-rose-500' },
-        { title: 'New Testimony', icon: MessageSquare, href: '/community-wall', color: 'bg-amber-500' },
-        { title: 'Give Offering', icon: Zap, href: '/offering', color: 'bg-emerald-500' },
+    useEffect(() => {
+        const readJson = (url: string) => fetch(url).then(async (response) => response.ok ? response.json() : []);
+
+        Promise.all([
+            readJson('/api/user/prayers'),
+            readJson('/api/user/offerings'),
+            readJson('/api/conferences?upcoming=true'),
+            readJson('/api/user/goals'),
+            readJson('/api/user/activity'),
+        ])
+            .then(([prayers, offerings, conferences, goals, activityLog]) => {
+                const safeActivities = Array.isArray(activityLog) ? activityLog : [];
+                setStats({
+                    prayers: Array.isArray(prayers) ? prayers.length : 0,
+                    goals: Array.isArray(goals) ? goals.length : 0,
+                    givingRecords: Array.isArray(offerings) ? offerings.length : 0,
+                    recentMoments: safeActivities.length,
+                });
+                setActivities(safeActivities.slice(0, 6));
+                if (Array.isArray(conferences) && conferences.length > 0) setUpcomingConference(conferences[0]);
+            })
+            .catch(() => {
+                setActivities([]);
+            });
+    }, []);
+
+    const activeTheme = mounted ? theme : 'emerald';
+    const isLight = activeTheme === 'light';
+    const firstName = session?.user?.name?.split(' ')[0] || 'friend';
+
+    const dailyFlow = [
+        { title: 'Pray', copy: 'Bring what is real, privately or with others.', icon: Heart, href: '/prayer-room' },
+        { title: 'Open the Word', copy: 'Continue Scripture immersion and reflection.', icon: BookOpen, href: '/scripture/immersion' },
+        { title: 'Worship', copy: 'Enter the live-service and worship experience.', icon: Music, href: '/live-service' },
+        { title: 'Journal', copy: 'Capture what you noticed before it disappears.', icon: MessageSquare, href: '/journal' },
+    ];
+
+    const statCards = [
+        { label: 'Prayer threads', value: stats.prayers, icon: Heart },
+        { label: 'Active goals', value: stats.goals, icon: Activity },
+        { label: 'Giving records', value: stats.givingRecords, icon: HeartHandshake },
+        { label: 'Recent moments', value: stats.recentMoments, icon: Sparkles },
     ];
 
     return (
-        <div className="min-h-screen pt-24 pb-12 bg-cream-50">
-            <div className="max-w-7xl mx-auto px-4">
-                {/* Welcome Header */}
-                <header className="mb-12 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                    >
-                        <h1 className="text-4xl font-light text-stone-800">
-                            Welcome back, {session?.user?.name?.split(' ')[0]}
-                        </h1>
-                        <p className="text-stone-500 mt-1 italic">"The Lord is my shepherd; I shall not want."</p>
-                    </motion.div>
-
-                    <div className="flex gap-4">
-                        <Link href="/live-service" className="px-6 py-3 bg-sage-500 text-white rounded-2xl hover:bg-sage-600 transition-all flex items-center shadow-lg shadow-sage-200">
-                            <Play size={18} className="mr-2 fill-current" /> Join Live Service
-                        </Link>
-                    </div>
-                </header>
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                    {[
-                        { label: 'Active Prayers', value: stats.prayers, icon: Heart, color: 'text-rose-500' },
-                        { label: 'Spiritual Goals', value: stats.goals, icon: Activity, color: 'text-blue-500' },
-                        { label: 'Total Giving', value: `$${stats.offerings}`, icon: Zap, color: 'text-emerald-500' },
-                        { label: 'Engagement', value: `${stats.engagement}%`, icon: Users, color: 'text-purple-500' },
-                    ].map((stat, i) => (
-                        <motion.div
-                            key={stat.label}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.1 }}
-                            className="sanctuary-card"
-                        >
-                            <stat.icon className={`${stat.color} mb-3`} size={24} />
-                            <p className="text-sm text-stone-500 uppercase tracking-wider">{stat.label}</p>
-                            <h2 className="text-3xl font-light text-stone-800 mt-1">{stat.value}</h2>
+        <div className={`sanctuary-page-shell pt-24 pb-24 ${isLight ? 'bg-[#f8f3eb]/92 text-stone-900' : 'bg-[#020807]/88 text-white'}`}>
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <section className="relative overflow-hidden rounded-[2rem] border border-white/8 bg-[#07110f] px-6 py-10 sm:px-10 sm:py-12 text-white shadow-2xl shadow-black/20">
+                    <div className="absolute inset-0 sanctuary-radiance opacity-90" aria-hidden="true" />
+                    <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full border border-amber-300/10" aria-hidden="true" />
+                    <div className="relative grid lg:grid-cols-[1.1fr_0.9fr] gap-10 items-end">
+                        <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
+                            <p className="sanctuary-section-label text-amber-300/75">Your private sanctuary</p>
+                            <h1 className="mt-4 text-4xl sm:text-5xl lg:text-6xl font-light tracking-tight">
+                                {daypart}, {firstName}.
+                            </h1>
+                            <p className="mt-4 max-w-2xl text-sm sm:text-base leading-relaxed text-slate-300">
+                                Continue your prayer, Scripture, worship, reflection, and community journey without turning faith into a leaderboard.
+                            </p>
+                            <div className="mt-7 flex flex-wrap gap-3">
+                                <Link href="/prayer-room" className="sacred-primary-button group">
+                                    <Heart className="w-4 h-4" /> Pray now <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                </Link>
+                                <Link href="/live-service" className="sacred-secondary-button">
+                                    <Play className="w-4 h-4" /> Enter worship
+                                </Link>
+                            </div>
                         </motion.div>
-                    ))}
-                </div>
 
-                {/* Revolutionary Scripture Depth Experience */}
-                <section className="mb-12">
-                    <div className="flex items-center justify-between mb-8 px-4">
-                        <div>
-                            <h2 className="text-3xl font-light text-stone-800">Scripture Excavation</h2>
-                            <p className="text-stone-500 italic mt-1">"Open my eyes, that I may behold wondrous things out of your law." — Psalm 119:18</p>
+                        <div className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 sm:p-6 backdrop-blur-xl">
+                            <div className="flex items-start gap-3">
+                                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" />
+                                <div>
+                                    <p className="text-sm font-semibold text-white">No spiritual score</p>
+                                    <p className="mt-2 text-xs leading-relaxed text-slate-400">
+                                        Prayer, giving, attendance, and activity are not used to rank holiness or maturity. This space is for continuity, not comparison.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
+                    </div>
+                </section>
+
+                <section className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    {statCards.map((stat, index) => {
+                        const Icon = stat.icon;
+                        return (
+                            <motion.div
+                                key={stat.label}
+                                initial={{ opacity: 0, y: 14 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                                className={`rounded-3xl border p-5 sm:p-6 ${isLight ? 'border-stone-200 bg-white/80' : 'border-white/8 bg-white/[0.035]'}`}
+                            >
+                                <Icon className={`h-4 w-4 ${isLight ? 'text-sage-700' : 'text-emerald-300'}`} />
+                                <p className={`mt-5 text-3xl font-light ${isLight ? 'text-stone-900' : 'text-white'}`}>{stat.value}</p>
+                                <p className={`mt-1 text-[10px] uppercase tracking-[0.16em] ${isLight ? 'text-stone-400' : 'text-slate-500'}`}>{stat.label}</p>
+                            </motion.div>
+                        );
+                    })}
+                </section>
+
+                <section className="mt-12">
+                    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                        <div>
+                            <p className={`sanctuary-section-label ${isLight ? 'text-sage-700' : 'text-emerald-300'}`}>Today</p>
+                            <h2 className={`mt-3 text-3xl sm:text-4xl font-light ${isLight ? 'text-stone-900' : 'text-white'}`}>A simple rhythm</h2>
+                        </div>
+                        <p className={`max-w-xl text-sm leading-relaxed ${isLight ? 'text-stone-500' : 'text-slate-500'}`}>Choose one meaningful next step. The intelligence stays in the background instead of demanding attention.</p>
+                    </div>
+
+                    <div className="mt-7 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {dailyFlow.map((item) => {
+                            const Icon = item.icon;
+                            return (
+                                <Link key={item.title} href={item.href} className={`group rounded-3xl border p-6 transition-all ${isLight ? 'border-stone-200 bg-white/80 hover:border-sage-300 hover:shadow-xl' : 'border-white/8 bg-white/[0.035] hover:bg-white/[0.06] hover:border-emerald-300/18'}`}>
+                                    <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${isLight ? 'border-sage-100 bg-sage-50 text-sage-700' : 'border-emerald-300/12 bg-emerald-300/8 text-emerald-300'}`}>
+                                        <Icon className="h-5 w-5" />
+                                    </div>
+                                    <h3 className={`mt-5 text-lg font-semibold ${isLight ? 'text-stone-900' : 'text-white'}`}>{item.title}</h3>
+                                    <p className={`mt-2 text-xs leading-relaxed ${isLight ? 'text-stone-500' : 'text-slate-500'}`}>{item.copy}</p>
+                                    <ArrowRight className={`mt-5 h-4 w-4 transition-transform group-hover:translate-x-1 ${isLight ? 'text-sage-700' : 'text-amber-300'}`} />
+                                </Link>
+                            );
+                        })}
+                    </div>
+                </section>
+
+                <section className="mt-12 grid lg:grid-cols-[0.8fr_1.2fr] gap-6">
+                    <div className="space-y-6">
+                        <div className="sacred-panel-dark p-6 sm:p-7 text-white">
+                            <p className="sanctuary-section-label text-amber-300/75">Guidance</p>
+                            <h3 className="mt-3 text-2xl font-light">Need help making sense of something?</h3>
+                            <p className="mt-3 text-sm leading-relaxed text-slate-400">Use AI-assisted reflection for Scripture and questions, or move directly to accountable human care.</p>
+                            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                                <button onClick={() => setIsAiPastorOpen(true)} className="sacred-primary-button">Open AI-assisted guide</button>
+                                <Link href="/pastoral/hub" className="sacred-secondary-button"><HeartHandshake className="w-4 h-4" /> Human care</Link>
+                            </div>
+                        </div>
+
+                        <div className={`rounded-3xl border p-6 ${isLight ? 'border-stone-200 bg-white/80' : 'border-white/8 bg-white/[0.035]'}`}>
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <p className={`sanctuary-section-label ${isLight ? 'text-sage-700' : 'text-emerald-300'}`}>Next gathering</p>
+                                    <h3 className={`mt-3 text-xl font-semibold ${isLight ? 'text-stone-900' : 'text-white'}`}>{upcomingConference ? upcomingConference.title : 'No upcoming conference yet'}</h3>
+                                </div>
+                                <Calendar className={`h-5 w-5 ${isLight ? 'text-sage-700' : 'text-amber-300'}`} />
+                            </div>
+                            {upcomingConference ? (
+                                <>
+                                    <p className={`mt-3 text-sm ${isLight ? 'text-stone-500' : 'text-slate-500'}`}>
+                                        {new Date(upcomingConference.startDate).toLocaleDateString()}
+                                    </p>
+                                    <Link href="/conferences" className={`mt-5 inline-flex items-center gap-2 text-xs font-semibold ${isLight ? 'text-sage-700' : 'text-emerald-300'}`}>View gathering <ArrowRight className="h-3.5 w-3.5" /></Link>
+                                </>
+                            ) : (
+                                <Link href="/churches" className={`mt-5 inline-flex items-center gap-2 text-xs font-semibold ${isLight ? 'text-sage-700' : 'text-emerald-300'}`}>Discover church life <ArrowRight className="h-3.5 w-3.5" /></Link>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className={`rounded-3xl border p-6 sm:p-7 ${isLight ? 'border-stone-200 bg-white/80' : 'border-white/8 bg-white/[0.035]'}`}>
+                        <div className="flex items-center justify-between gap-4">
+                            <div>
+                                <p className={`sanctuary-section-label ${isLight ? 'text-sage-700' : 'text-emerald-300'}`}>Continuity</p>
+                                <h3 className={`mt-3 text-2xl font-light ${isLight ? 'text-stone-900' : 'text-white'}`}>Recent moments</h3>
+                            </div>
+                            <Link href="/journal" className={`text-xs font-semibold ${isLight ? 'text-sage-700' : 'text-emerald-300'}`}>Open journal</Link>
+                        </div>
+
+                        <div className="mt-6 space-y-3">
+                            {activities.length > 0 ? activities.map((item, index) => (
+                                <div key={item.id || index} className={`flex items-center gap-4 rounded-2xl border p-4 ${isLight ? 'border-stone-100 bg-[#fbf8f3]' : 'border-white/7 bg-black/15'}`}>
+                                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${isLight ? 'bg-sage-50 text-sage-700' : 'bg-emerald-300/8 text-emerald-300'}`}>
+                                        {item.type === 'prayer' ? <Heart className="h-4 w-4" /> : item.type === 'goal' ? <Activity className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <p className={`truncate text-sm font-medium ${isLight ? 'text-stone-800' : 'text-slate-200'}`}>{item.title || 'A moment in your journey'}</p>
+                                        {item.time && <p className={`mt-1 text-[10px] ${isLight ? 'text-stone-400' : 'text-slate-600'}`}>{new Date(item.time).toLocaleDateString()}</p>}
+                                    </div>
+                                </div>
+                            )) : (
+                                <div className={`rounded-2xl border border-dashed p-8 text-center text-sm ${isLight ? 'border-stone-200 text-stone-400' : 'border-white/10 text-slate-600'}`}>
+                                    Your private journey will begin to gather here as you pray, study, worship, and reflect.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </section>
+
+                <section className="mt-12">
+                    <div className="mb-6">
+                        <p className={`sanctuary-section-label ${isLight ? 'text-sage-700' : 'text-emerald-300'}`}>Deep study</p>
+                        <h2 className={`mt-3 text-3xl sm:text-4xl font-light ${isLight ? 'text-stone-900' : 'text-white'}`}>Scripture Excavation</h2>
+                        <p className={`mt-2 text-sm ${isLight ? 'text-stone-500' : 'text-slate-500'}`}>Observation first. Context next. Reflection after.</p>
                     </div>
                     <ScriptureDepthExperience />
                 </section>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Left Column: Quick Actions & Upcoming */}
-                    <div className="lg:col-span-1 space-y-8">
-                        <section className="sanctuary-card">
-                            <h3 className="text-xl font-light text-stone-800 mb-6">Quick Actions</h3>
-                            <div className="grid grid-cols-1 gap-4">
-                                {quickActions.map((action) => (
-                                    <Link key={action.title} href={action.href}>
-                                        <div className="flex items-center p-4 bg-cream-50 rounded-2xl hover:bg-cream-100 transition-all border border-transparent hover:border-sage-100 cursor-pointer group">
-                                            <div className={`${action.color} p-3 rounded-xl text-white mr-4 shadow-sm group-hover:scale-110 transition-transform`}>
-                                                <action.icon size={20} />
-                                            </div>
-                                            <span className="font-medium text-stone-700">{action.title}</span>
-                                            <ChevronRight className="ml-auto text-stone-400" size={18} />
-                                        </div>
-                                    </Link>
-                                ))}
-                            </div>
-                        </section>
-
-                        <section className="sanctuary-card">
-                            <h3 className="text-xl font-light text-stone-800 mb-6">Next Conference</h3>
-                            {upcomingConference ? (
-                                <div className="bg-sage-50 rounded-2xl p-6 border border-sage-100">
-                                    <span className="px-2 py-1 bg-white text-sage-600 text-[10px] font-bold rounded uppercase tracking-widest mb-3 inline-block">
-                                        Starting Soon
-                                    </span>
-                                    <h4 className="text-lg font-medium text-stone-800 mb-2">{upcomingConference.title}</h4>
-                                    <p className="text-sm text-stone-600 mb-4 flex items-center">
-                                        <Calendar size={14} className="mr-2" />
-                                        {new Date(upcomingConference.startDate).toLocaleDateString()}
-                                    </p>
-                                    <Link
-                                        href="/conferences"
-                                        className="block w-full py-3 bg-white text-stone-700 rounded-xl hover:bg-sage-500 hover:text-white transition-all font-medium border border-sage-200 text-center"
-                                    >
-                                        View Details
-                                    </Link>
-                                </div>
-                            ) : (
-                                <div className="p-6 text-center text-stone-400 italic border border-dashed rounded-2xl">
-                                    No upcoming conferences scheduled.
-                                </div>
-                            )}
-                        </section>
-                    </div>
-
-                    {/* Right Column: AI Assistant & Recent Feed */}
-                    <div className="lg:col-span-2 space-y-8">
-                        <section className="sanctuary-card bg-stone-800 text-white relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform duration-700">
-                                <Zap size={120} />
-                            </div>
-                            <div className="relative z-10">
-                                <h3 className="text-2xl font-light mb-4">How can I assist your walk today?</h3>
-                                <p className="text-stone-400 mb-8 max-w-md">Your AI Pastor is ready to provide guidance, scripture context, or just listen.</p>
-                                <div className="flex gap-4">
-                                    <button
-                                        onClick={() => setIsAiPastorOpen(true)}
-                                        className="px-8 py-3 bg-sage-500 rounded-xl hover:bg-sage-600 transition-all flex items-center font-medium"
-                                    >
-                                        Ask AI Pastor <ChevronRight size={18} className="ml-2" />
-                                    </button>
-                                    <Link href="/journal" className="px-8 py-3 bg-white/10 rounded-xl hover:bg-white/20 transition-all font-medium flex items-center gap-2">
-                                        <BookOpen size={16} /> View Journal
-                                    </Link>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section className="sanctuary-card">
-                            <div className="flex items-center justify-between mb-8">
-                                <h3 className="text-xl font-light text-stone-800">Your Spiritual Pulse</h3>
-                                <Link href="/journal" className="text-sm text-sage-600 hover:underline flex items-center gap-1">
-                                    <ExternalLink size={13} /> View Journal
-                                </Link>
-                            </div>
-
-                            <div className="space-y-6">
-                                {activities.length > 0 ? activities.map((item, i) => (
-                                    <div key={i} className="flex items-center p-4 bg-white border border-stone-100 rounded-2xl hover:shadow-sm transition-all group">
-                                        <div className="w-10 h-10 rounded-xl bg-cream-50 flex items-center justify-center text-sage-500 mr-4 group-hover:bg-sage-50 transition-colors">
-                                            {item.type === 'goal' ? <Activity size={18} /> : item.type === 'prayer' ? <Heart size={18} /> : <Zap size={18} />}
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="font-medium text-stone-800">{item.title}</p>
-                                            <p className="text-xs text-stone-400">{new Date(item.time).toLocaleDateString()}</p>
-                                        </div>
-                                        <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-tighter ${item.status.includes('!') ? 'bg-emerald-50 text-emerald-600' : 'bg-stone-50 text-stone-500'
-                                            }`}>
-                                            {item.status}
-                                        </span>
-                                    </div>
-                                )) : (
-                                    <div className="p-8 text-center text-stone-400 italic">
-                                        Your spiritual activity will appear here.
-                                    </div>
-                                )}
-                                <Link href="/journal" className="w-full py-4 border-2 border-dashed border-stone-100 rounded-2xl text-stone-400 hover:text-sage-500 hover:border-sage-200 transition-all flex items-center justify-center font-medium">
-                                    <PlusCircle size={18} className="mr-2" /> Add a new journal entry
-                                </Link>
-                            </div>
-                        </section>
-                    </div>
-                </div>
             </div>
 
-            <AIPastorModal
-                isOpen={isAiPastorOpen}
-                onClose={() => setIsAiPastorOpen(false)}
-            />
+            <AIPastorModal isOpen={isAiPastorOpen} onClose={() => setIsAiPastorOpen(false)} />
         </div>
     );
 }

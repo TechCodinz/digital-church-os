@@ -5,8 +5,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Sparkles, Loader2, Heart, Shield, Share2, Expand } from 'lucide-react';
 import { VoicePlayer } from '@/components/ai/VoicePlayer';
 
+interface StructuredPrayer {
+    opening?: string;
+    scriptureReadings?: Array<{ reference: string; text: string; reflection?: string }>;
+    intercession?: string;
+    thanksgiving?: string;
+    closing?: string;
+}
+
 interface CinematicAIPrayerProps {
-    prayerText: string;
+    // Accepts either a plain string or the structured prayer object from the engine.
+    prayerText: string | StructuredPrayer;
     title: string;
     themes: string[];
     visuals?: {
@@ -14,6 +23,21 @@ interface CinematicAIPrayerProps {
         video?: string | null;
     };
     onClose?: () => void;
+}
+
+/** Flatten a structured prayer (or string) into a readable spoken/plain-text form. */
+function prayerToPlainText(prayer: string | StructuredPrayer): string {
+    if (typeof prayer === 'string') return prayer;
+    if (!prayer) return '';
+    const parts: string[] = [];
+    if (prayer.opening) parts.push(prayer.opening);
+    (prayer.scriptureReadings || []).forEach((r) => {
+        if (r?.text) parts.push(`${r.text}${r.reference ? ` (${r.reference})` : ''}`);
+    });
+    if (prayer.intercession) parts.push(prayer.intercession);
+    if (prayer.thanksgiving) parts.push(prayer.thanksgiving);
+    if (prayer.closing) parts.push(prayer.closing);
+    return parts.join('\n\n');
 }
 
 export function CinematicAIPrayerResult({ prayerText, title, themes, visuals, onClose }: CinematicAIPrayerProps) {
@@ -105,10 +129,33 @@ export function CinematicAIPrayerResult({ prayerText, title, themes, visuals, on
                         {title}
                     </h2>
 
-                    <div className="prose prose-invert prose-lg mx-auto text-white/90 font-serif leading-relaxed drop-shadow-md">
-                        {prayerText.split('\n\n').map((paragraph, i) => (
-                            <p key={i} className="mb-6 last:mb-0">{paragraph}</p>
-                        ))}
+                    <div className="prose prose-invert prose-lg mx-auto text-white/90 font-serif leading-relaxed drop-shadow-md text-left md:text-center">
+                        {typeof prayerText === 'string' ? (
+                            prayerText.split('\n\n').map((paragraph, i) => (
+                                <p key={i} className="mb-6 last:mb-0">{paragraph}</p>
+                            ))
+                        ) : (
+                            <>
+                                {prayerText.opening && <p className="mb-6">{prayerText.opening}</p>}
+                                {(prayerText.scriptureReadings || []).map((r, i) => (
+                                    <blockquote
+                                        key={i}
+                                        className="my-6 border-l-2 border-amber-300/60 pl-4 text-left not-italic"
+                                    >
+                                        <p className="text-white/90 mb-1">“{r.text}”</p>
+                                        <cite className="block text-amber-200/80 text-sm font-sans not-italic">
+                                            — {r.reference}
+                                        </cite>
+                                        {r.reflection && (
+                                            <p className="text-white/60 text-sm font-sans mt-2">{r.reflection}</p>
+                                        )}
+                                    </blockquote>
+                                ))}
+                                {prayerText.intercession && <p className="mb-6">{prayerText.intercession}</p>}
+                                {prayerText.thanksgiving && <p className="mb-6">{prayerText.thanksgiving}</p>}
+                                {prayerText.closing && <p className="mb-6 font-medium text-white">{prayerText.closing}</p>}
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -116,7 +163,7 @@ export function CinematicAIPrayerResult({ prayerText, title, themes, visuals, on
                 <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
                     <div className="flex-1 w-full max-w-sm">
                         <VoicePlayer
-                            text={prayerText}
+                            text={prayerToPlainText(prayerText)}
                             context="prayer"
                             emotion="tender"
                             label="Listen to Prayer"

@@ -1,375 +1,155 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useSanctuaryTheme } from '@/components/theme/ThemeContext';
+import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
-    Globe, Search, MapPin, Users, Radio, Plus, X, ShieldCheck, Sparkles, Building2, CheckCircle2
+    ArrowRight,
+    Building2,
+    Globe,
+    MapPin,
+    Radio,
+    Search,
+    ShieldCheck,
+    Sparkles,
+    Users,
 } from 'lucide-react';
+import Link from 'next/link';
+import { useSanctuaryTheme } from '@/components/theme/ThemeContext';
 
 interface Church {
     id: string;
     name: string;
     city: string;
     country: string;
-    denomination: string;
-    leadPastor: string;
-    memberCount: number;
-    streamUrl?: string;
-    isLiveNow: boolean;
-    activities: string[];
+    denomination?: string | null;
+    leadPastor?: string | null;
+    memberCount?: number | null;
+    streamUrl?: string | null;
+    isLiveNow?: boolean;
+    activities?: string[];
 }
 
 export default function GlobalChurchesPage() {
     const { theme } = useSanctuaryTheme();
-    const [mounted, setMounted] = useState(false);
     const [churches, setChurches] = useState<Church[]>([]);
     const [loading, setLoading] = useState(true);
+    const [directoryReady, setDirectoryReady] = useState(true);
     const [query, setQuery] = useState('');
-    const [selectedCountry, setSelectedCountry] = useState('All');
-    const [showOnboardModal, setShowOnboardModal] = useState(false);
-    const [onboardSuccess, setOnboardSuccess] = useState(false);
 
-    // Form State
-    const [churchName, setChurchName] = useState('');
-    const [city, setCity] = useState('');
-    const [country, setCountry] = useState('');
-    const [denomination, setDenomination] = useState('Non-Denominational');
-    const [leadPastor, setLeadPastor] = useState('');
+    const isLight = theme === 'light';
 
     useEffect(() => {
-        setMounted(true);
+        fetch('/api/churches/global', { cache: 'no-store' })
+            .then(async (response) => {
+                if (!response.ok) throw new Error('Directory unavailable');
+                return response.json();
+            })
+            .then((data) => {
+                setChurches(Array.isArray(data.churches) ? data.churches : []);
+                setDirectoryReady(data.directoryReady !== false);
+            })
+            .catch(() => {
+                setChurches([]);
+                setDirectoryReady(false);
+            })
+            .finally(() => setLoading(false));
     }, []);
 
-    const activeTheme = mounted ? theme : 'light';
-    const isLight = activeTheme === 'light';
-
-    const fetchChurches = async () => {
-        setLoading(true);
-        try {
-            const url = selectedCountry !== 'All' ? `/api/churches/global?country=${selectedCountry}` : '/api/churches/global';
-            const res = await fetch(url);
-            const data = await res.json();
-            setChurches(data.churches || []);
-        } catch {
-            setChurches([]);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchChurches();
-    }, [selectedCountry]);
-
-    const handleOnboardSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            const res = await fetch('/api/churches/global', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: churchName,
-                    city,
-                    country,
-                    denomination,
-                    leadPastor
-                })
-            });
-
-            if (res.ok) {
-                setOnboardSuccess(true);
-                fetchChurches();
-                setTimeout(() => {
-                    setShowOnboardModal(false);
-                    setOnboardSuccess(false);
-                    setChurchName('');
-                    setCity('');
-                    setCountry('');
-                    setDenomination('Non-Denominational');
-                    setLeadPastor('');
-                }, 2000);
-            }
-        } catch (err) {
-            console.error('Failed to onboard church:', err);
-        }
-    };
-
-    const filteredChurches = churches.filter(c =>
-        c.name.toLowerCase().includes(query.toLowerCase()) ||
-        c.city.toLowerCase().includes(query.toLowerCase()) ||
-        c.country.toLowerCase().includes(query.toLowerCase())
-    );
+    const filteredChurches = useMemo(() => {
+        const normalized = query.trim().toLowerCase();
+        if (!normalized) return churches;
+        return churches.filter((church) =>
+            [church.name, church.city, church.country, church.denomination, church.leadPastor]
+                .filter(Boolean)
+                .some((value) => String(value).toLowerCase().includes(normalized))
+        );
+    }, [churches, query]);
 
     return (
-        <div className="min-h-screen pt-24 pb-12 transition-colors duration-300">
-            <div className="max-w-7xl mx-auto px-4">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10">
-                    <div className="space-y-2">
-                        <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold border ${
-                            isLight
-                                ? 'bg-sage-50 border-sage-200 text-sage-800'
-                                : 'bg-slate-900 border-slate-800 text-emerald-400'
-                        }`}>
-                            <Globe className="w-4 h-4 animate-spin-slow" /> Global Multi-Church Network
-                        </div>
-                        <h1 className={`text-3xl md:text-5xl font-light tracking-tight ${isLight ? 'text-stone-800' : 'text-white'}`}>
-                            Churches Across The World
-                        </h1>
-                        <p className={`text-sm max-w-2xl ${isLight ? 'text-stone-600' : 'text-slate-400'}`}>
-                            Discover local congregations, join live worship streams worldwide, and manage your church's activities with Digital Church OS.
-                        </p>
-                    </div>
-
-                    <button
-                        onClick={() => setShowOnboardModal(true)}
-                        className={`px-6 py-3.5 font-bold rounded-full text-xs flex items-center gap-2 transition-all shadow-md shrink-0 ${
-                            isLight
-                                ? 'bg-sage-500 hover:bg-sage-600 text-white shadow-sage-500/20'
-                                : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-                        }`}
-                    >
-                        <Plus className="w-4 h-4" /> Onboard Your Church
-                    </button>
-                </div>
-
-                {/* Filter & Search Bar */}
-                <div className={`border rounded-3xl p-4 mb-8 flex flex-col sm:flex-row items-center gap-4 ${
-                    isLight ? 'bg-white border-cream-200 shadow-sm' : 'bg-slate-900 border-slate-800 shadow-xl'
-                }`}>
-                    <div className="relative flex-1 w-full">
-                        <Search className={`w-4 h-4 absolute left-4 top-3.5 ${isLight ? 'text-stone-400' : 'text-slate-500'}`} />
-                        <input
-                            type="text"
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            placeholder="Search by church name, city, or country..."
-                            className={`w-full border rounded-2xl pl-11 pr-4 py-2.5 text-xs focus:outline-none ${
-                                isLight
-                                    ? 'bg-cream-50 border-cream-200 text-stone-800 placeholder-stone-400 focus:border-sage-400'
-                                    : 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-emerald-500/50'
-                            }`}
-                        />
-                    </div>
-
-                    <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
-                        {['All', 'United States', 'Japan', 'Nigeria', 'United Kingdom'].map(c => (
-                            <button
-                                key={c}
-                                onClick={() => setSelectedCountry(c)}
-                                className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
-                                    selectedCountry === c
-                                        ? isLight ? 'bg-sage-600 border-sage-600 text-white' : 'bg-emerald-500 border-emerald-500 text-slate-950'
-                                        : isLight ? 'bg-cream-50 border-cream-200 text-stone-600' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                                }`}
-                            >
-                                {c}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Church Grid */}
-                {loading ? (
-                    <div className="py-20 text-center">
-                        <Globe className={`w-8 h-8 animate-spin mx-auto mb-3 ${isLight ? 'text-sage-500' : 'text-emerald-400'}`} />
-                        <span className={isLight ? 'text-stone-500' : 'text-slate-400'}>Loading global church directory...</span>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredChurches.map(c => (
-                            <motion.div
-                                key={c.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className={`border rounded-2xl p-6 transition-all space-y-4 flex flex-col justify-between ${
-                                    isLight
-                                        ? 'bg-white border-cream-200 shadow-sm hover:border-sage-300'
-                                        : 'bg-slate-900 border-slate-800 hover:border-emerald-500/40 shadow-xl'
-                                }`}
-                            >
-                                <div>
-                                    <div className="flex items-start justify-between gap-2 mb-3">
-                                        <div className={`p-3 rounded-2xl border ${
-                                            isLight ? 'bg-sage-50 border-sage-100 text-sage-600' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                                        }`}>
-                                            <Building2 className="w-6 h-6" />
-                                        </div>
-
-                                        {c.isLiveNow ? (
-                                            <span className="px-3 py-1 bg-rose-500/20 border border-rose-500/30 text-rose-400 font-bold text-[10px] rounded-full flex items-center gap-1.5 animate-pulse">
-                                                <Radio className="w-3 h-3" /> 🔴 LIVE NOW
-                                            </span>
-                                        ) : (
-                                            <span className={`px-3 py-1 text-[10px] rounded-full border ${
-                                                isLight ? 'bg-cream-100 border-cream-200 text-stone-500' : 'bg-slate-950 border-slate-800 text-slate-500'
-                                            }`}>
-                                                Offline
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <h3 className={`text-xl font-bold mb-1 ${isLight ? 'text-stone-800' : 'text-white'}`}>{c.name}</h3>
-
-                                    <div className={`flex items-center gap-4 text-xs mb-3 ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>
-                                        <span className="flex items-center gap-1">
-                                            <MapPin className={`w-3.5 h-3.5 ${isLight ? 'text-sage-600' : 'text-emerald-400'}`} /> {c.city}, {c.country}
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                            <Users className={`w-3.5 h-3.5 ${isLight ? 'text-sage-600' : 'text-indigo-400'}`} /> {c.memberCount} members
-                                        </span>
-                                    </div>
-
-                                    <p className={`text-xs mb-3 font-mono ${isLight ? 'text-stone-500' : 'text-slate-500'}`}>
-                                        Lead: {c.leadPastor} • {c.denomination}
-                                    </p>
-
-                                    <div className={`space-y-1.5 pt-3 border-t ${isLight ? 'border-cream-100' : 'border-slate-800'}`}>
-                                        <span className={`text-[10px] uppercase font-bold ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>
-                                            Activities & Services
-                                        </span>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {c.activities.map(act => (
-                                                <span key={act} className={`px-2.5 py-1 border rounded-lg text-[10px] ${
-                                                    isLight ? 'bg-cream-50 border-cream-200 text-stone-700' : 'bg-slate-950 border-slate-800 text-slate-300'
-                                                }`}>
-                                                    {act}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className={`pt-4 border-t flex gap-2 ${isLight ? 'border-cream-100' : 'border-slate-800'}`}>
-                                    <a
-                                        href="/live-service"
-                                        className={`flex-1 py-2.5 border text-center text-xs font-semibold rounded-xl transition-all ${
-                                            isLight
-                                                ? 'bg-cream-50 hover:bg-cream-100 border-cream-200 text-stone-800'
-                                                : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-slate-200'
-                                        }`}
-                                    >
-                                        View Activities
-                                    </a>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            {/* Onboard Church Modal */}
-            <AnimatePresence>
-                {showOnboardModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className={`border rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 ${
-                                isLight ? 'bg-white border-cream-200 text-stone-800' : 'bg-slate-900 border-slate-800 text-white'
-                            }`}
-                        >
-                            <div className={`flex items-center justify-between border-b pb-3 ${isLight ? 'border-cream-100' : 'border-slate-800'}`}>
-                                <h3 className="text-lg font-bold flex items-center gap-2">
-                                    <Building2 className={`w-5 h-5 ${isLight ? 'text-sage-600' : 'text-emerald-400'}`} /> Onboard Church
-                                </h3>
-                                <button onClick={() => setShowOnboardModal(false)} className={isLight ? 'text-stone-500' : 'text-slate-400'}><X className="w-5 h-5" /></button>
+        <div className={`sanctuary-page-shell min-h-screen pt-24 pb-24 ${isLight ? 'bg-[#f8f3eb]/92 text-stone-900' : 'bg-[#020807]/92 text-white'}`}>
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <section className="relative overflow-hidden rounded-[2rem] border border-white/8 bg-[#07110f] px-6 py-10 sm:px-10 sm:py-12 text-white shadow-2xl shadow-black/20">
+                    <div className="absolute inset-0 sanctuary-radiance" aria-hidden="true" />
+                    <div className="relative grid lg:grid-cols-[1.1fr_0.9fr] gap-10 items-end">
+                        <div>
+                            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/18 bg-emerald-300/7 px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-emerald-200">
+                                <Globe className="h-3.5 w-3.5" /> Verified church network
                             </div>
+                            <h1 className="mt-6 text-4xl sm:text-5xl lg:text-6xl font-light tracking-tight leading-[1.03]">Discover real congregations without simulated churches or fake live activity.</h1>
+                            <p className="mt-5 max-w-3xl text-sm sm:text-base leading-relaxed text-slate-400">Church profiles, locations, leaders, activities, and broadcasts should appear only when they come from an accountable church workspace and a real configured source.</p>
+                            <div className="mt-7 flex flex-wrap gap-3">
+                                <Link href="/minister/onboard" className="sacred-primary-button group">Church leader onboarding <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" /></Link>
+                                <Link href="/live-service" className="sacred-secondary-button"><Radio className="h-4 w-4" /> Worship</Link>
+                            </div>
+                        </div>
 
-                            {!onboardSuccess ? (
-                                <form onSubmit={handleOnboardSubmit} className="space-y-4">
-                                    <div>
-                                        <label className={`block text-xs font-bold uppercase tracking-wider mb-1 ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>Church Name</label>
-                                        <input
-                                            type="text"
-                                            value={churchName}
-                                            onChange={e => setChurchName(e.target.value)}
-                                            placeholder="e.g. Hope Chapel"
-                                            className={`w-full border rounded-xl p-3 text-xs focus:outline-none ${
-                                                isLight ? 'bg-cream-100 border-cream-200 text-stone-800' : 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500/50'
-                                            }`}
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className={`block text-xs font-bold uppercase tracking-wider mb-1 ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>City</label>
-                                            <input
-                                                type="text"
-                                                value={city}
-                                                onChange={e => setCity(e.target.value)}
-                                                placeholder="e.g. Sydney"
-                                                className={`w-full border rounded-xl p-3 text-xs focus:outline-none ${
-                                                    isLight ? 'bg-cream-100 border-cream-200 text-stone-800' : 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500/50'
-                                                }`}
-                                                required
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className={`block text-xs font-bold uppercase tracking-wider mb-1 ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>Country</label>
-                                            <input
-                                                type="text"
-                                                value={country}
-                                                onChange={e => setCountry(e.target.value)}
-                                                placeholder="e.g. Australia"
-                                                className={`w-full border rounded-xl p-3 text-xs focus:outline-none ${
-                                                    isLight ? 'bg-cream-100 border-cream-200 text-stone-800' : 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500/50'
-                                                }`}
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className={`block text-xs font-bold uppercase tracking-wider mb-1 ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>Denomination</label>
-                                            <input
-                                                type="text"
-                                                value={denomination}
-                                                onChange={e => setDenomination(e.target.value)}
-                                                placeholder="e.g. Non-Denominational"
-                                                className={`w-full border rounded-xl p-3 text-xs focus:outline-none ${
-                                                    isLight ? 'bg-cream-100 border-cream-200 text-stone-800' : 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500/50'
-                                                }`}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className={`block text-xs font-bold uppercase tracking-wider mb-1 ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>Senior Pastor Name</label>
-                                            <input
-                                                type="text"
-                                                value={leadPastor}
-                                                onChange={e => setLeadPastor(e.target.value)}
-                                                placeholder="e.g. Pastor John Smith"
-                                                className={`w-full border rounded-xl p-3 text-xs focus:outline-none ${
-                                                    isLight ? 'bg-cream-100 border-cream-200 text-stone-800' : 'bg-slate-950 border-slate-800 text-white focus:border-emerald-500/50'
-                                                }`}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        type="submit"
-                                        className={`w-full py-3.5 font-bold rounded-xl text-xs transition-all shadow-lg ${
-                                            isLight ? 'bg-sage-600 hover:bg-sage-700 text-white shadow-sage-600/20' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
-                                        }`}
-                                    >
-                                        Register Church Profile
-                                    </button>
-                                </form>
-                            ) : (
-                                <div className="py-8 text-center space-y-3">
-                                    <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto animate-bounce" />
-                                    <h4 className="text-xl font-bold text-emerald-500">Church Onboarded!</h4>
-                                    <p className="text-xs text-slate-400">Your church portal is active on Digital Church OS.</p>
-                                </div>
-                            )}
-                        </motion.div>
+                        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
+                            <ShieldCheck className="h-5 w-5 text-emerald-300" />
+                            <h2 className="mt-4 text-lg font-semibold">Verified before visible</h2>
+                            <p className="mt-2 text-xs leading-relaxed text-slate-500">The directory no longer invents churches, pastors, membership numbers, or “LIVE NOW” badges. Empty is better than false; the production church registry will populate this surface when connected.</p>
+                        </div>
                     </div>
-                )}
-            </AnimatePresence>
+                </section>
+
+                <section className="mt-8">
+                    <div className={`rounded-3xl border p-3 ${isLight ? 'border-stone-200 bg-white/80' : 'border-white/8 bg-white/[0.025]'}`}>
+                        <div className="relative">
+                            <Search className={`absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 ${isLight ? 'text-stone-400' : 'text-slate-600'}`} />
+                            <input
+                                value={query}
+                                onChange={(event) => setQuery(event.target.value)}
+                                placeholder="Search church name, city, country, denomination, or leader..."
+                                className={`w-full rounded-2xl border py-3 pl-11 pr-4 text-sm outline-none transition-all focus:ring-2 focus:ring-amber-300/15 ${isLight ? 'border-stone-100 bg-[#fbf8f3] text-stone-900 placeholder:text-stone-400' : 'border-white/7 bg-black/15 text-white placeholder:text-slate-700'}`}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="mt-7 flex items-end justify-between gap-4">
+                        <div>
+                            <p className={`sanctuary-section-label ${isLight ? 'text-sage-700' : 'text-emerald-300'}`}>Directory</p>
+                            <h2 className={`mt-2 text-3xl font-light ${isLight ? 'text-stone-900' : 'text-white'}`}>Churches</h2>
+                        </div>
+                        <p className={`text-[10px] ${isLight ? 'text-stone-400' : 'text-slate-600'}`}>{filteredChurches.length} verified {filteredChurches.length === 1 ? 'church' : 'churches'}</p>
+                    </div>
+
+                    {loading ? (
+                        <div className="py-24 text-center">
+                            <Sparkles className={`mx-auto h-6 w-6 animate-pulse ${isLight ? 'text-sage-700' : 'text-amber-300'}`} />
+                            <p className={`mt-4 text-xs ${isLight ? 'text-stone-400' : 'text-slate-600'}`}>Checking the verified church directory…</p>
+                        </div>
+                    ) : filteredChurches.length === 0 ? (
+                        <div className={`mt-6 rounded-[2rem] border border-dashed p-10 sm:p-14 text-center ${isLight ? 'border-stone-200 bg-white/60' : 'border-white/10 bg-white/[0.02]'}`}>
+                            <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border ${isLight ? 'border-stone-200 bg-white text-sage-700' : 'border-white/8 bg-white/[0.035] text-emerald-300'}`}><Building2 className="h-6 w-6" /></div>
+                            <h3 className={`mt-6 text-2xl font-light ${isLight ? 'text-stone-900' : 'text-white'}`}>{query ? 'No verified church matches that search.' : directoryReady ? 'No churches are published yet.' : 'The verified tenant directory is not connected on this branch yet.'}</h3>
+                            <p className={`mt-3 max-w-2xl mx-auto text-sm leading-relaxed ${isLight ? 'text-stone-500' : 'text-slate-500'}`}>We deliberately show no synthetic fallback data. Church leaders can begin the onboarding journey, and public discovery should activate only after the authoritative workspace registry is connected.</p>
+                            <Link href="/minister/onboard" className={`mt-7 inline-flex items-center gap-2 text-xs font-bold ${isLight ? 'text-sage-700' : 'text-amber-300'}`}>Church leader pathway <ArrowRight className="h-3.5 w-3.5" /></Link>
+                        </div>
+                    ) : (
+                        <div className="mt-6 grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+                            {filteredChurches.map((church, index) => (
+                                <motion.article
+                                    key={church.id}
+                                    initial={{ opacity: 0, y: 12 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: Math.min(index * 0.04, 0.2) }}
+                                    className={`rounded-[2rem] border p-6 transition-all ${isLight ? 'border-stone-200 bg-white/85 hover:border-sage-300 hover:shadow-xl' : 'border-white/8 bg-white/[0.03] hover:bg-white/[0.05] hover:border-emerald-300/14'}`}
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${isLight ? 'bg-sage-50 text-sage-700' : 'bg-emerald-300/8 text-emerald-300'}`}><Building2 className="h-5 w-5" /></span>
+                                        {church.isLiveNow && church.streamUrl && <span className="inline-flex items-center gap-2 rounded-full border border-rose-300/18 bg-rose-300/7 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-rose-300"><Radio className="h-3 w-3" /> Live source</span>}
+                                    </div>
+                                    <h3 className={`mt-5 text-xl font-semibold ${isLight ? 'text-stone-900' : 'text-white'}`}>{church.name}</h3>
+                                    <p className={`mt-2 flex items-center gap-2 text-xs ${isLight ? 'text-stone-500' : 'text-slate-500'}`}><MapPin className="h-3.5 w-3.5" /> {church.city}, {church.country}</p>
+                                    {church.denomination && <p className={`mt-3 text-xs ${isLight ? 'text-stone-500' : 'text-slate-500'}`}>{church.denomination}</p>}
+                                    {church.leadPastor && <p className={`mt-1 text-xs ${isLight ? 'text-stone-500' : 'text-slate-500'}`}>Leader: {church.leadPastor}</p>}
+                                    {typeof church.memberCount === 'number' && <p className={`mt-3 flex items-center gap-2 text-[10px] ${isLight ? 'text-stone-400' : 'text-slate-600'}`}><Users className="h-3.5 w-3.5" /> {church.memberCount.toLocaleString()} members</p>}
+                                    {church.activities?.length ? <div className="mt-5 flex flex-wrap gap-2">{church.activities.slice(0, 4).map((activity) => <span key={activity} className={`rounded-full border px-2.5 py-1 text-[9px] ${isLight ? 'border-stone-200 bg-[#fbf8f3] text-stone-500' : 'border-white/8 bg-black/15 text-slate-500'}`}>{activity}</span>)}</div> : null}
+                                </motion.article>
+                            ))}
+                        </div>
+                    )}
+                </section>
+            </div>
         </div>
     );
 }

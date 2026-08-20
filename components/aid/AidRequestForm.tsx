@@ -35,18 +35,33 @@ export function AidRequestForm() {
             return;
         }
 
+        if (formData.description.trim().length < 20) {
+            setStatus("error");
+            setErrorMessage("Please describe your need in a little more detail (at least 20 characters).");
+            return;
+        }
+
         try {
-            const response = await fetch("/api/aid/requests", {
+            const label = categories.find((c) => c.value === formData.category)?.label || formData.category;
+            const response = await fetch("/api/aid-requests", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    ...formData,
+                    category: formData.category,
+                    title: `${label} request`,
+                    description: formData.urgent
+                        ? `[URGENT — response needed within 24-48h] ${formData.description}`
+                        : formData.description,
                     amount: Number(formData.amount),
+                    proofUrls: [],
                 }),
             });
 
+            if (response.status === 401) {
+                throw new Error("Please sign in to submit an assistance request.");
+            }
             if (!response.ok) {
-                const data = await response.json();
+                const data = await response.json().catch(() => ({}));
                 throw new Error(data.error || "Failed to submit request.");
             }
 

@@ -20,7 +20,9 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { theme, scriptureRefs, style, conferenceId } = body;
+        const { theme, style, conferenceId } = body;
+        // Default to an empty list so the route is robust when scriptureRefs is omitted.
+        const scriptureRefs: string[] = Array.isArray(body.scriptureRefs) ? body.scriptureRefs : [];
 
         // Validate input
         const validation = validateAIInput(body, 'sermon');
