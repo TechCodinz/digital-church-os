@@ -1,6 +1,7 @@
 import './styles/globals.css';
 import './styles/cinematic.css';
 import { Inter } from 'next/font/google';
+import type { Viewport } from 'next';
 import { Navbar } from '@/components/layout/Navbar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { Footer } from '@/components/layout/Footer';
@@ -15,7 +16,11 @@ export const metadata = {
         template: '%s | Digital Church OS',
     },
     description: 'A living digital sanctuary for worship, prayer, Scripture, discipleship, pastoral care, community, and tenant-safe church ministry.',
+};
+
+export const viewport: Viewport = {
     themeColor: '#06110f',
+    colorScheme: 'dark light',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
