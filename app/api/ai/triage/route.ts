@@ -2,13 +2,53 @@ import { NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
 import { buildApologetic, buildTheologicalInsight, detectTone, toneVoice } from '@/lib/ai/shared/offlineTheology';
 
+type CompanionMode = 'pastor' | 'prayer_warrior' | 'counselor' | 'apologist';
+type RiskLevel = 'normal' | 'sensitive' | 'urgent';
+
+function detectRisk(prompt: string): RiskLevel {
+    const text = prompt.toLowerCase();
+    if (/\b(kill myself|end my life|suicide|suicidal|hurt myself|self[- ]harm|someone will kill me|immediate danger|being attacked)\b/i.test(text)) {
+        return 'urgent';
+    }
+    if (/\b(abuse|abused|violence|violent|trauma|depress|grief|panic|anxiety|mental health|marriage crisis|domestic)\b/i.test(text)) {
+        return 'sensitive';
+    }
+    return 'normal';
+}
+
+function sanitizePersona(value: unknown): CompanionMode | null {
+    return value === 'pastor' || value === 'prayer_warrior' || value === 'counselor' || value === 'apologist'
+        ? value
+        : null;
+}
+
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { prompt = '', requestedPersona } = body;
+        const prompt = typeof body?.prompt === 'string' ? body.prompt.trim().slice(0, 6000) : '';
+        const requestedPersona = sanitizePersona(body?.requestedPersona);
 
-        if (!prompt.trim()) {
+        if (!prompt) {
             return NextResponse.json({ error: 'Prompt is required for triage' }, { status: 400 });
+        }
+
+        const riskLevel = detectRisk(prompt);
+        const humanCareRecommended = riskLevel !== 'normal';
+
+        if (requestedPersona === 'apologist') {
+            const apol = buildApologetic(prompt);
+            return NextResponse.json({
+                success: true,
+                recommendedPersona: 'apologist',
+                topic: apol.topic,
+                triageReason: 'Faith-question mode selected.',
+                initialResponse: apol.response,
+                suggestedVerses: apol.scriptures,
+                riskLevel,
+                humanCareRecommended,
+                escalateToHumanPastor: humanCareRecommended,
+                boundaryNote: 'This is study and reflection assistance, not pastoral office, prophecy, diagnosis, or emergency care.',
+            });
         }
 
         let triageResult: any = null;
@@ -21,110 +61,113 @@ export async function POST(req: Request) {
                     messages: [
                         {
                             role: 'system',
-                            content: `You are an Intelligent Pastoral Triage & Companion Dispatcher for Digital Church OS.
-                            Analyze the user's message and determine the best spiritual companion:
-                            - "counselor": for emotional pain, anxiety, depression, trauma, marriage, mental health, grief.
-                            - "prayer_warrior": for urgent intercession, spiritual warfare, physical healing, immediate crisis prayer.
-                            - "pastor": for biblical doctrine, exegesis, discipling, general spiritual direction, leadership.
+                            content: `You are a bounded Christian reflection and routing assistant inside Digital Church OS.
 
-                            Return JSON:
-                            {
-                                "recommendedPersona": "counselor" | "prayer_warrior" | "pastor",
-                                "triageReason": "Short 1-sentence reason for this selection",
-                                "initialResponse": "The initial compassionate response from that specific persona",
-                                "suggestedVerses": ["Book Chapter:Verse"],
-                                "escalateToHumanPastor": boolean (true if severe crisis/suicidal ideation/severe abuse)
-                            }`
+Your job is to choose one SUPPORT MODE, not impersonate a clergy role or clinician:
+- "pastor": Scripture study and general spiritual reflection.
+- "prayer_warrior": help the user put a concern into humble Scripture-grounded prayer. Do not promise healing, deliverance, miracles, prophecy, or spiritual certainty.
+- "counselor": gentle non-clinical reflection for grief, relationships, emotional burdens, or difficult life situations. Do not diagnose or provide clinical treatment.
+
+Rules:
+- Never claim to be a pastor, counselor, prophet, healer, spiritual authority, or representative of God.
+- Never claim God told you something specific about the user.
+- Never promise physical healing, deliverance, financial outcomes, reconciliation, or other results.
+- Keep Scripture distinct from your interpretation.
+- For severe danger, self-harm, abuse, or crisis, recommend immediate human/local emergency support and accountable human pastoral care rather than continuing as the primary support channel.
+
+Return JSON exactly:
+{
+  "recommendedPersona": "counselor" | "prayer_warrior" | "pastor",
+  "triageReason": "short routing reason",
+  "initialResponse": "careful initial response",
+  "suggestedVerses": ["Book Chapter:Verse"]
+}`
                         },
-                        {
-                            role: 'user',
-                            content: prompt
-                        }
+                        { role: 'user', content: prompt }
                     ],
                     response_format: { type: 'json_object' },
-                    temperature: 0.5,
+                    temperature: 0.35,
                 });
 
                 triageResult = JSON.parse(response.choices[0]?.message?.content || '{}');
-            } catch (err) {
-                console.error('Triage AI error:', err);
+            } catch (error) {
+                console.error('Triage AI error:', error);
             }
         }
 
-        // Fallback Triage Logic if API key missing or error
-        if (!triageResult || !triageResult.recommendedPersona) {
+        if (!triageResult || !sanitizePersona(triageResult.recommendedPersona)) {
             const lower = prompt.toLowerCase();
+            const apologeticsCue = /\b(prove|proof|debate|argument|objection|skeptic|atheis|contradict|no evidence|science|evolution|other religions|resurrection|problem of evil|refute|apolog)\b/i.test(prompt);
 
-            // Apologetics / viral faith-conversation detection -> "Will" the AI Apologist.
-            const apologeticsCue =
-                /\b(prove|proof|debate|argue|argument|objection|skeptic|atheis|contradict|why (does|would|is) god|doesn'?t exist|isn'?t real|no evidence|science|evolution|other religions|hypocrit|resurrection|problem of evil|refute|apolog)\b/i.test(prompt);
-
-            if (requestedPersona === 'apologist' || apologeticsCue) {
+            if (apologeticsCue) {
                 const apol = buildApologetic(prompt);
                 triageResult = {
                     recommendedPersona: 'apologist',
                     topic: apol.topic,
-                    triageReason: `Detected a faith conversation on "${apol.label}" -> Routed to Will, the AI Apologist.`,
-                    initialResponse: `${apol.response}\n\n💬 To turn the conversation: ${apol.turningQuestion}`,
+                    triageReason: 'Detected a faith or apologetics question.',
+                    initialResponse: apol.response,
                     suggestedVerses: apol.scriptures,
-                    escalateToHumanPastor: false,
                 };
-                return NextResponse.json({ success: true, ...triageResult });
+            } else {
+                let persona: CompanionMode = 'pastor';
+                let reason = 'General spiritual reflection routed to Scripture study mode.';
+                let responseText = 'I can help you slow this down, look at relevant Scripture, and identify a thoughtful next step.';
+                let verses = ['Psalm 23:1', 'Proverbs 3:5-6'];
+
+                if (/\b(anxious|anxiety|depress|sad|lonely|marriage|grief|trauma|panic|relationship)\b/i.test(lower)) {
+                    persona = 'counselor';
+                    reason = 'This sounds emotionally significant, so the reflection mode is prioritizing gentle listening and human-care options.';
+                    responseText = 'There is real weight in what you described. We can reflect carefully, keep the conversation non-clinical, and make human support easy to reach.';
+                    verses = ['Psalm 34:18', '1 Peter 5:7'];
+                } else if (/\b(pray|prayer|sick|urgent|burden|intercede|healing)\b/i.test(lower)) {
+                    persona = 'prayer_warrior';
+                    reason = 'Your message sounds like a request for prayer support.';
+                    responseText = 'I can help you put this concern into a humble, Scripture-grounded prayer without promising a particular outcome.';
+                    verses = ['Philippians 4:6-7', 'James 5:13'];
+                }
+
+                const finalPersona = requestedPersona && requestedPersona !== 'apologist' ? requestedPersona : persona;
+                if (finalPersona === 'pastor' && riskLevel === 'normal') {
+                    const tone = detectTone(prompt);
+                    const voice = toneVoice(tone);
+                    const insight = buildTheologicalInsight(prompt);
+                    responseText = `${voice.opener} ${insight.exegesis}`;
+                    verses = insight.crossReferences.slice(0, 3).map((verse) => verse.reference);
+                }
+
+                triageResult = {
+                    recommendedPersona: finalPersona,
+                    triageReason: reason,
+                    initialResponse: responseText,
+                    suggestedVerses: verses,
+                };
             }
+        }
 
-            let persona: 'counselor' | 'prayer_warrior' | 'pastor' = 'pastor';
-            let reason = 'General spiritual inquiry routed to your Lead AI Pastor.';
-            let responseText = 'Grace and peace to you. I am here to shepherd your heart and explore God\'s word together.';
-            let verses = ['Psalm 23:1', 'Proverbs 3:5-6'];
-
-            if (lower.includes('anxious') || lower.includes('anxiety') || lower.includes('depress') || lower.includes('sad') || lower.includes('lonely') || lower.includes('marriage') || lower.includes('grief')) {
-                persona = 'counselor';
-                reason = 'Detected emotional burden and need for heart healing -> Routed to AI Biblical Counselor.';
-                responseText = 'I hear the weight in your words. God draws near to the brokenhearted (Psalm 34:18). Let us process this gently in the light of Christ\'s love.';
-                verses = ['Psalm 34:18', '1 Peter 5:7'];
-            } else if (lower.includes('pray') || lower.includes('heal') || lower.includes('sick') || lower.includes('warfare') || lower.includes('urgent') || lower.includes('battle')) {
-                persona = 'prayer_warrior';
-                reason = 'Detected urgent prayer request & spiritual warfare -> Routed to AI Prayer Warrior.';
-                responseText = 'Hallelujah! We stand together on the authority of Jesus\' name. Let us wage a good warfare in prayer right now!';
-                verses = ['Ephesians 6:12', 'James 5:16'];
-            }
-
-            // Deepen the pastor & counselor replies with original-language insight,
-            // cross-references, and tone-aware warmth (Scripture used with depth).
-            const finalPersona = requestedPersona && requestedPersona !== 'apologist' ? requestedPersona : persona;
-            if (finalPersona === 'pastor' || finalPersona === 'counselor') {
-                const tone = detectTone(prompt);
-                const voice = toneVoice(tone);
-                const insight = buildTheologicalInsight(prompt);
-                const word = insight.wordStudies[0];
-                responseText =
-                    `${voice.opener} ${insight.exegesis} ` +
-                    `In the original language, "${word.translit}" (${word.language}: ${word.gloss}) reminds us that ${word.insight}`;
-                verses = insight.crossReferences.slice(0, 3).map((v) => v.reference);
-            }
-
-            triageResult = {
-                recommendedPersona: finalPersona,
-                triageReason: reason,
-                initialResponse: responseText,
-                suggestedVerses: verses,
-                escalateToHumanPastor: lower.includes('suicide') || lower.includes('kill myself') || lower.includes('abuse'),
-            };
+        if (riskLevel === 'urgent') {
+            triageResult.initialResponse = 'What you described may require immediate human support. If there is immediate danger, contact local emergency services or a trusted person nearby now. This assistant can stay limited to simple grounding, prayer, and helping you move toward accountable human support.';
         }
 
         return NextResponse.json({
             success: true,
-            ...triageResult
+            ...triageResult,
+            riskLevel,
+            humanCareRecommended,
+            escalateToHumanPastor: humanCareRecommended,
+            boundaryNote: 'AI supports Scripture study, prayer wording, and reflection. It does not hold pastoral office, provide clinical care, deliver prophecy, or replace emergency services and accountable human support.',
         });
-    } catch (err: any) {
-        console.error('Triage route error:', err);
+    } catch (error: any) {
+        console.error('Triage route error:', error);
         return NextResponse.json({
             success: true,
             recommendedPersona: 'pastor',
-            triageReason: 'Default pastoral care assigned.',
-            initialResponse: 'Welcome. I am ready to listen and walk alongside you.',
+            triageReason: 'Fallback Scripture reflection mode.',
+            initialResponse: 'The intelligent guide is temporarily unavailable. You can still open Scripture, write a prayer, or request human pastoral follow-up.',
             suggestedVerses: ['John 14:27'],
+            riskLevel: 'normal',
+            humanCareRecommended: false,
             escalateToHumanPastor: false,
+            boundaryNote: 'AI support is informational and reflective only.',
         });
     }
 }
