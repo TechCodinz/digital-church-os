@@ -29,6 +29,10 @@ function safeDesignation(value: unknown) {
   return typeof value === 'string' && DESIGNATIONS.has(value) ? value : null;
 }
 
+function safeAnonymous(value: unknown) {
+  return value === 'true';
+}
+
 export async function POST(req: NextRequest) {
   const stripe = getStripe();
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -79,6 +83,7 @@ async function recordOffering(params: {
   currency: string;
   purpose: string;
   designation?: string | null;
+  anonymous?: boolean;
   recurring: boolean;
   recurringId?: string | null;
 }) {
@@ -95,6 +100,7 @@ async function recordOffering(params: {
       paymentMethod: 'stripe',
       transactionId: params.externalId,
       isRecurring: params.recurring,
+      isAnonymous: Boolean(params.anonymous),
       recurringId: params.recurringId || undefined,
       status: 'SUCCEEDED',
       metadata: designation ? { designation } : undefined,
@@ -144,6 +150,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     currency: paymentIntent.currency,
     purpose,
     designation: paymentIntent.metadata.designation,
+    anonymous: safeAnonymous(paymentIntent.metadata.anonymous),
     recurring: false,
   });
 
@@ -170,6 +177,7 @@ async function handleRecurringPayment(stripe: Stripe, invoice: Stripe.Invoice) {
     currency: invoice.currency,
     purpose,
     designation: subscription.metadata.designation,
+    anonymous: safeAnonymous(subscription.metadata.anonymous),
     recurring: true,
     recurringId: subscriptionId,
   });
