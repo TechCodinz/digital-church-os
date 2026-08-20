@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - security/next16-runtime-upgrade
+  pull_request:
+    branches:
+      - phase11-ministry-experience-enhancements
   workflow_dispatch:
 
 permissions:
