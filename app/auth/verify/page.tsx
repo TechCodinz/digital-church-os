@@ -1,11 +1,12 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Mail, Heart, CheckCircle, ArrowRight } from 'lucide-react';
+import { Mail, Heart, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
-export default function VerifyRequestPage() {
+function VerifyRequestContent() {
     const searchParams = useSearchParams();
     const email = searchParams.get('email') || 'your email';
 
@@ -24,7 +25,6 @@ export default function VerifyRequestPage() {
                 </div>
 
                 <div className="bg-white rounded-3xl shadow-sm border border-stone-100 p-8 text-center">
-                    {/* Email icon */}
                     <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
@@ -69,5 +69,26 @@ export default function VerifyRequestPage() {
                 </div>
             </motion.div>
         </div>
+    );
+}
+
+function VerifyRequestFallback() {
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-stone-50 via-cream-50 to-sage-50 flex items-center justify-center px-4">
+            <div className="w-full max-w-md text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-sage-500 rounded-2xl shadow-lg mb-4">
+                    <Heart className="w-8 h-8 text-white" />
+                </div>
+                <h1 className="text-2xl font-light text-stone-800">Digital Church OS</h1>
+            </div>
+        </div>
+    );
+}
+
+export default function VerifyRequestPage() {
+    return (
+        <Suspense fallback={<VerifyRequestFallback />}>
+            <VerifyRequestContent />
+        </Suspense>
     );
 }
