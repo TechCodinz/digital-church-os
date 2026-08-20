@@ -75,6 +75,7 @@ export function VoicePlayer({
     const audioUrlRef = useRef<string | null>(null);
     const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
     const isBrowserSpeech = useRef(false);
+    const autoPlayStartedRef = useRef(false);
 
     const stopAll = useCallback(() => {
         if (audioRef.current) {
@@ -218,8 +219,10 @@ export function VoicePlayer({
     }, [duration]);
 
     useEffect(() => {
-        if (autoPlay && status === 'idle') void handlePlay();
-    }, [autoPlay, status, handlePlay]);
+        if (!autoPlay || autoPlayStartedRef.current) return;
+        autoPlayStartedRef.current = true;
+        void handlePlay();
+    }, [autoPlay, handlePlay]);
 
     const isActive = status === 'playing' || status === 'paused';
     const isLoading = status === 'loading';
