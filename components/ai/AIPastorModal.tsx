@@ -45,11 +45,13 @@ function renderStructuredResponse(response: CompanionResponse | string | null | 
 
     const parts: string[] = [];
     const content = response.content;
+    const structuredScriptures = content?.scriptures;
+    const practicalSteps = content?.practicalSteps;
 
     if (content?.reflection) parts.push(content.reflection);
 
-    if (Array.isArray(content?.scriptures) && content.scriptures.length) {
-        const scriptureLines = content.scriptures
+    if (Array.isArray(structuredScriptures) && structuredScriptures.length) {
+        const scriptureLines = structuredScriptures
             .filter((item) => item?.reference)
             .map((item) => {
                 const detail = item.application ? ` — ${item.application}` : '';
@@ -58,8 +60,8 @@ function renderStructuredResponse(response: CompanionResponse | string | null | 
         if (scriptureLines.length) parts.push(scriptureLines.join('\n'));
     }
 
-    if (Array.isArray(content?.practicalSteps) && content.practicalSteps.length) {
-        parts.push(`Possible next steps:\n${content.practicalSteps.slice(0, 6).map((step, index) => `${index + 1}. ${step}`).join('\n')}`);
+    if (Array.isArray(practicalSteps) && practicalSteps.length) {
+        parts.push(`Possible next steps:\n${practicalSteps.slice(0, 6).map((step, index) => `${index + 1}. ${step}`).join('\n')}`);
     }
 
     // Backward-compatible rendering for older provider response shapes while the
