@@ -1,0 +1,51 @@
+name: Experience Verification
+
+on:
+  push:
+    branches:
+      - experience/cinematic-living-sanctuary-v2
+      - cursor/setup-cloud-agent-environment-f1ec
+  pull_request:
+    branches:
+      - cursor/setup-cloud-agent-environment-f1ec
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      NODE_ENV: production
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-secret-ci-secret-ci-secret-ci-secret
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/digital_church_os_ci
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/digital_church_os_ci
+
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --include=dev
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build optimized application
+        run: npm run build

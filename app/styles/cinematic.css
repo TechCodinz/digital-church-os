@@ -1,0 +1,230 @@
+/*
+ * Cinematic Living Sanctuary
+ * --------------------------
+ * Shared visual primitives for the immersive Digital Church OS experience.
+ * Motion remains decorative, GPU-friendly, and is disabled for users who
+ * prefer reduced motion.
+ */
+
+:root {
+  --sanctuary-gold: 245 201 120;
+  --sanctuary-emerald: 52 211 153;
+  --sanctuary-ink: 4 14 12;
+}
+
+::selection {
+  background: rgba(245, 201, 120, 0.28);
+  color: inherit;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+.sanctuary-cinematic-hero {
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(250, 215, 140, 0.16), transparent 18%),
+    radial-gradient(ellipse at 50% 14%, rgba(16, 185, 129, 0.18), transparent 48%),
+    linear-gradient(180deg, rgba(2, 9, 8, 0.96) 0%, rgba(4, 18, 15, 0.94) 53%, rgba(2, 6, 12, 0.98) 100%);
+}
+
+.sanctuary-cinematic-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.46;
+  background-image:
+    radial-gradient(circle at 13% 22%, rgba(255,255,255,.55) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 73% 18%, rgba(255,255,255,.34) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 86% 58%, rgba(255,255,255,.3) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 32% 74%, rgba(255,255,255,.2) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 58% 48%, rgba(255,255,255,.22) 0 1px, transparent 1.4px);
+  background-size: 240px 240px, 310px 310px, 280px 280px, 360px 360px, 420px 420px;
+}
+
+.sanctuary-light-column {
+  position: absolute;
+  z-index: -1;
+  top: -14%;
+  left: 50%;
+  width: min(30vw, 420px);
+  height: 90%;
+  transform: translateX(-50%) perspective(700px) rotateX(8deg);
+  background: linear-gradient(180deg, rgba(255, 231, 176, 0.22), rgba(111, 255, 205, 0.05) 58%, transparent 100%);
+  clip-path: polygon(43% 0, 57% 0, 90% 100%, 10% 100%);
+  filter: blur(14px);
+  animation: sacredLightBreath 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.sanctuary-nave {
+  position: absolute;
+  inset: 14% -10% -18%;
+  z-index: -2;
+  pointer-events: none;
+  opacity: 0.22;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 11.8%, rgba(245, 201, 120, 0.16) 12%, transparent 12.2% 24%),
+    repeating-linear-gradient(0deg, transparent 0 58px, rgba(255,255,255,0.025) 59px 60px);
+  transform: perspective(760px) rotateX(67deg) scale(1.45) translateY(18%);
+  transform-origin: center bottom;
+  mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 72%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 72%, transparent);
+}
+
+.sanctuary-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.56), transparent 24%, transparent 76%, rgba(0,0,0,.56)),
+    linear-gradient(180deg, transparent 62%, rgba(0,0,0,.58));
+}
+
+.sanctuary-radiance {
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 5%, rgba(245, 201, 120, 0.13), transparent 25%),
+    radial-gradient(circle at 18% 80%, rgba(16, 185, 129, 0.11), transparent 30%),
+    radial-gradient(circle at 82% 52%, rgba(56, 189, 248, 0.08), transparent 30%);
+}
+
+.sacred-panel-dark {
+  border-radius: 1.75rem;
+  border: 1px solid rgba(255,255,255,0.09);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.07), rgba(255,255,255,0.025)),
+    rgba(3, 12, 10, 0.66);
+  box-shadow:
+    0 30px 80px rgba(0,0,0,0.34),
+    inset 0 1px 0 rgba(255,255,255,0.05);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.sacred-panel-dark:hover {
+  border-color: rgba(245, 201, 120, 0.18);
+}
+
+.sacred-primary-button,
+.sacred-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 48px;
+  padding: 0.78rem 1.25rem;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  transition: transform 220ms ease, box-shadow 220ms ease, background-color 220ms ease, border-color 220ms ease;
+}
+
+.sacred-primary-button {
+  color: #07110f;
+  background: linear-gradient(135deg, #f5c978, #f7dfaa);
+  box-shadow: 0 16px 46px rgba(245, 201, 120, 0.19);
+}
+
+.sacred-primary-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 54px rgba(245, 201, 120, 0.28);
+}
+
+.sacred-secondary-button {
+  color: rgba(255,255,255,0.92);
+  border: 1px solid rgba(255,255,255,0.13);
+  background: rgba(255,255,255,0.055);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.sacred-secondary-button:hover {
+  transform: translateY(-2px);
+  border-color: rgba(245, 201, 120, 0.28);
+  background: rgba(255,255,255,0.085);
+}
+
+.presence-orbit {
+  position: absolute;
+  inset: -18%;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 201, 120, 0.08);
+  box-shadow:
+    0 0 0 54px rgba(52,211,153,0.018),
+    0 0 0 108px rgba(245,201,120,0.012);
+  animation: presenceOrbit 18s linear infinite;
+  pointer-events: none;
+}
+
+.sacred-focus-ring:focus-visible,
+.sacred-primary-button:focus-visible,
+.sacred-secondary-button:focus-visible {
+  outline: 3px solid rgba(245, 201, 120, 0.72);
+  outline-offset: 4px;
+}
+
+.sanctuary-page-shell {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.sanctuary-page-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(245,201,120,0.08), transparent 31%),
+    radial-gradient(circle at 10% 35%, rgba(16,185,129,0.07), transparent 26%);
+}
+
+.sanctuary-section-label {
+  font-size: 0.68rem;
+  line-height: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.23em;
+  font-weight: 700;
+}
+
+.sanctuary-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(245,201,120,0.24), transparent);
+}
+
+@keyframes sacredLightBreath {
+  0%, 100% { opacity: 0.62; transform: translateX(-50%) perspective(700px) rotateX(8deg) scaleX(0.94); }
+  50% { opacity: 1; transform: translateX(-50%) perspective(700px) rotateX(8deg) scaleX(1.08); }
+}
+
+@keyframes presenceOrbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 767px) {
+  .sanctuary-light-column {
+    width: 74vw;
+    opacity: 0.72;
+  }
+
+  .sanctuary-cinematic-hero::before {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sanctuary-light-column,
+  .presence-orbit {
+    animation: none !important;
+  }
+
+  .sacred-primary-button,
+  .sacred-secondary-button {
+    transition: none !important;
+  }
+}
