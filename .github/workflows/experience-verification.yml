@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - experience/cinematic-living-sanctuary-v2
+      - cursor/setup-cloud-agent-environment-f1ec
   pull_request:
     branches:
       - cursor/setup-cloud-agent-environment-f1ec
+      - main
   workflow_dispatch:
 
 permissions:
