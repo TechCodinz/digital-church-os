@@ -9,11 +9,8 @@ on:
       - phase11-ministry-experience-enhancements
   workflow_dispatch:
 
-# This temporary migration workflow may write only the npm-resolved lockfile,
-# and only from a direct push run on the dedicated upgrade branch. PR runs
-# never execute the write step.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   probe:
@@ -56,34 +53,21 @@ jobs:
           node-version: 20.20.2
           cache: npm
 
-      - name: Resolve exact upgraded dependency graph
+      - name: Verify committed dependency graph is resolvable
         run: |
           set -euo pipefail
-          npm install --package-lock-only --include=dev --ignore-scripts
           cp package-lock.json /tmp/next16-package-lock.json
+          npm install --package-lock-only --include=dev --ignore-scripts
+          git diff --exit-code -- package-lock.json
 
-      - name: Commit exact resolver-produced lockfile
-        if: github.event_name == 'push' && github.ref == 'refs/heads/security/next16-runtime-upgrade'
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- package-lock.json; then
-            echo "package-lock.json already matches the resolved graph."
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add package-lock.json
-          git commit -m 'Resolve exact Next 16 dependency lockfile'
-          git push origin HEAD:security/next16-runtime-upgrade
-
-      - name: Install exact resolved graph
+      - name: Install exact committed graph
         run: npm ci --include=dev
 
       - name: Capture dependency security snapshot
         if: always()
         run: npm audit --json > /tmp/next16-audit.json || true
 
-      - name: Upload resolved lock and audit snapshot
+      - name: Upload lock and audit snapshot
         if: always()
         uses: actions/upload-artifact@v4
         with:
