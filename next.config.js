@@ -39,13 +39,8 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
-  transpilePackages: ['undici', '@vercel/blob'],
-  experimental: {
-    serverComponentsExternalPackages: ['undici'],
-  },
+  transpilePackages: ['@vercel/blob'],
+  serverExternalPackages: ['undici'],
   async headers() {
     return [
       {

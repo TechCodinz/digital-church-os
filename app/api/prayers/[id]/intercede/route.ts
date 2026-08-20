@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { AuditLogger } from '@/lib/audit/logger';
 import { getClientKey, rateLimit, rateLimitHeaders } from '@/lib/security/rate-limit';
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: 'Sign in to record an intercession.' }, { status: 401 });
 
@@ -15,8 +15,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   try {
+    const { id } = await params;
     const prayer = await prisma.prayerRequest.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, visibility: true, userId: true, isAnswered: true },
     });
     if (!prayer) return NextResponse.json({ error: 'Prayer request not found.' }, { status: 404, headers: rateLimitHeaders(limit) });

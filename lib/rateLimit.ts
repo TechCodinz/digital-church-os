@@ -7,9 +7,22 @@ interface RateLimitConfig {
 
 const rateLimits = new Map<string, { count: number; resetTime: number }>();
 
+function getRequestIp(req: NextRequest): string {
+  const vercelForwardedFor = req.headers.get('x-vercel-forwarded-for');
+  if (vercelForwardedFor) return vercelForwardedFor.split(',')[0]?.trim() || 'unknown';
+
+  const realIp = req.headers.get('x-real-ip');
+  if (realIp) return realIp.trim();
+
+  const forwardedFor = req.headers.get('x-forwarded-for');
+  if (forwardedFor) return forwardedFor.split(',')[0]?.trim() || 'unknown';
+
+  return 'unknown';
+}
+
 export function rateLimit(config: RateLimitConfig) {
   return async (req: NextRequest) => {
-    const ip = req.ip || req.headers.get('x-forwarded-for') || 'unknown';
+    const ip = getRequestIp(req);
     const key = `${ip}:${req.nextUrl.pathname}`;
     
     const now = Date.now();

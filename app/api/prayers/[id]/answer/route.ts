@@ -3,17 +3,18 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: 'Sign in to update your prayer request.' }, { status: 401 });
 
   try {
+    const { id } = await params;
     const body = await request.json().catch(() => ({}));
     const answered = body?.answered === true;
     const gratitude = typeof body?.gratitude === 'string' ? body.gratitude.trim().slice(0, 2400) : '';
 
     const prayer = await prisma.prayerRequest.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, userId: true, title: true, content: true, isAnswered: true },
     });
     if (!prayer) return NextResponse.json({ error: 'Prayer request not found.' }, { status: 404 });
