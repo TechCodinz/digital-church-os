@@ -1,12 +1,19 @@
 import { NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
+import { findVersesForQuery } from '@/lib/ai/shared/offlineWisdom';
+
+const AGE_GROUPS = new Set(['toddlers', 'elementary', 'youth', 'adults']);
+const DURATIONS = new Set(['30 mins', '45 mins', '60 mins', '90 mins (Full Workshop)']);
 
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { ageGroup = 'elementary', topic = 'Courage & Trusting God (David and Goliath)', duration = '45 mins' } = body;
+        const ageGroup = AGE_GROUPS.has(body?.ageGroup) ? body.ageGroup : 'elementary';
+        const topic = typeof body?.topic === 'string' && body.topic.trim() ? body.topic.trim().slice(0, 500) : 'Courage and trust';
+        const duration = DURATIONS.has(body?.duration) ? body.duration : '45 mins';
 
         let lessonPlan: any = null;
+        let generatedBy: 'openai' | 'offline-template' = 'offline-template';
 
         if (process.env.OPENAI_API_KEY) {
             try {
@@ -16,77 +23,86 @@ export async function POST(req: Request) {
                     messages: [
                         {
                             role: 'system',
-                            content: `You are an Anointed Sunday School Curriculum Author & Pedagogy Specialist.
-                            Generate a Sunday School Lesson Plan tailored specifically for age group: "${ageGroup}".
-                            Return JSON:
-                            {
-                                "title": "string",
-                                "targetAgeGroup": "string",
-                                "memoryVerse": "string",
-                                "teacherPrepChecklist": ["string"],
-                                "objectLesson": {
-                                    "materials": ["string"],
-                                    "instructions": "string"
-                                },
-                                "storyScript": "string (narrative script for teacher)",
-                                "activityCraft": {
-                                    "name": "string",
-                                    "steps": ["string"]
-                                },
-                                "discussionQuestions": ["string"]
-                            }`
+                            content: `You are an adult-facing Christian lesson-planning assistant for teachers and parents. You are NOT speaking directly to a child and must not ask children to keep secrets, disclose private information, contact the AI, or rely on the AI instead of trusted adults.
+
+Create an age-appropriate church lesson draft for age group: ${ageGroup}.
+
+Rules:
+- This is a teacher draft requiring adult review before use.
+- Use Scripture REFERENCES instead of silently inventing Bible quotations.
+- Avoid frightening spiritual-warfare, demon, punishment, or graphic violence framing for children.
+- Do not diagnose children or promise healing, protection, prosperity, or divine outcomes.
+- Activities must be physically age-safe and avoid weapons, fire, sharp tools, choking hazards, or unsafe demonstrations. Flag ordinary craft supplies that need adult supervision.
+- Do not imitate copyrighted curriculum or named creators.
+- Include a safeguarding note for the adult leader.
+
+Return JSON exactly:
+{
+  "title": "string",
+  "targetAgeGroup": "string",
+  "scriptureReference": "Book Chapter:Verse",
+  "teacherPrepChecklist": ["string"],
+  "objectLesson": {"materials": ["string"], "instructions": "string"},
+  "storyScript": "teacher-facing narrative draft",
+  "activityCraft": {"name": "string", "steps": ["string"]},
+  "discussionQuestions": ["string"],
+  "safeguardingNote": "string"
+}`
                         },
-                        {
-                            role: 'user',
-                            content: `Topic: ${topic}, Duration: ${duration}`
-                        }
+                        { role: 'user', content: `Topic or Scripture direction: ${topic}. Duration: ${duration}.` }
                     ],
                     response_format: { type: 'json_object' },
-                    temperature: 0.6,
+                    temperature: 0.45,
                 });
 
                 lessonPlan = JSON.parse(response.choices[0]?.message?.content || '{}');
-            } catch (err) {
-                console.error('Lesson plan AI error:', err);
+                if (lessonPlan?.title) generatedBy = 'openai';
+            } catch (error) {
+                console.error('Lesson plan AI error:', error);
             }
         }
 
-        if (!lessonPlan || !lessonPlan.title) {
+        if (!lessonPlan?.title) {
+            const scriptureReference = findVersesForQuery(topic, 1)[0]?.reference || 'Psalm 56:3';
             lessonPlan = {
-                title: `Sunday School Masterclass: ${topic}`,
+                title: `Teacher Draft — ${topic.slice(0, 90)}`,
                 targetAgeGroup: ageGroup.toUpperCase(),
-                memoryVerse: '1 Samuel 17:47 — The battle is the LORD’s.',
+                scriptureReference,
                 teacherPrepChecklist: [
-                    'Print out memory verse coloring sheets',
-                    'Gather 5 smooth river stones and a sling demonstration rope',
-                    'Set up audio player for praise songs'
+                    `Read ${scriptureReference} in the translation used by your church or family.`,
+                    'Review the lesson for age, reading level, denominational fit, accessibility, and any child-specific needs.',
+                    'Prepare paper, washable markers or crayons, and other age-appropriate supplies with adult supervision.'
                 ],
                 objectLesson: {
-                    materials: ['5 smooth river stones', '1 heavy bag or backpack'],
-                    instructions: 'Fill a backpack with rocks representing fears (spiders, dark, failure). Show how trusting God removes the heavy burden.'
+                    materials: ['Paper', 'Washable markers or crayons'],
+                    instructions: 'Invite learners to draw or write one situation where courage or trust matters. The adult leader connects their examples back to the Scripture reference without pressuring anyone to disclose private experiences.'
                 },
-                storyScript: 'Long ago in ancient Israel, a young shepherd boy named David trusted God when everyone else was afraid. While the army trembled before Goliath, David knew God was bigger than any giant!',
+                storyScript: `Introduce the biblical topic in your own words after reading ${scriptureReference}. Ask what learners notice in the text, then connect courage or trust to ordinary age-appropriate choices without promising that faithful people will avoid hardship.`,
                 activityCraft: {
-                    name: 'Paper Armor of God & David’s Pouch',
+                    name: 'Courage & Care Reminder Card',
                     steps: [
-                        'Fold brown paper into a pouch shape and staple edges.',
-                        'Write 5 stones of faith on paper rocks (Trust, Prayer, Scripture, Worship, Love).',
-                        'Place faith rocks inside the pouch.'
+                        'Fold a sheet of paper into a small card.',
+                        `Write ${scriptureReference} on the front as a reference to read together.`,
+                        'Inside, write or draw one wise action and one trusted adult the learner can talk to when something feels difficult.'
                     ]
                 },
                 discussionQuestions: [
-                    'What is a "giant" or fear you faced this week?',
-                    'How did David show courage even when others doubted him?',
-                    'How can we pray for each other when we feel afraid?'
-                ]
+                    'What do you notice in the Scripture passage?',
+                    'What can courage look like in an ordinary day?',
+                    'Who are trusted adults you can ask for help when something feels unsafe or confusing?'
+                ],
+                safeguardingNote: 'Adult leaders should keep conversations age-appropriate, avoid pressuring disclosures, follow the church or organization safeguarding policy, and respond to safety concerns through the appropriate responsible adults and reporting channels.'
             };
         }
 
         return NextResponse.json({
             success: true,
-            ...lessonPlan
+            generatedBy,
+            draftStatus: 'ADULT_REVIEW_REQUIRED',
+            boundaryNote: 'This is an adult-facing lesson-planning draft, not direct child counseling, Scripture itself, prophecy, or a substitute for safeguarding procedures and responsible adult supervision.',
+            ...lessonPlan,
         });
-    } catch (err: any) {
-        return NextResponse.json({ success: false, error: err.message || 'Lesson plan failed' }, { status: 500 });
+    } catch (error: any) {
+        return NextResponse.json({ success: false, error: error?.message || 'Lesson plan failed' }, { status: 500 });
     }
 }
