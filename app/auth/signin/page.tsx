@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mail, Chrome, Heart, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function SignInPage() {
+function SignInContent() {
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
     const error = searchParams.get('error');
@@ -153,5 +153,26 @@ export default function SignInPage() {
                 </p>
             </div>
         </div>
+    );
+}
+
+function SignInFallback() {
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-stone-50 via-cream-50 to-sage-50 flex items-center justify-center px-4">
+            <div className="w-full max-w-md text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-sage-500 rounded-2xl shadow-lg mb-4">
+                    <Heart className="w-8 h-8 text-white" />
+                </div>
+                <h1 className="text-3xl font-light text-stone-800">Digital Church OS</h1>
+            </div>
+        </div>
+    );
+}
+
+export default function SignInPage() {
+    return (
+        <Suspense fallback={<SignInFallback />}>
+            <SignInContent />
+        </Suspense>
     );
 }
