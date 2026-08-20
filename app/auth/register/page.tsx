@@ -2,18 +2,29 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, User, Mail, Lock, ArrowRight, Loader2, ShieldCheck } from 'lucide-react';
+import {
+    ArrowRight,
+    Loader2,
+    LockKeyhole,
+    Mail,
+    ShieldCheck,
+    Sparkles,
+    User,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuthRuntime } from '@/app/providers';
 
 export default function RegisterPage() {
     const router = useRouter();
+    const { configured } = useAuthRuntime();
     const [formData, setFormData] = useState({ name: '', email: '', password: '' });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!configured) return;
         setError('');
         setIsLoading(true);
 
@@ -25,11 +36,10 @@ export default function RegisterPage() {
             });
 
             const data = await res.json();
-
             if (!res.ok) {
                 const detail = data.details?.fieldErrors
-                  ? Object.values(data.details.fieldErrors).flat().join(' ')
-                  : '';
+                    ? Object.values(data.details.fieldErrors).flat().join(' ')
+                    : '';
                 throw new Error(detail || data.message || 'Failed to register');
             }
 
@@ -42,87 +52,102 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-stone-50 via-cream-50 to-sage-50 flex items-center justify-center px-4 py-12">
-            <div className="w-full max-w-md">
-                <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-10">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-sage-500 rounded-2xl shadow-lg mb-4">
-                        <Heart className="w-8 h-8 text-white" />
+        <div className="sanctuary-auth-shell">
+            <div className="sanctuary-light-column" aria-hidden="true" />
+            <div className="sanctuary-nave" aria-hidden="true" />
+            <div className="sanctuary-vignette" aria-hidden="true" />
+
+            <div className="relative z-10 mx-auto grid w-full max-w-5xl gap-8 lg:grid-cols-[0.8fr_1fr] lg:items-center">
+                <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
+                    <div className="inline-flex items-center rounded-full border border-amber-200/20 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-100 backdrop-blur-xl">
+                        <Sparkles className="mr-2 h-4 w-4" /> Begin your sanctuary journey
                     </div>
-                    <h1 className="text-3xl font-light text-stone-800">Join the Community</h1>
-                    <p className="text-stone-500 mt-2 text-sm">Create your Digital Church OS account</p>
+                    <h1 className="mt-6 text-5xl font-light leading-[1.03] text-white sm:text-6xl">Create a private member space without turning faith into a score.</h1>
+                    <p className="mt-5 max-w-xl text-base leading-8 text-white/55">Your account can hold intentional reflections, prayer memory, formation notes and church-workspace access. Sensitive records stay protected behind authenticated boundaries.</p>
+                    <div className="mt-7 rounded-2xl border border-white/8 bg-white/[0.035] p-5 text-xs leading-6 text-white/42">
+                        <ShieldCheck className="mb-3 h-5 w-5 text-emerald-200" />
+                        Activity, giving, attendance and prayer frequency are not used as holiness, favor or spiritual-rank measurements.
+                    </div>
                 </motion.div>
 
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-3xl shadow-sm border border-stone-100 p-8">
-                    {error && (
-                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-sm text-red-700">
-                            {error}
+                <motion.div initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="sanctuary-auth-card rounded-[2rem] p-6 sm:p-8">
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <p className="sanctuary-section-label text-emerald-200/60">Member account</p>
+                            <h2 className="mt-2 text-3xl font-light text-white">Create your account</h2>
+                            <p className="mt-2 text-sm leading-6 text-white/42">Use an email address you can access and a unique password.</p>
+                        </div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-200/15 bg-amber-100/8 text-amber-100">
+                            <LockKeyhole className="h-5 w-5" />
+                        </div>
+                    </div>
+
+                    {!configured && (
+                        <div className="mt-6 rounded-2xl border border-amber-200/20 bg-amber-100/8 p-4 text-sm leading-6 text-amber-50">
+                            Account creation is temporarily paused until production authentication is configured. Public sanctuary spaces remain available.
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-stone-600 mb-1.5 flex items-center gap-2">
-                                <User className="w-4 h-4" /> Full Name
-                            </label>
+                    {error && (
+                        <div className="mt-6 rounded-2xl border border-rose-200/20 bg-rose-300/8 p-4 text-sm text-rose-100">{error}</div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+                        <label className="block">
+                            <span className="mb-2 flex items-center gap-2 text-xs font-semibold text-white/55"><User className="h-4 w-4" /> Full name</span>
                             <input
                                 type="text"
                                 required
+                                disabled={!configured}
                                 value={formData.name}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                placeholder="John Doe"
-                                className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sage-200 text-sm"
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                placeholder="Your name"
+                                className="w-full rounded-2xl border border-white/10 bg-black/15 px-4 py-3.5 text-sm text-white outline-none placeholder:text-white/24 focus:border-amber-200/30 focus:ring-2 focus:ring-amber-200/10 disabled:opacity-40"
                             />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-stone-600 mb-1.5 flex items-center gap-2">
-                                <Mail className="w-4 h-4" /> Email Address
-                            </label>
+                        </label>
+
+                        <label className="block">
+                            <span className="mb-2 flex items-center gap-2 text-xs font-semibold text-white/55"><Mail className="h-4 w-4" /> Email address</span>
                             <input
                                 type="email"
                                 required
+                                disabled={!configured}
                                 value={formData.email}
-                                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                 placeholder="you@example.com"
-                                className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sage-200 text-sm"
+                                className="w-full rounded-2xl border border-white/10 bg-black/15 px-4 py-3.5 text-sm text-white outline-none placeholder:text-white/24 focus:border-amber-200/30 focus:ring-2 focus:ring-amber-200/10 disabled:opacity-40"
                             />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-stone-600 mb-1.5 flex items-center gap-2">
-                                <Lock className="w-4 h-4" /> Password
-                            </label>
+                        </label>
+
+                        <label className="block">
+                            <span className="mb-2 flex items-center gap-2 text-xs font-semibold text-white/55"><LockKeyhole className="h-4 w-4" /> Password</span>
                             <input
                                 type="password"
                                 required
                                 minLength={8}
+                                disabled={!configured}
                                 value={formData.password}
-                                onChange={e => setFormData({ ...formData, password: e.target.value })}
-                                placeholder="At least 8 characters with letters and numbers"
-                                className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sage-200 text-sm"
+                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                placeholder="At least 8 characters"
+                                className="w-full rounded-2xl border border-white/10 bg-black/15 px-4 py-3.5 text-sm text-white outline-none placeholder:text-white/24 focus:border-amber-200/30 focus:ring-2 focus:ring-amber-200/10 disabled:opacity-40"
                             />
-                            <p className="mt-1 text-xs text-stone-400">Use at least 8 characters with one letter and one number.</p>
-                        </div>
+                            <span className="mt-2 block text-[10px] leading-5 text-white/28">Use at least 8 characters with a letter and a number.</span>
+                        </label>
 
                         <button
                             type="submit"
-                            disabled={isLoading}
-                            className="w-full py-3.5 mt-2 bg-sage-500 text-white rounded-xl font-medium hover:bg-sage-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            disabled={isLoading || !configured}
+                            className="flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-200 to-amber-100 px-4 py-3.5 text-sm font-bold text-[#07110f] transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
                         >
-                            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Create Account <ArrowRight className="w-4 h-4" /></>}
+                            {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Create Account <ArrowRight className="h-4 w-4" /></>}
                         </button>
                     </form>
 
-                    <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-stone-400">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                        Your account uses protected password hashing and guarded sessions.
-                    </div>
+                    <p className="mt-6 text-center text-sm text-white/40">
+                        Already have an account?{' '}
+                        <Link href="/auth/signin" className="font-semibold text-emerald-200 hover:text-emerald-100">Sign in</Link>
+                    </p>
                 </motion.div>
-
-                <p className="text-center text-sm text-stone-500 mt-8">
-                    Already have an account?{' '}
-                    <Link href="/auth/signin" className="text-sage-600 font-medium hover:underline">
-                        Sign In
-                    </Link>
-                </p>
             </div>
         </div>
     );
