@@ -39,7 +39,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  transpilePackages: ['undici', '@vercel/blob'],
+  transpilePackages: ['@vercel/blob'],
   serverExternalPackages: ['undici'],
   async headers() {
     return [
