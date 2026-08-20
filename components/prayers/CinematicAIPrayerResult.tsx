@@ -122,9 +122,15 @@ export function CinematicAIPrayerResult({
 
                 <div className="border-t border-white/10 pt-6">
                     <div className="grid gap-5 md:grid-cols-[1fr_auto] md:items-center">
-                        <VoicePlayer text={String(prayerText || '')} context="prayer" emotion="tender" label="Listen to prayer draft" />
+                        <VoicePlayer
+                            text={String(prayerText || '')}
+                            context="prayer"
+                            emotion="tender"
+                            label="Listen on this device"
+                            localOnly
+                        />
                         <div className="max-w-sm text-[10px] leading-5 text-white/42">
-                            <p className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-200" /><span>{note || 'Generated for reflection. Review it against Scripture and use human pastoral care when you need a person.'}</span></p>
+                            <p className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-200" /><span>{note || 'Generated for reflection. Review it against Scripture and use human pastoral care when you need a person.'} Narration stays on this device.</span></p>
                         </div>
                     </div>
                 </div>
