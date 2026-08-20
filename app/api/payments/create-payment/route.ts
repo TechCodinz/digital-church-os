@@ -14,6 +14,7 @@ const PaymentSchema = z.object({
     'CHILDREN_YOUTH',
     'WORSHIP_MEDIA',
   ]).optional(),
+  isAnonymous: z.boolean().optional().default(false),
   isRecurring: z.boolean().optional().default(false),
   currency: z.enum(['usd']).optional().default('usd'),
 });
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid giving request.', details: validation.error.flatten() }, { status: 400 });
     }
 
-    const { amount, purpose, designation, isRecurring, currency } = validation.data;
+    const { amount, purpose, designation, isAnonymous, isRecurring, currency } = validation.data;
     const unitAmount = Math.round(amount * 100);
     const baseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin;
     const label = purpose === 'COMMUNITY_AID'
@@ -50,7 +51,11 @@ export async function POST(req: Request) {
         ? 'Conference Support'
         : 'Platform Upkeep';
 
-    const metadata: Record<string, string> = { userId, purpose };
+    const metadata: Record<string, string> = {
+      userId,
+      purpose,
+      anonymous: isAnonymous ? 'true' : 'false',
+    };
     if (designation) metadata.designation = designation;
 
     const checkout = await stripe.checkout.sessions.create({
@@ -82,6 +87,7 @@ export async function POST(req: Request) {
       provider: 'stripe',
       mode: isRecurring ? 'subscription' : 'payment',
       designation: designation || null,
+      anonymous: isAnonymous,
       url: checkout.url,
     });
   } catch (error) {
