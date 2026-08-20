@@ -13,26 +13,18 @@ interface BibleVerse {
 }
 
 export class ScriptureLoader {
-    private pinecone: Pinecone | null = null;
-    private embeddings: OpenAIEmbeddings | null = null;
+    private pinecone: Pinecone;
+    private embeddings: OpenAIEmbeddings;
 
-    private getPinecone(): Pinecone {
-        if (!this.pinecone) {
-            this.pinecone = new Pinecone({
-                apiKey: process.env.PINECONE_API_KEY || 'dummy-key',
-            });
-        }
-        return this.pinecone;
-    }
+    constructor() {
+        this.pinecone = new Pinecone({
+            apiKey: process.env.PINECONE_API_KEY!,
+        });
 
-    private getEmbeddings(): OpenAIEmbeddings {
-        if (!this.embeddings) {
-            this.embeddings = new OpenAIEmbeddings({
-                openAIApiKey: process.env.OPENAI_API_KEY || 'dummy-key',
-                modelName: 'text-embedding-3-small',
-            });
-        }
-        return this.embeddings;
+        this.embeddings = new OpenAIEmbeddings({
+            openAIApiKey: process.env.OPENAI_API_KEY,
+            modelName: 'text-embedding-3-small',
+        });
     }
 
     async loadBibleToVectorDB() {
@@ -44,65 +36,94 @@ export class ScriptureLoader {
         }
 
         const bibleData = JSON.parse(fs.readFileSync(biblePath, 'utf-8'));
-        const index = this.getPinecone().index(process.env.PINECONE_INDEX || 'scripture');
+        const index = this.pinecone.index(process.env.PINECONE_INDEX || 'scripture');
 
-        // Batch embed & upload
-        const batchSize = 100;
-        for (let i = 0; i < bibleData.length; i += batchSize) {
-            const batch = bibleData.slice(i, i + batchSize);
+        // 2. Process each verse
+        for (const book of bibleData.books) {
+            for (const chapter of book.chapters) {
+                for (const verse of chapter.verses) {
+                    const reference = `${book.name} ${chapter.chapter}:${verse.verse}`;
 
-            const vectors = await Promise.all(batch.map(async (v: BibleVerse) => {
-                const embedding = await this.getEmbeddings().embedQuery(`${v.reference}: ${v.text}`);
+                    // Create embedding for this verse
+                    const embedding = await this.embeddings.embedQuery(verse.text);
 
-                return {
-                    id: v.reference.replace(/\s+/g, '-'),
-                    values: embedding,
-                    metadata: {
-                        reference: v.reference,
-                        text: v.text,
-                        book: v.book,
-                        chapter: v.chapter,
-                        verse: v.verse,
-                        translation: v.translation
-                    }
-                };
-            }));
+                    // Store in Pinecone
+                    await index.upsert({
+                        records: [{
+                            id: `${book.name}_${chapter.chapter}_${verse.verse}`,
+                            values: embedding,
+                            metadata: {
+                                reference,
+                                text: verse.text,
+                                book: book.name,
+                                chapter: chapter.chapter,
+                                verse: verse.verse,
+                                translation: 'KJV',
+                            },
+                        }]
+                    });
 
-            await index.upsert(vectors as any);
-            console.log(`Uploaded batch ${i / batchSize + 1} of ${Math.ceil(bibleData.length / batchSize)}`);
+                    console.log(`Loaded: ${reference}`);
+                }
+            }
         }
     }
 
-    async searchScripture(query: string, topK: number = 5) {
-        const queryEmbedding = await this.getEmbeddings().embedQuery(query);
-        const index = this.getPinecone().index(process.env.PINECONE_INDEX || 'scripture');
+    async semanticSearch(query: string, limit: number = 10): Promise<BibleVerse[]> {
+        const index = this.pinecone.index(process.env.PINECONE_INDEX || 'scripture');
 
-        const searchResults = await index.query({
+        // Create query embedding
+        const queryEmbedding = await this.embeddings.embedQuery(query);
+
+        // Search
+        const results = await index.query({
             vector: queryEmbedding,
-            topK,
-            includeMetadata: true
+            topK: limit,
+            includeMetadata: true,
         });
 
-        return searchResults.matches.map(m => ({
-            reference: m.metadata?.reference,
-            text: m.metadata?.text,
-            score: m.score
+        return results.matches.map((match: any) => ({
+            reference: match.metadata?.reference as string,
+            text: match.metadata?.text as string,
+            book: match.metadata?.book as string,
+            chapter: match.metadata?.chapter as number,
+            verse: match.metadata?.verse as number,
+            translation: match.metadata?.translation as string,
         }));
     }
 
-    async semanticSearch(query: string, topK: number = 5) {
-        return this.searchScripture(query, topK);
+    async getVerse(reference: string): Promise<BibleVerse | null> {
+        const index = this.pinecone.index(process.env.PINECONE_INDEX || 'scripture');
+
+        // References are stored in metadata, but IDs are book_chapter_verse
+        // We can search by metadata or fetch by ID if we normalize the reference
+        const normalizedId = reference.replace(/\s+/g, '_').replace(/:/g, '_');
+
+        try {
+            const result = await index.fetch({ ids: [normalizedId] });
+            if (result.records[normalizedId]) {
+                const metadata = result.records[normalizedId].metadata;
+                return {
+                    reference: metadata?.reference as string,
+                    text: metadata?.text as string,
+                    book: metadata?.book as string,
+                    chapter: metadata?.chapter as number,
+                    verse: metadata?.verse as number,
+                    translation: metadata?.translation as string,
+                };
+            }
+        } catch (error) {
+            console.error('Failed to fetch explicit verse:', reference, error);
+        }
+        return null;
     }
 
-    async getVerse(reference: string): Promise<{ text: string; reference: string } | null> {
-        // Simple mock verse lookup for demonstration if vector DB not populated
-        return {
-            reference,
-            text: "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
-        };
-    }
-
-    async getVerses(references: string[]): Promise<({ text: string; reference: string } | null)[]> {
-        return Promise.all(references.map(r => this.getVerse(r)));
+    async getVerses(references: string[]): Promise<BibleVerse[]> {
+        const verses: BibleVerse[] = [];
+        for (const ref of references) {
+            const verse = await this.getVerse(ref);
+            if (verse) verses.push(verse);
+        }
+        return verses;
     }
 }

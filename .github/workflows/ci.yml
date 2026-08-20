@@ -1,0 +1,113 @@
+name: Production Verification
+
+on:
+  pull_request:
+    branches:
+      - main
+      - production/ultra-route-hardening
+      - phase11-ministry-experience-enhancements
+  push:
+    branches:
+      - main
+      - production/ultra-route-hardening
+      - phase11-ministry-experience-enhancements
+      - 'reconcile/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      NODE_ENV: production
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-secret-ci-secret-ci-secret-ci-secret
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/digital_church_os_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/digital_church_os_test
+      STAGING_SEED_PASSWORD: 'CI-Staging-1234!'
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: digital_church_os_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --include=dev
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Apply migrations to fresh CI database
+        run: npx prisma migrate deploy
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Runtime smoke on fresh migrated database
+        run: |
+          set -euo pipefail
+          npm run db:seed:staging
+
+          npm start > /tmp/digital-church-os-next.log 2>&1 &
+          APP_PID=$!
+          trap 'kill "$APP_PID" >/dev/null 2>&1 || true' EXIT
+
+          READY=0
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://localhost:3000/ >/dev/null; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$READY" -ne 1 ]; then
+            echo "Next.js server did not become ready."
+            cat /tmp/digital-church-os-next.log
+            exit 1
+          fi
+
+          if ! npm run smoke:staging; then
+            echo "Legacy staging smoke failed."
+            cat /tmp/digital-church-os-next.log
+            exit 1
+          fi
+
+          if ! npm run smoke:phase11; then
+            echo "Phase 11 runtime smoke failed."
+            cat /tmp/digital-church-os-next.log
+            exit 1
+          fi

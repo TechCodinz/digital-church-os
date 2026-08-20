@@ -1,92 +1,88 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export const dynamic = 'force-dynamic';
-
 export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
-        const period = searchParams.get('period');
+        const period = searchParams.get('period'); // e.g. "2024-Q1"
 
+        // In a real app, you would fetch the report for the period.
+        // Here we generate an aggregate report dynamically.
+
+        // Base date filtering (e.g., last 30 days if no period)
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - 30);
-        const dateFilter = period ? {} : { gte: startDate };
 
-        let totalOfferings = 0;
-        let totalAidDistributed = 0;
-        let categories: Record<string, number> = {};
-        let approvedCount = 0;
-        let pendingCount = 0;
+        const DateFilter = period ? {} : { gte: startDate };
 
-        try {
-            const offerings = await prisma.offering.aggregate({
-                where: { purpose: 'COMMUNITY_AID', createdAt: dateFilter as any },
-                _sum: { amount: true },
-            });
-            totalOfferings = offerings._sum.amount || 0;
+        // 1. Calculate Total Offerings (COMMUNITY_AID specific)
+        const offerings = await prisma.offering.aggregate({
+            where: {
+                purpose: 'COMMUNITY_AID',
+                createdAt: DateFilter as any,
+            },
+            _sum: {
+                amount: true,
+            },
+        });
 
-            const allocations = await prisma.aidAllocation.aggregate({
-                where: { createdAt: dateFilter as any },
-                _sum: { amount: true },
-            });
-            totalAidDistributed = allocations._sum.amount || 0;
+        // 2. Calculate Distributed Aid
+        const allocations = await prisma.aidAllocation.aggregate({
+            where: {
+                createdAt: DateFilter as any,
+            },
+            _sum: {
+                amount: true,
+            },
+        });
 
-            const requests = await prisma.aidRequest.findMany({
-                where: { status: { in: ['APPROVED', 'DISBURSED'] }, updatedAt: dateFilter as any },
-                select: { category: true, amount: true }
-            });
+        // 3. Breakdown by category
+        const categoryBreakdown = await prisma.aidAllocation.groupBy({
+            by: ['requestId'], // We need to join to get category, this is a simplified group
+        });
 
-            requests.forEach((r: any) => {
-                categories[r.category] = (categories[r.category] || 0) + (r.amount || 0);
-            });
+        // More realistic approach for reporting:
+        const requests = await prisma.aidRequest.findMany({
+            where: {
+                status: { in: ['APPROVED', 'DISBURSED'] },
+                updatedAt: DateFilter as any,
+            },
+            select: {
+                category: true,
+                amount: true,
+            }
+        });
 
-            approvedCount = await prisma.aidRequest.count({ where: { status: 'APPROVED' } });
-            pendingCount = await prisma.aidRequest.count({ where: { status: 'PENDING' } });
-        } catch (dbErr) {
-            console.warn('DB transparency query fallback mode activated', dbErr);
-        }
+        const categories: Record<string, number> = {};
+        requests.forEach((r: any) => {
+            categories[r.category] = (categories[r.category] || 0) + r.amount;
+        });
 
-        // Apply realistic fallback defaults for demonstration
-        if (totalOfferings === 0) totalOfferings = 148250;
-        if (totalAidDistributed === 0) totalAidDistributed = 142100;
-        if (Object.keys(categories).length === 0) {
-            categories = {
-                MEDICAL: 48500,
-                HOUSING: 36200,
-                FOOD: 28400,
-                UTILITIES: 16800,
-                EMERGENCY: 12200,
-            };
-        }
-        if (approvedCount === 0) approvedCount = 142;
-        if (pendingCount === 0) pendingCount = 8;
+        // 4. Counts
+        const approvedCount = await prisma.aidRequest.count({
+            where: { status: 'APPROVED', updatedAt: DateFilter as any },
+        });
 
-        const allocatedSupport = totalOfferings - totalAidDistributed;
-        const distributionPercentage = Math.round((totalAidDistributed / totalOfferings) * 100);
+        const pendingCount = await prisma.aidRequest.count({
+            where: { status: 'PENDING' },
+        });
 
-        return NextResponse.json({
+        const report = {
             period: period || 'Last 30 Days',
-            totalOfferings,
-            totalAidDistributed,
-            allocatedSupport: allocatedSupport > 0 ? allocatedSupport : 6150,
-            distributionPercentage: distributionPercentage || 95,
-            breakdown: categories,
+            totalOfferings: offerings._sum.amount || 0,
+            totalAidDistributed: allocations._sum.amount || 0,
+            categories,
             approvedRequests: approvedCount,
             pendingRequests: pendingCount,
             publishedAt: new Date().toISOString(),
-        });
+        };
+
+        return NextResponse.json(report);
     } catch (error) {
         console.error('Error generating transparency report:', error);
-        return NextResponse.json({
-            period: 'Last 30 Days',
-            totalOfferings: 148250,
-            totalAidDistributed: 142100,
-            allocatedSupport: 6150,
-            distributionPercentage: 95,
-            breakdown: { MEDICAL: 48500, HOUSING: 36200, FOOD: 28400, UTILITIES: 16800 },
-            approvedRequests: 142,
-            pendingRequests: 8,
-            publishedAt: new Date().toISOString(),
-        });
+        return NextResponse.json(
+            { error: 'Failed to generate report' },
+            { status: 500 }
+        );
     }
 }

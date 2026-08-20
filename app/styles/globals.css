@@ -9,62 +9,38 @@
     --color-stone: 120 110 100;
     --color-gold: 210 180 140;
   }
-
-  /* Original Initial Design System (Cream, Sage, & Stone) */
-  html.theme-light body, html.light body {
+  
+  body {
     @apply bg-cream-50 text-stone-800;
-    background-image: 
-      radial-gradient(ellipse at 50% 0%, rgba(120, 155, 100, 0.08) 0%, transparent 60%),
-      linear-gradient(to bottom, #faf9f6 0%, #f5f0ea 50%, #faf9f6 100%);
-    background-attachment: fixed;
   }
-
-  /* Holy Spirit Emerald Sanctuary Theme */
-  html.theme-emerald body {
-    @apply bg-slate-950 text-slate-100;
-    background-image: 
-      radial-gradient(ellipse at 50% 0%, rgba(16, 185, 129, 0.15) 0%, transparent 60%),
-      linear-gradient(to bottom, #020617 0%, #064e3b 100%);
-    background-attachment: fixed;
-  }
-
-  /* Midnight Celestial Sanctuary Theme */
-  html.theme-dark body, html.dark body {
-    @apply bg-slate-950 text-slate-100;
-    background-image: 
-      radial-gradient(ellipse at 50% 0%, rgba(99, 102, 241, 0.12) 0%, transparent 60%),
-      linear-gradient(to bottom, #020617 0%, #0f172a 100%);
-    background-attachment: fixed;
+  
+  h1, h2, h3, h4 {
+    @apply font-light tracking-wide;
   }
 }
 
 @layer components {
-  /* Original Sanctuary Card */
   .sanctuary-card {
-    @apply bg-white/90 backdrop-blur-md rounded-2xl shadow-lg border border-cream-200 p-6 transition-all duration-300 hover:shadow-xl hover:border-sage-300;
-  }
-
-  .holy-spirit-glow {
-    box-shadow: 0 0 40px -10px rgba(16, 185, 129, 0.3);
+    @apply bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-cream-200 p-6 transition-all duration-300 hover:shadow-xl;
   }
   
   .soft-input {
-    @apply w-full px-4 py-3 bg-cream-100/80 border border-cream-200 rounded-xl focus:ring-2 focus:ring-sage-300 focus:border-transparent outline-none transition-all text-stone-800 placeholder-stone-400;
+    @apply w-full px-4 py-3 bg-white/60 border border-cream-200 rounded-xl focus:ring-2 focus:ring-sage-300 focus:border-transparent outline-none transition-all;
   }
   
   .prayer-button {
-    @apply px-6 py-3 bg-sage-500 text-white font-medium rounded-full hover:bg-sage-600 transition-all duration-300 transform hover:scale-105 shadow-md shadow-sage-500/20;
+    @apply px-6 py-3 bg-sage-500 text-white rounded-xl hover:bg-sage-600 transition-all duration-300 transform hover:scale-105 shadow-md;
   }
   
   .glass-morphism {
-    @apply backdrop-blur-md bg-white/80 border-b border-cream-200/80;
+    @apply backdrop-blur-md bg-white/30 border border-white/20;
   }
 }
 
 /* Custom animations */
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
+  50% { transform: translateY(-10px); }
 }
 
 .float-animation {
@@ -81,10 +57,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #789b64;
+  background: #c0b7ae;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #5f7c50;
+  background: #a89f95;
 }

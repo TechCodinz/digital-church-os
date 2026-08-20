@@ -350,8 +350,8 @@ model PrayerReminder {
   title           String
   time           String         // Cron expression or time
   active         Boolean        @default(true)
-  lastSent       DateTime?
-  createdAt      DateTime       @default(now())
+  lastSent        DateTime?
+  createdAt       DateTime       @default(now())
 }
 
 // Intercession Scheduling
@@ -483,6 +483,11 @@ model Conference {
   maxAttendees    Int?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+
+  // Tenant identity is a scalar because the authoritative church_profiles
+  // table is managed by Phase 4 raw-SQL migrations rather than a competing
+  // Prisma Church model. Historical conferences remain nullable/unassigned.
+  churchProfileId String?      @map("church_profile_id")
   
   religionId      String?
   religion        Religion?     @relation(fields: [religionId], references: [id])
@@ -492,6 +497,8 @@ model Conference {
   prayerRequests  PrayerRequest[]
   reflections     ConferenceReflection[]
   sermons         Sermon[]
+
+  @@index([churchProfileId, status, startDate])
 }
 
 model ConferenceAttendance {
@@ -759,4 +766,3 @@ model LiveChatMessage {
   @@index([createdAt])
   @@index([userId])
 }
-

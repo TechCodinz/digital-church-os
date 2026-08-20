@@ -1,12 +1,13 @@
 import { OpenAI } from 'openai';
 
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 export class DepthAwarePastor {
     async selectPreachingDepth(params: {
         congregationSize: number;
         occasion: 'sunday' | 'bible-study' | 'conference' | 'one-on-one';
         desiredImpact: 'encouragement' | 'challenge' | 'revelation' | 'transformation';
     }) {
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [

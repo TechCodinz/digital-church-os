@@ -1,0 +1,136 @@
+name: Next 16 Upgrade Probe
+
+on:
+  push:
+    branches:
+      - security/next16-runtime-upgrade
+  pull_request:
+    branches:
+      - phase11-ministry-experience-enhancements
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      NODE_ENV: production
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-secret-ci-secret-ci-secret-ci-secret
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/digital_church_os_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/digital_church_os_test
+      STAGING_SEED_PASSWORD: 'CI-Staging-1234!'
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: digital_church_os_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d digital_church_os_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout upgrade branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: security/next16-runtime-upgrade
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.20.2
+          cache: npm
+
+      - name: Verify committed dependency graph is resolvable
+        run: |
+          set -euo pipefail
+          cp package-lock.json /tmp/next16-package-lock.json
+          npm install --package-lock-only --include=dev --ignore-scripts
+          git diff --exit-code -- package-lock.json
+
+      - name: Install exact committed graph
+        run: npm ci --include=dev
+
+      - name: Capture dependency security snapshot
+        if: always()
+        run: npm audit --json > /tmp/next16-audit.json || true
+
+      - name: Upload lock and audit snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: next16-upgrade-resolution
+          path: |
+            /tmp/next16-package-lock.json
+            /tmp/next16-audit.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Report key runtime versions
+        run: |
+          node --version
+          npm --version
+          node -e "for (const name of ['next','react','react-dom','next-auth','eslint','typescript']) { const p=require('./node_modules/'+name+'/package.json'); console.log(name, p.version, p.peerDependencies || '') }"
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Apply migrations to fresh CI database
+        run: npx prisma migrate deploy
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Runtime smoke on fresh migrated database
+        run: |
+          set -euo pipefail
+          npm run db:seed:staging
+
+          npm start > /tmp/digital-church-os-next16.log 2>&1 &
+          APP_PID=$!
+          trap 'kill "$APP_PID" >/dev/null 2>&1 || true' EXIT
+
+          READY=0
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://localhost:3000/ >/dev/null; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$READY" -ne 1 ]; then
+            echo "Next.js 16 server did not become ready."
+            cat /tmp/digital-church-os-next16.log
+            exit 1
+          fi
+
+          if ! npm run smoke:staging; then
+            echo "Staging smoke failed under Next.js 16."
+            cat /tmp/digital-church-os-next16.log
+            exit 1
+          fi
+
+          if ! npm run smoke:phase11; then
+            echo "Phase 11 smoke failed under Next.js 16."
+            cat /tmp/digital-church-os-next16.log
+            exit 1
+          fi

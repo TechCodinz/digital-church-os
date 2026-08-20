@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export const dynamic = 'force-dynamic';
-
 /**
  * GET /api/offerings/public
  * Returns public-facing offering statistics for the transparency ledger on the Offering page.

@@ -1,8 +1,9 @@
 import { OpenAI } from 'openai';
 
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 export class DeepLearningPathway {
     async generateDepthPathway(userId: string, focusArea: string) {
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [

@@ -1,329 +1,311 @@
 'use client';
 
 import Link from 'next/link';
-import { useSession, signOut } from 'next-auth/react';
-import { useSanctuaryTheme } from '@/components/theme/ThemeContext';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useRef, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { signOut, useSession } from 'next-auth/react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Menu, X, User, LogOut, ChevronDown, Shield, Sparkles,
-    Heart, Flame, Moon, BookOpen, Activity, Compass, Users,
-    Globe, Building2, Music, GraduationCap, DollarSign, Radio, Feather
+  BookOpenText,
+  ChevronDown,
+  Church,
+  Compass,
+  HandHeart,
+  HeartHandshake,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Radio,
+  Search,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  User,
+  Users,
+  X,
 } from 'lucide-react';
-import { ThemeToggle } from '@/components/theme/ThemeToggle';
+
+type Workspace = {
+  id: string;
+  name: string;
+  slug: string;
+  role: 'OWNER' | 'ADMIN' | 'PASTOR' | 'STAFF' | 'VIEWER';
+};
+
+const primary = [
+  { name: 'Pray', href: '/prayer-room', icon: HeartHandshake },
+  { name: 'Word', href: '/scripture', icon: BookOpenText },
+  { name: 'Worship', href: '/live-service', icon: Radio },
+  { name: 'Care', href: '/care', icon: HandHeart },
+  { name: 'Journey', href: '/journey', icon: Compass },
+];
+
+const exploreGroups = [
+  {
+    label: 'Spiritual life',
+    items: [
+      { name: 'Family Altar', href: '/family-altar' },
+      { name: 'Fasting Companion', href: '/fasting-companion' },
+      { name: 'Scripture Immersion', href: '/scripture-immersion' },
+      { name: 'Prayer Watch', href: '/prayer-watch' },
+    ],
+  },
+  {
+    label: 'Worship & formation',
+    items: [
+      { name: 'Choir Studio', href: '/choir-studio' },
+      { name: 'Sunday School', href: '/sunday-school' },
+      { name: 'Sermons', href: '/sermons' },
+      { name: 'Conferences', href: '/conferences' },
+    ],
+  },
+  {
+    label: 'Church & community',
+    items: [
+      { name: 'Church Network', href: '/church-network' },
+      { name: 'Community Wall', href: '/community-wall' },
+      { name: 'Give', href: '/offering' },
+      { name: 'Request Support', href: '/aid-request' },
+    ],
+  },
+];
+
+const workspaceRoles = new Set(['OWNER', 'ADMIN', 'PASTOR', 'STAFF']);
 
 export const Navbar = () => {
-    const { data: session } = useSession();
-    const { theme } = useSanctuaryTheme();
-    const [mounted, setMounted] = useState(false);
-    const [isOpen, setIsOpen] = useState(false);
-    const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-    const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const { data: session } = useSession();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [exploreOpen, setExploreOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const exploreRef = useRef<HTMLDivElement>(null);
+  const accountRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
-    // Close dropdowns on click outside
-    useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-                setActiveDropdown(null);
-                setUserDropdownOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, []);
+  useEffect(() => {
+    setMobileOpen(false);
+    setExploreOpen(false);
+    setAccountOpen(false);
+    setQuery('');
+  }, [pathname]);
 
-    const isAdmin = (session?.user as any)?.role === 'CHURCH_ADMIN';
-    const activeTheme = mounted ? theme : 'light';
-    const isLight = activeTheme === 'light';
+  useEffect(() => {
+    const close = (event: MouseEvent) => {
+      const node = event.target as Node;
+      if (exploreRef.current && !exploreRef.current.contains(node)) setExploreOpen(false);
+      if (accountRef.current && !accountRef.current.contains(node)) setAccountOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
 
-    // Structured Navigation Categories
-    const navCategories = [
-        {
-            id: 'growth',
-            label: 'Spiritual Growth',
-            items: [
-                { name: 'Family Altar', href: '/family/devotional', desc: 'Family peace guide & worry patterns', icon: Heart },
-                { name: 'Fasting Companion', href: '/spiritual/fasting', desc: 'Hour-by-hour Isaiah 58 coaching', icon: Flame },
-                { name: 'Dream Discernment', href: '/spiritual/dreams', desc: 'Biblical symbol & 1 John 4 testing', icon: Moon },
-                { name: 'Growth DNA', href: '/profile/growth-dna', desc: 'Adaptive AI maturity index (1-100)', icon: Activity },
-                { name: 'Scripture Immersion', href: '/scripture/immersion', desc: 'Exegetical depth & audio memorization', icon: BookOpen },
-            ]
-        },
-        {
-            id: 'ministry',
-            label: 'Ministry & Worship',
-            items: [
-                { name: 'Minister Portal', href: '/minister/onboard', desc: 'Multi-denominational evangelical hub', icon: Compass },
-                { name: 'Pastoral Hub', href: '/pastoral/hub', desc: 'AI triage & human escalation', icon: Shield },
-                { name: 'Sunday School', href: '/children/sunday-school', desc: 'Interactive lessons & stories for kids', icon: GraduationCap },
-                { name: 'Denominations', href: '/worship/traditions', desc: 'Tailored worship traditions & liturgies', icon: Building2 },
-                { name: 'Choir Studio', href: '/choir/studio', desc: 'AI music composition & multi-part vocals', icon: Music },
-            ]
-        },
-        {
-            id: 'community',
-            label: 'Global Community',
-            items: [
-                { name: 'Global Network', href: '/churches', desc: 'Explore churches & live streams worldwide', icon: Globe },
-                { name: 'Prayer Watch', href: '/prayer-watch', desc: '24/7 continuous global intercession wall', icon: Radio },
-                { name: 'Give & Offering', href: '/offering', desc: 'Unified gateway & transparency ledger', icon: DollarSign },
-                { name: 'Community Wall', href: '/community-wall', desc: 'Share testimony & pray for believers', icon: Users },
-            ]
-        }
-    ];
+  useEffect(() => {
+    if (!session?.user) {
+      setWorkspaces([]);
+      return;
+    }
 
-    return (
-        <nav
-            ref={dropdownRef}
-            className={`fixed w-full z-50 transition-colors duration-300 border-b ${
-                isLight
-                    ? 'bg-white/80 backdrop-blur-md border-cream-200/80 text-stone-800 shadow-sm'
-                    : activeTheme === 'emerald'
-                    ? 'bg-slate-950/90 backdrop-blur-xl border-emerald-500/30 text-white shadow-2xl'
-                    : 'bg-slate-950/90 backdrop-blur-xl border-slate-800 text-white shadow-2xl'
-            }`}
-        >
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between h-20 items-center">
-                    {/* Initial Logo Style: ✝ Digital Church OS */}
-                    <div className="flex items-center shrink-0">
-                        <Link href="/" className="flex items-center space-x-2.5 group">
-                            <span className={`text-2xl font-light transition-transform group-hover:scale-110 ${
-                                isLight ? 'text-sage-600' : 'text-emerald-400'
-                            }`}>
-                                ✝
-                            </span>
-                            <div className="flex items-center space-x-2 whitespace-nowrap">
-                                <span className={`text-xl font-light tracking-wide ${isLight ? 'text-stone-700' : 'text-white'}`}>
-                                    Digital Church OS
-                                </span>
-                                {/* Holy Spirit Dove Badge */}
-                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-medium tracking-wide flex items-center gap-1 border shadow-xs ${
-                                    isLight
-                                        ? 'bg-sage-50 text-sage-700 border-sage-200'
-                                        : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
-                                }`}>
-                                    <span>🕊️</span>
-                                    <span>Holy Spirit</span>
-                                </span>
-                            </div>
-                        </Link>
-                    </div>
+    let cancelled = false;
+    fetch('/api/church-ops/workspaces', { cache: 'no-store' })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (!cancelled && Array.isArray(data?.workspaces)) setWorkspaces(data.workspaces);
+      })
+      .catch(() => {
+        if (!cancelled) setWorkspaces([]);
+      });
+    return () => { cancelled = true; };
+  }, [session?.user]);
 
-                    {/* Categorized Desktop Navigation Dropdowns */}
-                    <div className="hidden lg:flex items-center space-x-6">
-                        <Link
-                            href="/"
-                            className={`text-sm font-medium tracking-wide transition-colors ${
-                                isLight ? 'text-stone-600 hover:text-sage-600' : 'text-slate-200 hover:text-emerald-400'
-                            }`}
-                        >
-                            Home
-                        </Link>
+  const canOperateWorkspace = workspaces.some((workspace) => workspaceRoles.has(workspace.role));
+  const singleWorkspace = workspaces.length === 1 ? workspaces[0] : null;
 
-                        {navCategories.map((cat) => {
-                            const isCatOpen = activeDropdown === cat.id;
-                            return (
-                                <div key={cat.id} className="relative">
-                                    <button
-                                        onClick={() => setActiveDropdown(isCatOpen ? null : cat.id)}
-                                        onMouseEnter={() => setActiveDropdown(cat.id)}
-                                        className={`flex items-center space-x-1 text-sm font-medium tracking-wide py-2 transition-colors ${
-                                            isCatOpen
-                                                ? isLight ? 'text-sage-600' : 'text-emerald-400'
-                                                : isLight ? 'text-stone-600 hover:text-sage-600' : 'text-slate-200 hover:text-emerald-400'
-                                        }`}
-                                    >
-                                        <span>{cat.label}</span>
-                                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isCatOpen ? 'rotate-180' : ''}`} />
-                                    </button>
+  const searchable = useMemo(
+    () => [
+      ...primary,
+      ...exploreGroups.flatMap((group) => group.items),
+      ...(canOperateWorkspace
+        ? [
+            { name: 'Church Workspace', href: '/church-life' },
+            { name: 'Command Center', href: '/command-center' },
+          ]
+        : []),
+    ],
+    [canOperateWorkspace],
+  );
 
-                                    {/* Dropdown Menu */}
-                                    <AnimatePresence>
-                                        {isCatOpen && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                                                onMouseLeave={() => setActiveDropdown(null)}
-                                                className={`absolute left-0 mt-2 w-72 rounded-2xl p-3 border shadow-xl z-50 ${
-                                                    isLight ? 'bg-white border-cream-200 text-stone-800' : 'bg-slate-900 border-slate-800 text-white'
-                                                }`}
-                                            >
-                                                <div className="space-y-1">
-                                                    {cat.items.map((item) => {
-                                                        const Icon = item.icon;
-                                                        return (
-                                                            <Link
-                                                                key={item.name}
-                                                                href={item.href}
-                                                                onClick={() => setActiveDropdown(null)}
-                                                                className={`flex items-start space-x-3 p-2.5 rounded-xl transition-all ${
-                                                                    isLight ? 'hover:bg-cream-100/70 text-stone-800' : 'hover:bg-slate-800/80 text-slate-200'
-                                                                }`}
-                                                            >
-                                                                <div className={`p-2 rounded-lg shrink-0 ${
-                                                                    isLight ? 'bg-sage-50 text-sage-600' : 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
-                                                                }`}>
-                                                                    <Icon className="w-4 h-4" />
-                                                                </div>
-                                                                <div className="space-y-0.5">
-                                                                    <div className="text-xs font-semibold">{item.name}</div>
-                                                                    <div className={`text-[10px] leading-tight ${isLight ? 'text-stone-500' : 'text-slate-400'}`}>
-                                                                        {item.desc}
-                                                                    </div>
-                                                                </div>
-                                                            </Link>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            );
-                        })}
-                    </div>
+  const mobileResults = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return searchable;
+    return searchable.filter((item) => item.name.toLowerCase().includes(needle));
+  }, [query, searchable]);
 
-                    {/* Right Controls */}
-                    <div className="hidden md:flex items-center space-x-3">
-                        <ThemeToggle />
+  return (
+    <nav aria-label="Primary navigation" className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#06110f]/82 text-white shadow-[0_12px_45px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <Link href="/" className="group flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200">
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-200/20 bg-white/5 text-xl text-amber-200 shadow-inner transition group-hover:border-amber-200/35">✝</span>
+          <span>
+            <span className="block text-sm font-semibold tracking-wide text-white">Digital Church OS</span>
+            <span className="hidden text-[10px] uppercase tracking-[0.22em] text-emerald-200/70 sm:block">Living Sanctuary</span>
+          </span>
+        </Link>
 
-                        {session ? (
-                            <div className="relative">
-                                <button
-                                    onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                                    className={`flex items-center space-x-2 text-xs font-medium px-3.5 py-2 rounded-full border transition-all ${
-                                        isLight
-                                            ? 'text-stone-700 hover:text-sage-600 bg-white border-cream-200 shadow-xs'
-                                            : 'text-slate-200 hover:text-emerald-400 bg-slate-900 border-slate-800'
-                                    }`}
-                                >
-                                    <div className="w-6 h-6 rounded-full bg-sage-500 text-white flex items-center justify-center text-xs font-bold">
-                                        {session.user?.name?.[0] || 'U'}
-                                    </div>
-                                    <span>{session.user?.name || 'Believer'}</span>
-                                    <ChevronDown className="w-3.5 h-3.5" />
-                                </button>
+        <div className="hidden items-center gap-1 xl:flex">
+          {primary.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex min-h-10 items-center gap-2 rounded-full px-4 text-sm transition ${active ? 'bg-white/10 text-amber-100' : 'text-white/70 hover:bg-white/6 hover:text-white'}`}
+              >
+                <Icon className="h-4 w-4" />
+                {item.name}
+              </Link>
+            );
+          })}
 
-                                <AnimatePresence>
-                                    {userDropdownOpen && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                                            exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                                            className={`absolute right-0 mt-2 w-48 border rounded-2xl shadow-xl py-2 z-50 text-xs ${
-                                                isLight ? 'bg-white border-cream-200 text-stone-800' : 'bg-slate-900 border-slate-800 text-white'
-                                            }`}
-                                        >
-                                            <Link
-                                                href="/profile"
-                                                className={`flex items-center space-x-2 px-4 py-2 ${
-                                                    isLight ? 'text-stone-700 hover:bg-cream-100/70' : 'text-slate-300 hover:bg-slate-800'
-                                                }`}
-                                            >
-                                                <User className="w-4 h-4 text-stone-400" />
-                                                <span>My Profile</span>
-                                            </Link>
-                                            {isAdmin && (
-                                                <Link
-                                                    href="/admin"
-                                                    className={`flex items-center space-x-2 px-4 py-2 font-medium ${
-                                                        isLight ? 'text-amber-700 hover:bg-amber-50' : 'text-emerald-400 hover:bg-slate-800'
-                                                    }`}
-                                                >
-                                                    <Shield className="w-4 h-4 text-amber-500" />
-                                                    <span>Admin Dashboard</span>
-                                                </Link>
-                                            )}
-                                            <button
-                                                onClick={() => signOut()}
-                                                className="w-full flex items-center space-x-2 px-4 py-2 text-rose-600 hover:bg-rose-50 text-left"
-                                            >
-                                                <LogOut className="w-4 h-4 text-rose-400" />
-                                                <span>Sign Out</span>
-                                            </button>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        ) : (
-                            <Link
-                                href="/auth/signin"
-                                className={`px-6 py-2.5 font-medium text-xs rounded-full transition-all shadow-md ${
-                                    isLight
-                                        ? 'bg-sage-500 hover:bg-sage-600 text-white shadow-sage-500/20'
-                                        : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-                                }`}
-                            >
-                                Sign In
-                            </Link>
-                        )}
-                    </div>
-
-                    {/* Mobile Menu Button */}
-                    <div className="lg:hidden flex items-center space-x-2">
-                        <ThemeToggle />
-                        <button
-                            onClick={() => setIsOpen(!isOpen)}
-                            className={`p-2 focus:outline-none ${isLight ? 'text-stone-600 hover:text-sage-600' : 'text-slate-300 hover:text-white'}`}
-                        >
-                            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Mobile Accordion Menu */}
+          <div className="relative" ref={exploreRef}>
+            <button
+              type="button"
+              onClick={() => setExploreOpen((value) => !value)}
+              aria-expanded={exploreOpen}
+              className="flex min-h-10 items-center gap-2 rounded-full px-4 text-sm text-white/70 transition hover:bg-white/6 hover:text-white"
+            >
+              <Sparkles className="h-4 w-4" /> Explore <ChevronDown className={`h-3.5 w-3.5 transition ${exploreOpen ? 'rotate-180' : ''}`} />
+            </button>
             <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className={`lg:hidden px-4 pt-2 pb-6 space-y-4 text-xs border-t overflow-y-auto max-h-[80vh] ${
-                            isLight ? 'bg-white border-cream-200 text-stone-800' : 'bg-slate-900 border-slate-800 text-white'
-                        }`}
-                    >
-                        <Link
-                            href="/"
-                            onClick={() => setIsOpen(false)}
-                            className="block font-medium text-sm py-2 border-b border-cream-200/60"
-                        >
-                            Home
-                        </Link>
-
-                        {navCategories.map((cat) => (
-                            <div key={cat.id} className="space-y-2">
-                                <div className={`font-mono text-[10px] uppercase font-bold tracking-widest ${
-                                    isLight ? 'text-sage-600' : 'text-emerald-400'
-                                }`}>
-                                    {cat.label}
-                                </div>
-                                <div className="pl-2 space-y-1 border-l-2 border-sage-200">
-                                    {cat.items.map((item) => (
-                                        <Link
-                                            key={item.name}
-                                            href={item.href}
-                                            onClick={() => setIsOpen(false)}
-                                            className={`block py-1.5 font-medium ${
-                                                isLight ? 'text-stone-600 hover:text-sage-600' : 'text-slate-300 hover:text-white'
-                                            }`}
-                                        >
-                                            {item.name}
-                                        </Link>
-                                    ))}
-                                </div>
-                            </div>
+              {exploreOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                  className="absolute right-0 top-12 w-[620px] rounded-[1.75rem] border border-white/10 bg-[#081713]/96 p-5 shadow-2xl backdrop-blur-2xl"
+                >
+                  <div className="grid grid-cols-3 gap-3">
+                    {exploreGroups.map((group) => (
+                      <div key={group.label} className="rounded-2xl border border-white/8 bg-white/[0.035] p-3">
+                        <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-200/65">{group.label}</p>
+                        {group.items.map((item) => (
+                          <Link key={item.href} href={item.href} className="block rounded-xl px-2 py-2.5 text-sm text-white/72 transition hover:bg-white/7 hover:text-white">
+                            {item.name}
+                          </Link>
                         ))}
-                    </motion.div>
-                )}
+                      </div>
+                    ))}
+                  </div>
+                  {canOperateWorkspace && (
+                    <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-amber-200/15 bg-amber-100/[0.045] p-4">
+                      <div>
+                        <p className="text-xs font-semibold text-amber-100">{singleWorkspace?.name || 'Church workspace'}</p>
+                        <p className="mt-1 text-[11px] text-white/50">Tenant-scoped operations, team roles and ministry records.</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Link href="/church-life" className="rounded-full border border-white/10 px-3 py-2 text-xs text-white/80 hover:bg-white/7">Workspace</Link>
+                        <Link href="/command-center" className="rounded-full bg-amber-100 px-3 py-2 text-xs font-semibold text-[#07110f]">Command Center</Link>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
             </AnimatePresence>
-        </nav>
-    );
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {session ? (
+            <div className="relative hidden sm:block" ref={accountRef}>
+              <button
+                type="button"
+                onClick={() => setAccountOpen((value) => !value)}
+                aria-expanded={accountOpen}
+                className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-1.5 text-white/80 transition hover:bg-white/8"
+              >
+                <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-emerald-100/10">
+                  {session.user?.image ? <img src={session.user.image} alt="" className="h-full w-full object-cover" /> : <User className="h-4 w-4" />}
+                </span>
+                <ChevronDown className={`h-3.5 w-3.5 transition ${accountOpen ? 'rotate-180' : ''}`} />
+              </button>
+              <AnimatePresence>
+                {accountOpen && (
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="absolute right-0 top-12 w-72 overflow-hidden rounded-2xl border border-white/10 bg-[#081713]/98 shadow-2xl">
+                    <div className="border-b border-white/8 px-4 py-4">
+                      <p className="truncate text-sm font-semibold text-white">{session.user?.name || 'Sanctuary member'}</p>
+                      <p className="mt-1 truncate text-xs text-white/45">{session.user?.email}</p>
+                      {singleWorkspace && <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-amber-200/70">{singleWorkspace.name} · {singleWorkspace.role}</p>}
+                    </div>
+                    <div className="p-2">
+                      <Link href="/dashboard" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/72 hover:bg-white/7 hover:text-white"><LayoutDashboard className="h-4 w-4" /> Personal Sanctuary</Link>
+                      <Link href="/profile" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/72 hover:bg-white/7 hover:text-white"><User className="h-4 w-4" /> Profile</Link>
+                      <Link href="/profile/settings" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/72 hover:bg-white/7 hover:text-white"><Settings className="h-4 w-4" /> Settings</Link>
+                      {canOperateWorkspace && (
+                        <>
+                          <div className="my-2 border-t border-white/8" />
+                          <Link href="/church-life" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-amber-100 hover:bg-white/7"><Church className="h-4 w-4" /> Church Workspace</Link>
+                          <Link href="/command-center" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-amber-100 hover:bg-white/7"><ShieldCheck className="h-4 w-4" /> Command Center</Link>
+                        </>
+                      )}
+                      <div className="my-2 border-t border-white/8" />
+                      <button type="button" onClick={() => signOut()} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-rose-200 hover:bg-rose-300/10"><LogOut className="h-4 w-4" /> Sign out</button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <Link href="/auth/signin" className="hidden rounded-full border border-amber-200/25 bg-amber-100 px-4 py-2 text-sm font-semibold text-[#07110f] sm:inline-flex">Enter Sanctuary</Link>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setMobileOpen((value) => !value)}
+            aria-expanded={mobileOpen}
+            aria-label={mobileOpen ? 'Close sanctuary navigation' : 'Open sanctuary navigation'}
+            className="rounded-xl border border-white/10 bg-white/5 p-2.5 text-white xl:hidden"
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden border-t border-white/8 bg-[#06110f]/98 xl:hidden">
+            <div className="mx-auto max-h-[78vh] max-w-3xl overflow-y-auto px-4 pb-7 pt-4 sm:px-6">
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find prayer, Scripture, care, choir…" className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-10 pr-4 text-sm text-white outline-none placeholder:text-white/30 focus:border-amber-200/35" />
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                {mobileResults.map((item) => (
+                  <Link key={`${item.href}-${item.name}`} href={item.href} className={`rounded-2xl border px-4 py-3 text-sm transition ${isActive(item.href) ? 'border-amber-200/25 bg-amber-100/10 text-amber-100' : 'border-white/8 bg-white/[0.035] text-white/70 hover:bg-white/7 hover:text-white'}`}>{item.name}</Link>
+                ))}
+              </div>
+
+              {session && (
+                <div className="mt-5 rounded-2xl border border-white/8 bg-white/[0.035] p-3">
+                  <p className="px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Your sanctuary</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <Link href="/dashboard" className="rounded-xl bg-white/5 px-3 py-3 text-sm text-white/75"><LayoutDashboard className="mb-1 h-4 w-4" />Dashboard</Link>
+                    <Link href="/profile" className="rounded-xl bg-white/5 px-3 py-3 text-sm text-white/75"><User className="mb-1 h-4 w-4" />Profile</Link>
+                    {canOperateWorkspace && <Link href="/church-life" className="rounded-xl bg-amber-100/8 px-3 py-3 text-sm text-amber-100"><Church className="mb-1 h-4 w-4" />Church Workspace</Link>}
+                    {canOperateWorkspace && <Link href="/command-center" className="rounded-xl bg-amber-100/8 px-3 py-3 text-sm text-amber-100"><ShieldCheck className="mb-1 h-4 w-4" />Command Center</Link>}
+                  </div>
+                  <button type="button" onClick={() => signOut()} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200/10 py-2.5 text-sm text-rose-200"><LogOut className="h-4 w-4" /> Sign out</button>
+                </div>
+              )}
+
+              {!session && <Link href="/auth/signin" className="mt-4 flex items-center justify-center rounded-full bg-amber-100 px-4 py-3 text-sm font-semibold text-[#07110f]">Enter Sanctuary</Link>}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </nav>
+  );
 };

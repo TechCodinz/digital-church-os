@@ -1,7 +1,7 @@
 import { OpenAI } from 'openai';
 
 export class TheologicalGuardrails {
-    private openai: OpenAI | null = null;
+    private openai: OpenAI;
 
     // Prohibited patterns
     private prohibitedPatterns = [
@@ -28,11 +28,10 @@ export class TheologicalGuardrails {
         'In the Christian tradition',
     ];
 
-    private getOpenAI(): OpenAI {
-        if (!this.openai) {
-            this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-        }
-        return this.openai;
+    constructor() {
+        this.openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
     }
 
     async apply(text: string): Promise<string> {
@@ -95,7 +94,7 @@ export class TheologicalGuardrails {
     }
 
     private async verifyWithAI(text: string): Promise<string> {
-        const completion = await this.getOpenAI().chat.completions.create({
+        const completion = await this.openai.chat.completions.create({
             model: 'gpt-3.5-turbo',
             messages: [
                 {

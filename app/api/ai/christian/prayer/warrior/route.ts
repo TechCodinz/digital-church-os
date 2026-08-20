@@ -1,92 +1,101 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { z } from 'zod';
 import { authOptions } from '@/lib/auth';
-import { prisma, checkDbConnection } from '@/lib/prisma';
 import { AuditLogger } from '@/lib/audit/logger';
 import { AI_DISCLAIMER } from '@/lib/ai/shared/guardrails';
-import { MediaGenerator } from '@/lib/ai/visual/mediaGenerator';
+import { getClientKey, rateLimit, rateLimitHeaders } from '@/lib/security/rate-limit';
 
-class PrayerWarrior {
-    identifyThemes(request: string, history: any[]) {
-        // Theme extraction logic
-        const themes = [];
-
-        if (request.match(/heal|sick|pain|illness/i)) themes.push('healing');
-        if (request.match(/thank|grateful|blessing/i)) themes.push('thanksgiving');
-        if (request.match(/guid|direction|wisdom/i)) themes.push('guidance');
-        if (request.match(/comfort|peace|anxi|worr/i)) themes.push('comfort');
-
-        return themes;
-    }
-}
+const GuidedPrayerSchema = z.object({
+    prayerRequest: z.string().trim().min(3).max(4000),
+    scriptureRefs: z.array(z.string().trim().max(80)).max(8).optional(),
+    style: z.string().trim().max(80).optional(),
+});
 
 export async function POST(req: NextRequest) {
     const startTime = Date.now();
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+        return NextResponse.json({ error: 'Sign in is required for guided prayer.' }, { status: 401 });
+    }
+
+    const limit = rateLimit(`guided-prayer:${session.user.id}:${getClientKey(req.headers)}`, {
+        limit: 8,
+        windowMs: 10 * 60 * 1000,
+    });
+    if (!limit.allowed) {
+        return NextResponse.json(
+            { error: 'Too many guided-prayer requests. Please pause before trying again.' },
+            { status: 429, headers: rateLimitHeaders(limit) },
+        );
+    }
 
     try {
-        const session = await getServerSession(authOptions);
-        const isDbUp = await checkDbConnection();
-
-        if (!session?.user && isDbUp) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const parsed = GuidedPrayerSchema.safeParse(await req.json());
+        if (!parsed.success) {
+            return NextResponse.json(
+                { error: 'Please provide a valid prayer request.', details: parsed.error.flatten() },
+                { status: 400, headers: rateLimitHeaders(limit) },
+            );
         }
 
-        const body = await req.json();
-        const { prayerRequest, scriptureRefs, style } = body;
-
-        // Get user's prayer history for personalization
-        let userPrayers = [];
-        if (isDbUp && session?.user) {
-            userPrayers = await prisma.prayerRequest.findMany({
-                where: { userId: session.user.id },
-                orderBy: { createdAt: 'desc' },
-                take: 10,
-            });
+        if (!process.env.OPENAI_API_KEY) {
+            return NextResponse.json(
+                { error: 'Guided prayer is not configured in this environment.' },
+                { status: 503, headers: rateLimitHeaders(limit) },
+            );
         }
 
+        const { prayerRequest, scriptureRefs, style } = parsed.data;
         const { RealPrayerWarrior } = await import('@/lib/ai/christian/prayer/realPrayerWarrior');
-        const prayerWarrior = new RealPrayerWarrior();
-        const response = await prayerWarrior.generatePrayer({
-            userId: session?.user?.id || 'demo-user',
+        const prayerCompanion = new RealPrayerWarrior();
+        const response = await prayerCompanion.generatePrayer({
+            userId: session.user.id,
             title: prayerRequest.split('\n')[0].substring(0, 100),
             content: prayerRequest,
         });
 
-        // Generate thematic visuals in parallel
-        const themeToSearch = response.themes?.[0] || 'peaceful prayer lighting';
-        const mediaGen = new MediaGenerator();
-        const [imageUrl, videoUrl] = await Promise.all([
-            mediaGen.generateImage('Christian prayer: ' + prayerRequest),
-            mediaGen.getBackgroundVideo(themeToSearch)
-        ]);
+        // The cinematic prayer experience is rendered locally by the sanctuary
+        // UI. Do not send prayer-derived themes or text to a second decorative
+        // media provider; that would create an unnecessary additional disclosure.
+        response.visuals = { image: null, video: null };
 
-        response.visuals = { image: imageUrl, video: videoUrl };
-
-        // Log interaction
-        if (isDbUp) {
+        // Sensitive prayer text is deliberately excluded from generic audit
+        // metadata. The audit records operation facts only.
+        try {
             await AuditLogger.log({
-                actorId: session?.user?.id || 'demo-user',
+                actorId: session.user.id,
                 action: 'AI_INTERACTION',
-                entityType: 'PrayerWarrior',
+                entityType: 'GuidedPrayer',
                 metadata: {
-                    prayerRequest,
-                    scriptureRefs,
-                    themes: response.themes,
+                    inputStored: false,
+                    outputStored: false,
+                    secondaryMediaDisclosure: false,
+                    inputLength: prayerRequest.length,
+                    suppliedScriptureRefCount: scriptureRefs?.length || 0,
+                    styleSupplied: Boolean(style),
+                    themeCount: response.themes?.length || 0,
+                    durationMs: Date.now() - startTime,
                 },
                 req,
             });
+        } catch (auditError) {
+            console.error('Guided-prayer metadata audit failed:', auditError);
         }
 
-        return NextResponse.json({
-            ...response,
-            disclaimer: AI_DISCLAIMER,
-            note: "This prayer is generated as a guide. The most powerful prayers come from your heart.",
-        });
-    } catch (error) {
-        console.error('Error in prayer warrior:', error);
         return NextResponse.json(
-            { error: 'Failed to generate prayer' },
-            { status: 500 }
+            {
+                ...response,
+                disclaimer: AI_DISCLAIMER,
+                note: 'This is a generated prayer draft for reflection. It does not speak for God or replace Scripture or human pastoral care.',
+            },
+            { headers: rateLimitHeaders(limit) },
+        );
+    } catch (error) {
+        console.error('Guided prayer failed:', error);
+        return NextResponse.json(
+            { error: 'Guided prayer could not be prepared right now.' },
+            { status: 500, headers: rateLimitHeaders(limit) },
         );
     }
 }

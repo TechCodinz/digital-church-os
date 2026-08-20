@@ -1,6 +1,5 @@
 import { OpenAI } from 'openai';
 import { ScriptureLoader } from '@/lib/ai/scripture/loader';
-import { AILogger } from '@/lib/audit/aiLogger';
 import { TheologicalGuardrails } from '@/lib/ai/guardrails/theologicalGuardrails';
 
 interface PrayerRequest {
@@ -45,54 +44,46 @@ export class RealPrayerWarrior {
     }
 
     async generatePrayer(request: PrayerRequest): Promise<PrayerResponse> {
-        // 1. Analyze themes
         const themes = await this.analyzeThemes(request.content);
-
-        // 2. Find scriptures
         const searchResults = await this.scriptureLoader.semanticSearch(
             `${themes.join(' ')} ${request.content}`,
             5
         );
 
-        // 3. Compose prayer (JSON Mode)
         const rawRes = await this.composePrayer(request, searchResults);
+        const rawPrayer = rawRes?.prayer && typeof rawRes.prayer === 'object' ? rawRes.prayer : {};
+        const rawReadings = Array.isArray(rawPrayer.scriptureReadings) ? rawPrayer.scriptureReadings : [];
 
-        // Apply guardrails to blocks
-        const safeOpening = await this.guardrails.apply(rawRes.prayer.opening || '');
-        const safeIntercession = await this.guardrails.apply(rawRes.prayer.intercession || '');
-        const safeThanksgiving = await this.guardrails.apply(rawRes.prayer.thanksgiving || '');
-        const safeClosing = await this.guardrails.apply(rawRes.prayer.closing || '');
-        const safeEncouragement = await this.guardrails.apply(rawRes.encouragement || '');
+        const safeOpening = await this.guardrails.apply(String(rawPrayer.opening || ''));
+        const safeIntercession = await this.guardrails.apply(String(rawPrayer.intercession || ''));
+        const safeThanksgiving = await this.guardrails.apply(String(rawPrayer.thanksgiving || ''));
+        const safeClosing = await this.guardrails.apply(String(rawPrayer.closing || ''));
+        const safeEncouragement = await this.guardrails.apply(String(rawRes?.encouragement || ''));
 
-        // 4. Verify and fetch explicit scriptures
-        const references = rawRes.prayer.scriptureReadings.map((r: any) => r.reference);
-        const verifiedVerses = await this.scriptureLoader.getVerses(references);
+        const references = rawReadings
+            .map((reading: any) => typeof reading?.reference === 'string' ? reading.reference.trim() : '')
+            .filter(Boolean)
+            .slice(0, 5);
+        const verifiedVerses = references.length ? await this.scriptureLoader.getVerses(references) : [];
 
-        const finalResponse: PrayerResponse = {
+        const scriptureReadings = rawReadings.slice(0, 5).map((reading: any, index: number) => ({
+            reference: verifiedVerses[index]?.reference || String(reading?.reference || ''),
+            text: verifiedVerses[index]?.text || '',
+            reflection: String(reading?.reflection || ''),
+        })).filter((reading: any) => reading.reference);
+
+        return {
             prayer: {
                 opening: safeOpening,
                 intercession: safeIntercession,
                 thanksgiving: safeThanksgiving,
                 closing: safeClosing,
-                scriptureReadings: rawRes.prayer.scriptureReadings.map((r: any, i: number) => ({
-                    ...r,
-                    text: verifiedVerses[i]?.text || r.text
-                }))
+                scriptureReadings,
             },
-            themes,
-            suggestedScriptures: verifiedVerses.filter((v): v is { reference: string; text: string } => v !== null).map(v => v.reference),
-            encouragement: safeEncouragement
+            themes: themes.slice(0, 6),
+            suggestedScriptures: verifiedVerses.map((verse) => verse.reference),
+            encouragement: safeEncouragement,
         };
-
-        // 5. Log
-        await AILogger.logInteraction({
-            userId: request.userId,
-            module: 'prayer-warrior',
-            input: request,
-            output: finalResponse,
-        });
-
-        return finalResponse;
     }
 
     private async analyzeThemes(content: string): Promise<string[]> {
@@ -101,43 +92,44 @@ export class RealPrayerWarrior {
             messages: [
                 {
                     role: 'system',
-                    content: 'Extract spiritual prayer themes from this request. Return as comma-separated list.'
+                    content: 'Extract a short list of broad Christian prayer themes. Do not diagnose, infer hidden spiritual causes, claim revelation, or add details not stated by the user. Return comma-separated themes only.'
                 },
                 { role: 'user', content }
             ],
-            temperature: 0.3,
-            max_tokens: 100,
+            temperature: 0.2,
+            max_tokens: 80,
         });
 
-        return completion.choices[0].message.content?.split(',').map(t => t.trim()) || [];
+        return (completion.choices[0].message.content || '')
+            .split(',')
+            .map((theme) => theme.trim())
+            .filter(Boolean)
+            .slice(0, 6);
     }
 
-    private async composePrayer(
-        request: PrayerRequest,
-        scriptures: any[]
-    ): Promise<any> {
+    private async composePrayer(request: PrayerRequest, scriptures: any[]): Promise<any> {
         const completion = await this.openai.chat.completions.create({
             model: 'gpt-4-turbo-preview',
             messages: [
                 {
                     role: 'system',
-                    content: `You are composing a structured, compassionate prayer.
-          
-          RULES:
-          - Use provided scriptures
-          - Be personal and grounded
-          - Return JSON format with: opening, scriptureReadings (array), intercession, thanksgiving, closing, encouragement.`
+                    content: `Compose a compassionate Christian prayer draft as a writing aid.
+
+BOUNDARIES:
+- Use only the user's stated situation and provided Scripture material.
+- Do not claim to speak for God, receive revelation, prophesy, diagnose, identify demons/curses, promise healing, or guarantee outcomes.
+- Do not impersonate a pastor, counselor, clinician, prophet, or emergency service.
+- Do not present generated commentary as Scripture.
+- Keep language humble, prayerful, and suitable for human review.
+- Return JSON with: prayer.opening, prayer.scriptureReadings (array of {reference, reflection}), prayer.intercession, prayer.thanksgiving, prayer.closing, encouragement.`
                 },
                 {
                     role: 'user',
-                    content: `
-            Request: ${request.title} - ${request.content}
-            Scriptures: ${scriptures.map(s => `${s.reference}: ${s.text}`).join('\n')}
-          `
+                    content: `Request: ${request.title} - ${request.content}\nScripture candidates: ${scriptures.map((item) => `${item.reference}: ${item.text}`).join('\n')}`
                 }
             ],
             response_format: { type: 'json_object' },
-            temperature: 0.7,
+            temperature: 0.6,
         });
 
         return JSON.parse(completion.choices[0].message.content || '{}');
