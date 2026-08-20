@@ -1,79 +1,91 @@
 import Stripe from 'stripe';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const PaymentSchema = z.object({
+  amount: z.coerce.number().finite().min(1).max(100000),
+  purpose: z.enum(['PLATFORM_UPKEEP', 'COMMUNITY_AID', 'CONFERENCE_SUPPORT']),
+  designation: z.enum([
+    'GENERAL_MINISTRY',
+    'BENEVOLENCE_CARE',
+    'MISSIONS_OUTREACH',
+    'CHILDREN_YOUTH',
+    'WORSHIP_MEDIA',
+  ]).optional(),
+  isRecurring: z.boolean().optional().default(false),
+  currency: z.enum(['usd']).optional().default('usd'),
+});
 
-async function getOrCreateProduct(purpose: string) {
-    const products = await stripe.products.search({ query: `name:'${purpose}'` });
-    if (products.data.length > 0) return products.data[0].id;
-
-    const newProduct = await stripe.products.create({ name: purpose });
-    return newProduct.id;
+function getStripe() {
+  const secret = process.env.STRIPE_SECRET_KEY;
+  return secret ? new Stripe(secret) : null;
 }
 
 export async function POST(req: Request) {
-    try {
-        const session = await getServerSession(authOptions);
-        let userId = session?.user?.id;
-
-        // Allow demo usage fallback
-        if (!userId && process.env.NODE_ENV === 'development') {
-            userId = "demo_user_id";
-        }
-
-        if (!userId) {
-            return new NextResponse('Unauthorized', { status: 401 });
-        }
-
-        const { amount, purpose, isRecurring, currency = 'usd' } = await req.json();
-
-        // Create Stripe payment
-        if (isRecurring) {
-            // Create subscription
-            const price = await stripe.prices.create({
-                unit_amount: amount * 100,
-                currency,
-                recurring: { interval: 'month' },
-                product: await getOrCreateProduct(purpose),
-            });
-
-            const subscription = await stripe.checkout.sessions.create({
-                mode: 'subscription',
-                payment_method_types: ['card'],
-                line_items: [{
-                    price: price.id,
-                    quantity: 1,
-                }],
-                success_url: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/offering/success?session_id={CHECKOUT_SESSION_ID}`,
-                cancel_url: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/offering`,
-                metadata: {
-                    userId,
-                    purpose,
-                },
-            });
-
-            return NextResponse.json({ url: subscription.url });
-        } else {
-            // One-time payment
-            const paymentIntent = await stripe.paymentIntents.create({
-                amount: amount * 100,
-                currency,
-                metadata: {
-                    userId,
-                    purpose,
-                },
-            });
-
-            return NextResponse.json({
-                clientSecret: paymentIntent.client_secret,
-                paymentIntentId: paymentIntent.id
-            });
-        }
-    } catch (error) {
-        console.error('Payment error:', error);
-        return new NextResponse('Payment failed', { status: 500 });
+  try {
+    const session = await getServerSession(authOptions);
+    const userId = (session?.user as any)?.id as string | undefined;
+    if (!userId) {
+      return NextResponse.json({ error: 'Sign in is required before giving.' }, { status: 401 });
     }
+
+    const stripe = getStripe();
+    if (!stripe) {
+      return NextResponse.json({ error: 'Stripe giving is not configured in this environment.' }, { status: 503 });
+    }
+
+    const validation = PaymentSchema.safeParse(await req.json());
+    if (!validation.success) {
+      return NextResponse.json({ error: 'Invalid giving request.', details: validation.error.flatten() }, { status: 400 });
+    }
+
+    const { amount, purpose, designation, isRecurring, currency } = validation.data;
+    const unitAmount = Math.round(amount * 100);
+    const baseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin;
+    const label = purpose === 'COMMUNITY_AID'
+      ? 'Community Aid'
+      : purpose === 'CONFERENCE_SUPPORT'
+        ? 'Conference Support'
+        : 'Platform Upkeep';
+
+    const metadata: Record<string, string> = { userId, purpose };
+    if (designation) metadata.designation = designation;
+
+    const checkout = await stripe.checkout.sessions.create({
+      mode: isRecurring ? 'subscription' : 'payment',
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency,
+          unit_amount: unitAmount,
+          product_data: { name: `Digital Church OS — ${label}` },
+          ...(isRecurring ? { recurring: { interval: 'month' as const } } : {}),
+        },
+        quantity: 1,
+      }],
+      success_url: `${baseUrl}/offering/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/offering`,
+      client_reference_id: userId,
+      metadata,
+      ...(isRecurring
+        ? { subscription_data: { metadata } }
+        : { payment_intent_data: { metadata } }),
+    });
+
+    if (!checkout.url) {
+      return NextResponse.json({ error: 'Stripe did not return a checkout URL.' }, { status: 502 });
+    }
+
+    return NextResponse.json({
+      provider: 'stripe',
+      mode: isRecurring ? 'subscription' : 'payment',
+      designation: designation || null,
+      url: checkout.url,
+    });
+  } catch (error) {
+    console.error('Payment creation error:', error);
+    return NextResponse.json({ error: 'Unable to start secure checkout.' }, { status: 500 });
+  }
 }
