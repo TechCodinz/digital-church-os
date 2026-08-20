@@ -18,7 +18,8 @@ export async function getServerChurchWorkspace(): Promise<{
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return { sessionUserId: null, access: null, requiresSelection: false };
 
-  const requestedChurchId = cookies().get(ACTIVE_CHURCH_COOKIE)?.value || null;
+  const cookieStore = await cookies();
+  const requestedChurchId = cookieStore.get(ACTIVE_CHURCH_COOKIE)?.value || null;
   const resolved = await resolveChurchWorkspaceAccess(session.user.id, requestedChurchId);
   return {
     sessionUserId: session.user.id,
