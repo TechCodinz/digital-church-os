@@ -15,13 +15,16 @@ export const metadata = {
         template: '%s | Digital Church OS',
     },
     description: 'A living digital sanctuary for worship, prayer, Scripture, discipleship, pastoral care, community, and tenant-safe church ministry.',
+    themeColor: '#06110f',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+    const authConfigured = Boolean(process.env.NEXTAUTH_SECRET);
+
     return (
-        <html lang="en" className="scroll-smooth">
-            <body className={`${inter.className} bg-cream-50 text-gray-800 antialiased`}>
-                <Providers>
+        <html lang="en" className="scroll-smooth" suppressHydrationWarning>
+            <body className={`${inter.className} living-sanctuary-body antialiased`}>
+                <Providers authConfigured={authConfigured}>
                     <a
                         href="#main-content"
                         className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-full bg-amber-200 px-4 py-2 text-xs font-bold text-slate-950 shadow-xl transition-transform focus:translate-y-0"
@@ -29,8 +32,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         Skip to main content
                     </a>
                     <div className="phase11-sanctuary-shell flex min-h-screen flex-col">
+                        <div className="sanctuary-global-aurora" aria-hidden="true" />
                         <Navbar />
-                        <main id="main-content" className="flex-grow" tabIndex={-1}>{children}</main>
+                        <main id="main-content" className="relative z-10 flex-grow" tabIndex={-1}>{children}</main>
                         <FloatingSanctuaryGuide />
                         <MobileBottomNav />
                         <Footer />
