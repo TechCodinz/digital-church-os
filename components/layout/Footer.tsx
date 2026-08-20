@@ -8,19 +8,24 @@ export const Footer = () => {
     {
       label: 'Ministry',
       items: [
-        { href: '/scripture', label: 'Scripture Intelligence' },
+        { href: '/ministry-command-center', label: 'Ministry Command Center' },
+        { href: '/scripture', label: 'Scripture Study' },
+        { href: '/sermons', label: 'Sermon Studio' },
+        { href: '/choir', label: 'Choir & Song Studio' },
+        { href: '/worship-media', label: 'Worship Media' },
         { href: '/presentation', label: 'Live Presentation' },
         { href: '/live-broadcast', label: 'Live Broadcast' },
-        { href: '/worship-media', label: 'Worship Media' },
         { href: '/live-service', label: 'Live Service' },
         { href: '/prayer-room', label: 'Prayer Room' },
-        { href: '/sermons', label: 'Sermon Studio' },
-        { href: '/spiritual', label: 'AI Pastor' },
+        { href: '/prayer-practice', label: 'Personal Prayer Practice' },
+        { href: '/spiritual', label: 'AI Ministry Companion' },
       ],
     },
     {
       label: 'Growth',
       items: [
+        { href: '/daily-guide', label: 'Daily Alignment Guide' },
+        { href: '/fasting-prayer', label: 'Fasting & Prayer' },
         { href: '/journey', label: 'Spiritual Journey' },
         { href: '/activities', label: 'Sanctuary Activities' },
         { href: '/rewards', label: 'Rewards Wallet' },
@@ -32,13 +37,15 @@ export const Footer = () => {
     {
       label: 'Operations',
       items: [
+        { href: '/leader-onboarding', label: 'Leader Setup' },
+        { href: '/church-life', label: 'Church Life Operations' },
         { href: '/care', label: 'Human Care' },
         { href: '/workers', label: 'Church Workers' },
         { href: '/gifts', label: 'Gift Pools' },
-        { href: '/command-center', label: 'Command Center' },
+        { href: '/command-center', label: 'Church Operations Command Deck' },
         { href: '/media-rights', label: 'Media Rights' },
         { href: '/release-readiness', label: 'Release Readiness' },
-        { href: '/intelligence', label: 'Raizion Intelligence' },
+        { href: '/intelligence', label: 'Ministry Intelligence' },
         { href: '/council', label: 'AI Ministry Council' },
       ],
     },
@@ -68,7 +75,7 @@ export const Footer = () => {
               <span className="text-white font-semibold">Digital Church OS</span>
             </div>
             <p className="text-stone-500 text-sm leading-relaxed mb-4">
-              A living sanctuary operating system for scripture, worship media, live broadcasts, media rights, care, rewards, workers, gifts, conferences, family discipleship, church networks, and global ministry growth.
+              A living sanctuary operating system for Scripture, prayer, sermons, worship, fasting, care, service, giving, family discipleship, church networks, and global ministry growth.
             </p>
             <div className="flex items-center gap-1 text-xs text-emerald-500">
               <Shield className="w-3.5 h-3.5" />

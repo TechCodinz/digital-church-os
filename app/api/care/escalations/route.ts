@@ -10,13 +10,11 @@ import { getClientKey, rateLimit, rateLimitHeaders } from '@/lib/security/rate-l
 const EscalationSchema = z.object({
   title: z.string().trim().min(4).max(140).default('Care team follow-up requested'),
   description: z.string().trim().min(6).max(2000),
-  source: z.string().trim().max(80).default('member'),
   country: z.string().trim().max(80).optional(),
   urgency: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRISIS']).default('MEDIUM'),
   notifyPastor: z.boolean().default(true),
   notifyTrustedContact: z.boolean().default(false),
   stayWithPerson: z.boolean().default(false),
-  assignedTo: z.string().trim().optional(),
   followUpAt: z.string().datetime().optional(),
 });
 
@@ -41,13 +39,16 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return NextResponse.json({ error: 'Invalid escalation payload', details: parsed.error.flatten() }, { status: 400, headers: rateLimitHeaders(limit) });
 
     const data = parsed.data;
+    // The legacy escalation table predates church tenancy. Member callers may
+    // create their own request, but may not choose the assignee or forge a
+    // privileged source. Tenant church teams use the separate scoped care board.
     const rows = await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
       INSERT INTO care_escalations (
         user_id, source, urgency, status, title, description, country, emergency_disclaimer,
         notify_pastor, notify_trusted_contact, stay_with_person, assigned_to, metadata
       ) VALUES (
-        ${session.user.id}, ${data.source}, ${data.urgency}, 'OPEN', ${data.title}, ${data.description}, ${data.country || null}, ${emergencyText(data.country)},
-        ${data.notifyPastor}, ${data.notifyTrustedContact}, ${data.stayWithPerson}, ${data.assignedTo || null}, ${JSON.stringify({ createdFrom: 'api' })}::jsonb
+        ${session.user.id}, 'member', ${data.urgency}, 'OPEN', ${data.title}, ${data.description}, ${data.country || null}, ${emergencyText(data.country)},
+        ${data.notifyPastor}, ${data.notifyTrustedContact}, ${data.stayWithPerson}, NULL, ${JSON.stringify({ createdFrom: 'member-api', tenantScoped: false })}::jsonb
       )
       RETURNING id, user_id, source, urgency, status, title, description, country, emergency_disclaimer, notify_pastor, notify_trusted_contact, stay_with_person, assigned_to, created_at, updated_at
     `);
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
     if (data.followUpAt) {
       await prisma.$executeRaw(Prisma.sql`
         INSERT INTO care_followups (escalation_id, user_id, assigned_to, type, scheduled_for, status)
-        VALUES (${escalation.id}, ${session.user.id}, ${data.assignedTo || null}, 'PASTORAL_CHECK_IN', ${new Date(data.followUpAt)}, 'PENDING')
+        VALUES (${escalation.id}, ${session.user.id}, NULL, 'PASTORAL_CHECK_IN', ${new Date(data.followUpAt)}, 'PENDING')
       `);
     }
 
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
       action: 'CARE_ESCALATION_CREATED',
       entityType: 'care_escalations',
       entityId: escalation.id,
-      metadata: { urgency: data.urgency, source: data.source, assignedTo: data.assignedTo || null },
+      metadata: { urgency: data.urgency, source: 'member', assignedByMember: false, tenantScoped: false },
       req,
     });
 
@@ -81,11 +82,16 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const isCareLeader = ['CHURCH_ADMIN', 'AID_REVIEWER', 'AI_DEPARTMENT'].includes(session.user.role);
+  // CHURCH_ADMIN is deliberately excluded: church teams use the tenant-scoped
+  // Pastoral Care Appointments board. AI_DEPARTMENT is also excluded from raw
+  // human-care case access. Until a dedicated platform CARE_REVIEWER role is
+  // introduced, the existing human AID_REVIEWER role is the only platform-wide
+  // review role for this legacy unscoped queue.
+  const isPlatformCareReviewer = session.user.role === 'AID_REVIEWER';
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status') || null;
 
-  const rows = isCareLeader
+  const rows = isPlatformCareReviewer
     ? await prisma.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
         SELECT ce.*, u.name AS user_name, u.email AS user_email, au.name AS assigned_name, au.email AS assigned_email
         FROM care_escalations ce
@@ -103,5 +109,5 @@ export async function GET(req: NextRequest) {
         LIMIT 100
       `);
 
-  return NextResponse.json({ escalations: rows, scope: isCareLeader ? 'care-team' : 'member' });
+  return NextResponse.json({ escalations: rows, scope: isPlatformCareReviewer ? 'platform-care-review' : 'member' });
 }

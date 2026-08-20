@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Home, RefreshCw, Heart } from 'lucide-react';
@@ -32,7 +33,7 @@ const errorMessages: Record<string, { title: string; description: string }> = {
     },
 };
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
     const searchParams = useSearchParams();
     const error = searchParams.get('error') || 'Default';
     const errorInfo = errorMessages[error] || errorMessages.Default;
@@ -76,5 +77,26 @@ export default function AuthErrorPage() {
                 </div>
             </motion.div>
         </div>
+    );
+}
+
+function AuthErrorFallback() {
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-stone-50 via-cream-50 to-sage-50 flex items-center justify-center px-4">
+            <div className="w-full max-w-md text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-sage-500 rounded-2xl shadow-lg mb-4">
+                    <Heart className="w-8 h-8 text-white" />
+                </div>
+                <h1 className="text-2xl font-light text-stone-800">Digital Church OS</h1>
+            </div>
+        </div>
+    );
+}
+
+export default function AuthErrorPage() {
+    return (
+        <Suspense fallback={<AuthErrorFallback />}>
+            <AuthErrorContent />
+        </Suspense>
     );
 }

@@ -26,12 +26,12 @@ interface CounselingResponse {
 const DEFAULT_SCRIPTURES = [
   {
     reference: 'Psalm 34:18',
-    text: 'The LORD is close to the brokenhearted and saves those who are crushed in spirit.',
-    application: 'You are not abandoned in pain; seek support and take the next safe step.',
+    text: 'Open this passage in your selected Bible translation.',
+    application: 'You are not meant to carry pain alone; seek support and take the next safe step.',
   },
   {
     reference: 'Matthew 11:28',
-    text: 'Come to me, all you who are weary and burdened, and I will give you rest.',
+    text: 'Open this passage in your selected Bible translation.',
     application: 'Spiritual rest can begin with honesty, prayer, and asking trusted people for help.',
   },
 ];
@@ -43,7 +43,8 @@ export class RealCounselor {
 
   private crisisKeywords = [
     'suicide', 'kill myself', 'end my life', 'want to die',
-    'self-harm', 'cut myself', 'hurt myself', 'emergency',
+    'self-harm', 'cut myself', 'hurt myself', 'immediate danger',
+    'being abused', 'someone will hurt me',
   ];
 
   constructor() {
@@ -58,7 +59,7 @@ export class RealCounselor {
     if (isCrisis) {
       await AILogger.logCounselingSession({
         userId: session.userId,
-        concern: session.concern,
+        concern: '[sensitive concern intentionally not persisted]',
         riskLevel: 'high',
         responseType: 'crisis',
       });
@@ -76,24 +77,24 @@ export class RealCounselor {
         messages: [
           {
             role: 'system',
-            content: `You provide gentle Christian spiritual encouragement. Return JSON only: { reflection, scriptureReferences: [string], practicalSteps: [string] }. Never claim divine revelation. Never replace licensed counseling or emergency help.`,
+            content: `You provide gentle Christian spiritual encouragement. Return JSON only: { reflection, scriptureReferences: [string], practicalSteps: [string] }. Never claim divine revelation. Never diagnose. Never replace licensed counseling, medical care, safeguarding authorities, or emergency help. Do not fabricate Bible quotations; return Scripture references and generated reflection only unless exact passage text is present in the supplied context.`,
           },
           {
             role: 'user',
-            content: `Concern: ${session.concern}\nContextual Scriptures:\n${searchResults.map((s: any) => `${s.reference}: ${s.text}`).join('\n')}`,
+            content: `Concern: ${session.concern}\nContextual Scripture material from the configured Scripture source:\n${searchResults.map((s: any) => `${s.reference}: ${s.text}`).join('\n')}`,
           },
         ],
         response_format: { type: 'json_object' },
-        temperature: 0.6,
+        temperature: 0.55,
       });
 
-      const responseData = JSON.parse(completion.choices[0].message.content || '{}');
+      const responseData = JSON.parse(completion.choices[0]?.message?.content || '{}');
       const verifiedVerses = await this.safeGetVerses(responseData.scriptureReferences || []);
-      const safeReflection = await this.guardrails.apply(responseData.reflection || this.defaultReflection(session.concern));
+      const safeReflection = await this.guardrails.apply(responseData.reflection || this.defaultReflection());
 
       await AILogger.logCounselingSession({
         userId: session.userId,
-        concern: session.concern,
+        concern: '[sensitive concern intentionally not persisted]',
         riskLevel: 'low',
         responseType: 'counseling',
       });
@@ -102,16 +103,18 @@ export class RealCounselor {
         type: 'counseling',
         content: {
           reflection: safeReflection,
-          scriptures: verifiedVerses.length ? verifiedVerses.map((v: any) => ({
-            reference: v.reference,
-            text: v.text,
-            application: 'One way to apply this passage is to pause, pray, and take a practical step with support.',
-          })) : DEFAULT_SCRIPTURES,
+          scriptures: verifiedVerses.length
+            ? verifiedVerses.map((v: any) => ({
+                reference: v.reference,
+                text: v.text || 'Open this passage in your selected Bible translation.',
+                application: 'Pause with this passage, pray honestly, and consider one practical step with human support.',
+              }))
+            : DEFAULT_SCRIPTURES,
           practicalSteps: Array.isArray(responseData.practicalSteps) && responseData.practicalSteps.length
             ? responseData.practicalSteps.slice(0, 6)
             : this.defaultPracticalSteps(),
         },
-        disclaimer: 'This AI provides spiritual support and does not replace clergy, emergency services, medical professionals, or licensed counselors.',
+        disclaimer: 'This AI provides spiritual support and does not replace clergy, emergency services, medical professionals, safeguarding authorities, or licensed counselors.',
       };
     } catch (error) {
       console.error('Counseling generation error:', error);
@@ -138,32 +141,33 @@ export class RealCounselor {
   }
 
   private detectCrisis(text: string): boolean {
-    return this.crisisKeywords.some((kw) => text.toLowerCase().includes(kw));
+    const normalized = text.toLowerCase();
+    return this.crisisKeywords.some((kw) => normalized.includes(kw));
   }
 
-  private fallbackCounsel(session: CounselingSession): CounselingResponse {
+  private fallbackCounsel(_session: CounselingSession): CounselingResponse {
     return {
       type: 'encouragement',
       content: {
-        reflection: this.defaultReflection(session.concern),
+        reflection: this.defaultReflection(),
         scriptures: DEFAULT_SCRIPTURES,
         practicalSteps: this.defaultPracticalSteps(),
       },
-      disclaimer: 'AI generation is currently limited. This response is a safe pastoral fallback and does not replace clergy, emergency services, medical professionals, or licensed counselors.',
+      disclaimer: 'AI generation is currently limited. This response is a safe spiritual fallback and does not replace clergy, emergency services, medical professionals, safeguarding authorities, or licensed counselors.',
     };
   }
 
-  private defaultReflection(concern: string) {
-    return `Thank you for sharing this. What you described matters, and it deserves patience, prayer, and wise support. According to scripture, burdens are not meant to be carried alone. Take one grounded step today: breathe, pray honestly, and reach out to a trusted spiritual leader or caring person who can walk with you.`;
+  private defaultReflection() {
+    return 'Thank you for sharing this. What you described deserves patience, prayer, and wise human support. Take one grounded step today: pause, pray honestly, and reach out to a trusted pastor, counselor, mentor, family member, or caring person who can walk with you.';
   }
 
   private defaultPracticalSteps() {
     return [
       'Pause and name what you are feeling without judging yourself.',
       'Pray simply and honestly for strength, wisdom, and peace.',
-      'Speak with a trusted pastor, counselor, mentor, or mature friend.',
-      'Write down one small next step you can take today.',
-      'If there is danger or crisis, contact local emergency services immediately.',
+      'Speak with a trusted pastor, counselor, mentor, family member, or mature friend.',
+      'Write down one small practical next step you can take today.',
+      'If there is immediate danger or crisis, contact the appropriate local emergency or crisis service and a trusted person nearby.',
     ];
   }
 
@@ -171,12 +175,26 @@ export class RealCounselor {
     return {
       type: 'crisis',
       content: {
-        reflection: "I’m sorry you’re carrying this. Your safety matters right now. Please contact emergency help immediately or reach out to someone physically near you who can stay with you.",
-        scriptures: [{ reference: 'Psalm 34:18', text: 'The LORD is close to the brokenhearted...', application: 'You are not meant to face this alone.' }],
-        practicalSteps: ['Call local emergency services now if you are in immediate danger.', 'If you are in the U.S., call or text 988.', 'Move away from anything you could use to hurt yourself.', 'Contact a trusted person and ask them to stay with you.'],
-        resources: { unitedStates: '988 Suicide & Crisis Lifeline', emergency: 'Local emergency services' },
+        reflection: 'Your safety matters right now. This needs immediate human support rather than an AI-generated counseling conversation.',
+        scriptures: [
+          {
+            reference: 'Psalm 34:18',
+            text: 'Open this passage in your selected Bible translation.',
+            application: 'You are not meant to face this alone; seek immediate human support.',
+          },
+        ],
+        practicalSteps: [
+          'Contact the appropriate local emergency or crisis service if there is immediate danger.',
+          'Reach a trusted person who can stay with you or help you get to a safe place.',
+          'Move away from immediate hazards when you can do so safely.',
+          'Use the church care pathway for human pastoral follow-up when appropriate.',
+        ],
+        resources: {
+          emergency: 'Use the appropriate local emergency or crisis service for the user’s location.',
+          pastoralCare: '/care',
+        },
       },
-      disclaimer: 'CRISIS RESPONSE: Seek immediate professional or emergency help. This AI cannot provide emergency care.',
+      disclaimer: 'CRISIS HANDOFF: Seek immediate professional or emergency help. This AI cannot provide emergency care.',
     };
   }
 }

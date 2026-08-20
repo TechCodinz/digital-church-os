@@ -7,7 +7,7 @@ import { aiRateLimit } from '@/lib/ai-middleware';
 
 const ChoirRequestSchema = z.object({
   theme: z.string().trim().min(3).max(160),
-  style: z.enum(['gospel', 'contemporary', 'hymn']).default('gospel'),
+  style: z.enum(['gospel', 'contemporary', 'hymn', 'worship', 'praise', 'psalm', 'anthem', 'children']).default('gospel'),
   scriptureRefs: z.array(z.string().trim().min(2).max(80)).max(12).optional().default([]),
   type: z.enum(['lyrics', 'song', 'choir', 'worship']).optional().default('lyrics'),
 });
@@ -61,8 +61,14 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     module: 'Christian Worship Choir Module',
-    version: '1.1.0',
+    version: '1.2.0',
     safeMode: !process.env.OPENAI_API_KEY,
-    capabilities: ['worship lyric drafts', 'chord suggestions', 'scripture basis', 'safe fallback mode'],
+    capabilities: [
+      'worship lyric drafts',
+      'hymn, gospel, praise, worship, psalm, anthem, and children song modes',
+      'chord suggestions',
+      'scripture basis',
+      'safe fallback mode',
+    ],
   });
 }

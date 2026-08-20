@@ -1,146 +1,70 @@
 'use client';
 
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, Sparkles, Music, Star, BookOpen, Gift, Shield, ChevronRight } from 'lucide-react';
+import { BookOpen, ChevronRight, Heart, Music, Shield, Sparkles, Star, UsersRound } from 'lucide-react';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
+
+const modules = [
+  { title: 'Guided Prayer', description: 'Simple Scripture-grounded prayer learning that stays inside parent and guardian oversight.', icon: Heart, lightColor: 'bg-rose-50 border-rose-100', textColor: 'text-rose-600', action: '/children/prayer' },
+  { title: 'Bible Story Adventures', description: 'Interactive Bible stories adapted to age and family-selected learning settings.', icon: BookOpen, lightColor: 'bg-blue-50 border-blue-100', textColor: 'text-blue-600', action: '/children/stories' },
+  { title: 'Memory Verse Games', description: 'Playful Scripture-memory activities with progress adults can review without spiritual ranking.', icon: Star, lightColor: 'bg-amber-50 border-amber-100', textColor: 'text-amber-600', action: '/children/memory' },
+  { title: 'Joyful Worship', description: 'Age-appropriate worship, movement, music, and family-friendly praise experiences.', icon: Music, lightColor: 'bg-purple-50 border-purple-100', textColor: 'text-purple-600', action: '/children/worship' },
+  { title: 'Crafts & Creativity', description: 'Bible-centered creative activities designed for families or trusted adults to do together.', icon: Sparkles, lightColor: 'bg-emerald-50 border-emerald-100', textColor: 'text-emerald-600', action: '/children/crafts' },
+  { title: 'Parent & Guardian Center', description: 'Manage profiles, consent, safeguards, milestones, devotional plans, and learning settings.', icon: Shield, lightColor: 'bg-slate-50 border-slate-200', textColor: 'text-slate-700', action: '/children/parents' },
+];
+
+const safeguards = [
+  'Parent or guardian remains in control of child profiles and learning settings.',
+  'AI content is educational support—not a trusted adult, counselor, pastor, or private confidant for a child.',
+  'Children’s progress is for encouragement and review, never public comparison, holiness scoring, or spiritual ranking.',
+  'Sensitive concerns should move to trusted adults and appropriate church safeguarding workflows.',
+];
 
 export default function ChildrenDepartmentPage() {
-    const { data: session } = useSession();
+  return (
+    <main className="sanctuary-page-shell min-h-screen bg-[#06110f] pb-20 pt-20 text-white sm:pt-24">
+      <section className="sanctuary-cinematic-hero relative overflow-hidden px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+        <div className="sanctuary-light-column" />
+        <div className="sanctuary-nave" />
+        <div className="sanctuary-vignette" />
+        <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1fr_0.72fr] lg:items-end">
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 max-w-4xl">
+            <div className="inline-flex items-center rounded-full border border-amber-200/20 bg-white/5 px-4 py-2 text-sm font-medium text-amber-100 backdrop-blur-xl"><Sparkles className="mr-2 h-4 w-4" /> Children’s Sanctuary</div>
+            <h1 className="mt-6 text-4xl font-light leading-[1.04] text-white md:text-7xl">Wonder, Scripture, music, creativity—and trusted adults always close by.</h1>
+            <p className="mt-6 max-w-3xl text-base leading-8 text-white/58 sm:text-lg">A joyful learning environment for children, designed around family control and church safeguarding rather than unsupervised AI companionship.</p>
+            <div className="mt-8 flex flex-wrap gap-3"><Link href="/children/parents" className="sacred-primary-button"><Shield className="h-4 w-4" /> Parent & Guardian Center</Link><Link href="/children/stories" className="sacred-secondary-button"><BookOpen className="h-4 w-4" /> Start a Bible story</Link></div>
+          </motion.div>
 
-    const modules = [
-        {
-            title: "Magical Prayer Room",
-            description: "A gentle, guided space for kids to learn how to talk with God.",
-            icon: Heart,
-            color: "bg-rose-500",
-            lightColor: "bg-rose-50 border-rose-100",
-            textColor: "text-rose-500",
-            action: "/children/prayer"
-        },
-        {
-            title: "Bible Story Adventures",
-            description: "Interactive AI-powered Bible stories tailored specifically to your child's age group.",
-            icon: BookOpen,
-            color: "bg-blue-500",
-            lightColor: "bg-blue-50 border-blue-100",
-            textColor: "text-blue-500",
-            action: "/children/stories"
-        },
-        {
-            title: "Memory Verse Games",
-            description: "Fun, gamified ways to memorize scripture with rewards and badges.",
-            icon: Star,
-            color: "bg-amber-400",
-            lightColor: "bg-amber-50 border-amber-100",
-            textColor: "text-amber-500",
-            action: "/children/memory"
-        },
-        {
-            title: "Joyful Worship",
-            description: "Action songs, instruments, and musical worship perfectly suited for kids.",
-            icon: Music,
-            color: "bg-purple-500",
-            lightColor: "bg-purple-50 border-purple-100",
-            textColor: "text-purple-500",
-            action: "/children/worship"
-        },
-        {
-            title: "Crafts & Creativity",
-            description: "Generate DIY Bible craft ideas based on materials you already have at home!",
-            icon: Sparkles,
-            color: "bg-emerald-500",
-            lightColor: "bg-emerald-50 border-emerald-100",
-            textColor: "text-emerald-500",
-            action: "/children/crafts"
-        },
-        {
-            title: "Parent Dashboard",
-            description: "Track spiritual milestones, manage safeguards, and find family devotionals.",
-            icon: Shield,
-            color: "bg-slate-700",
-            lightColor: "bg-slate-50 border-slate-200",
-            textColor: "text-slate-700",
-            action: "/children/parents"
-        }
-    ];
-
-    return (
-        <div className="min-h-screen pt-24 pb-12 bg-[#FDFBF7]">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-                {/* Header */}
-                <div className="text-center mb-16">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="inline-flex items-center justify-center p-4 bg-amber-100 rounded-full mb-6"
-                    >
-                        <Sparkles className="text-amber-500 w-8 h-8" />
-                    </motion.div>
-                    <motion.h1
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="text-4xl md:text-5xl font-light text-stone-800 mb-4"
-                    >
-                        Children's Sanctuary
-                    </motion.h1>
-                    <motion.p
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="text-xl text-stone-500 max-w-2xl mx-auto"
-                    >
-                        "Let the little children come to me, and do not hinder them, for the kingdom of heaven belongs to such as these." <br />
-                        <span className="text-sm italic font-medium">— Matthew 19:14</span>
-                    </motion.p>
-                </div>
-
-                {/* Modules Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {modules.map((mod, index) => (
-                        <motion.div
-                            key={mod.title}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 + 0.3 }}
-                            className={`rounded-3xl p-8 border hover:-translate-y-1 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md ${mod.lightColor}`}
-                        >
-                            <div className={`${mod.color} w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-sm`}>
-                                <mod.icon className="text-white w-7 h-7" />
-                            </div>
-                            <h3 className="text-2xl font-medium text-stone-800 mb-3">{mod.title}</h3>
-                            <p className="text-stone-600 mb-8 leading-relaxed">
-                                {mod.description}
-                            </p>
-
-                            <Link href={mod.action} className="inline-flex items-center font-semibold text-sm uppercase tracking-wider hover:opacity-80 transition-opacity">
-                                <span className={mod.textColor}>Launch Experience</span>
-                                <ChevronRight className={`ml-1 w-4 h-4 ${mod.textColor}`} />
-                            </Link>
-                        </motion.div>
-                    ))}
-                </div>
-
-                {/* Banner */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8 }}
-                    className="mt-16 bg-sage-50 border border-sage-200 rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between"
-                >
-                    <div className="mb-6 md:mb-0 md:mr-8 text-center md:text-left">
-                        <h2 className="text-2xl font-light text-stone-800 mb-2">Age-Specific Spiritual Formation</h2>
-                        <p className="text-stone-600">Our engine automatically adapts stories, vocabulary, and theology depth for Toddlers (0-3), Preschoolers (4-5), and Elementary (6-11) kids.</p>
-                    </div>
-                    <Link href="/children/parents" className="shrink-0 px-8 py-4 bg-sage-600 text-white rounded-full font-medium hover:bg-sage-700 transition-colors shadow-sm">
-                        Configure Child Profiles
-                    </Link>
-                </motion.div>
-
-            </div>
+          <motion.aside initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="sacred-panel-dark relative z-10 p-6">
+            <p className="sanctuary-section-label text-emerald-200/60">Family-first safeguards</p>
+            <h2 className="mt-2 text-2xl font-light text-white">Designed around trusted adult oversight.</h2>
+            <div className="mt-5 space-y-3">{safeguards.map((item) => <div key={item} className="flex gap-3 rounded-2xl border border-white/8 bg-white/[0.035] p-4 text-xs leading-6 text-white/48"><Shield className="mt-1 h-4 w-4 shrink-0 text-emerald-200" /><span>{item}</span></div>)}</div>
+          </motion.aside>
         </div>
-    );
+      </section>
+
+      <section className="bg-[#f7f5ef] px-4 py-14 text-stone-900 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-8 max-w-3xl"><p className="sanctuary-section-label text-emerald-700">Choose an experience</p><h2 className="mt-2 text-4xl font-light leading-tight text-stone-800">Learning that invites curiosity without replacing relationship</h2><p className="mt-3 text-sm leading-7 text-stone-600">Each experience should be opened inside the family or ministry context that makes sense for the child.</p></div>
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {modules.map((mod, index) => (
+              <motion.article key={mod.title} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.05, 0.25) }} className={`rounded-[2rem] border p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl ${mod.lightColor}`}>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm"><mod.icon className={`h-6 w-6 ${mod.textColor}`} /></div>
+                <h3 className="mt-5 text-2xl font-semibold text-stone-800">{mod.title}</h3>
+                <p className="mt-3 min-h-[72px] text-sm leading-7 text-stone-600">{mod.description}</p>
+                <Link href={mod.action} className={`mt-5 inline-flex items-center text-sm font-semibold ${mod.textColor}`}>Open experience <ChevronRight className="ml-1 h-4 w-4" /></Link>
+              </motion.article>
+            ))}
+          </div>
+
+          <div className="mt-12 grid gap-4 md:grid-cols-3">
+            <Link href="/family-altar" className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm"><UsersRound className="h-5 w-5 text-emerald-600" /><h3 className="mt-4 font-semibold text-stone-800">Family Altar</h3><p className="mt-2 text-xs leading-6 text-stone-500">Bring Scripture, prayer, gratitude, and a simple act of love into the household together.</p></Link>
+            <Link href="/sunday-school" className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm"><BookOpen className="h-5 w-5 text-amber-600" /><h3 className="mt-4 font-semibold text-stone-800">Teacher preparation</h3><p className="mt-2 text-xs leading-6 text-stone-500">Adult teachers prepare and review class material before it reaches children.</p></Link>
+            <Link href="/care" className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm"><Shield className="h-5 w-5 text-rose-500" /><h3 className="mt-4 font-semibold text-stone-800">Sensitive concern?</h3><p className="mt-2 text-xs leading-6 text-stone-500">Move safeguarding or pastoral concerns into accountable human care rather than a child-facing AI experience.</p></Link>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
 }

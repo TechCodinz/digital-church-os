@@ -1,77 +1,109 @@
 import { OpenAI } from 'openai';
-import { ScriptureLoader } from '@/lib/ai/scripture/loader';
+import { Prisma } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+type TranslationPassage = {
+  version_code: string;
+  version_name: string;
+  public_domain: boolean;
+  license_notes: string | null;
+  reference: string;
+  text: string;
+};
 
+/**
+ * Translation intelligence must never fabricate or paraphrase text while
+ * presenting it as a named Bible translation. Named translation text comes
+ * only from enabled local/public-domain passages or configured licensed
+ * provider data that has already been persisted in scripture_passages.
+ */
 export class TranslationIntelligenceEngine {
-    private scriptureLoader = new ScriptureLoader();
+  async getVerseWithAllTranslations(reference: string) {
+    const normalizedReference = reference.trim();
+    if (!normalizedReference) return null;
 
-    private translations = {
-        KJV: { name: "King James Version", style: "formal", poetry: "high" },
-        NIV: { name: "New International Version", style: "balanced", poetry: "medium" },
-        ESV: { name: "English Standard Version", style: "literal", poetry: "medium" },
-        NLT: { name: "New Living Translation", style: "dynamic", poetry: "low" },
-        MSG: { name: "The Message", style: "paraphrase", poetry: "creative" },
-        AMP: { name: "Amplified Bible", style: "expanded", poetry: "explanatory" },
-        NASB: { name: "New American Standard", style: "most-literal", poetry: "precise" },
-        CSB: { name: "Christian Standard Bible", style: "optimal-equivalence", poetry: "modern" },
-        NKJV: { name: "New King James Version", style: "modern-formal", poetry: "preserved" },
-        TPT: { name: "The Passion Translation", style: "heart-language", poetry: "emotional" },
-        YLT: { name: "Young's Literal Translation", style: "ultra-literal", poetry: "raw" },
-        WEB: { name: "World English Bible", style: "public-domain", poetry: "accessible" },
-    };
+    const passages = await prisma.$queryRaw<TranslationPassage[]>(Prisma.sql`
+      SELECT
+        p.version_code,
+        v.name AS version_name,
+        v.public_domain,
+        v.license_notes,
+        p.reference,
+        p.text
+      FROM scripture_passages p
+      JOIN bible_versions v ON v.code = p.version_code
+      LEFT JOIN bible_translation_providers provider ON provider.id = v.provider_id
+      WHERE p.reference ILIKE ${normalizedReference}
+        AND v.enabled = true
+        AND (
+          v.public_domain = true
+          OR (provider.id IS NOT NULL AND provider.enabled = true)
+        )
+      ORDER BY v.public_domain DESC, v.name ASC
+      LIMIT 16
+    `);
 
-    async getVerseWithAllTranslations(reference: string) {
-        const verses: Record<string, string> = {};
+    if (!passages.length) return null;
 
-        // In a real production app, we would fetch from a Bible API (e.g. API.Bible)
-        // For this demo/implementation, we simulate translations using the local KJV as base
-        const baseVerse = await this.scriptureLoader.getVerse(reference);
-        if (!baseVerse) return null;
-
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                {
-                    role: "system",
-                    content: `You are a Bible Translation Expert. Given a verse in KJV, provide its equivalent in the following styles/versions: ${Object.keys(this.translations).join(', ')}. Also provide linguistic, cultural, and prophetic depths.`
-                },
-                {
-                    role: "user",
-                    content: `Reference: ${reference}\nText: ${baseVerse.text}`
-                }
-            ],
-            response_format: { type: "json_object" }
-        });
-
-        const data = JSON.parse(response.choices[0].message.content || '{}');
-
-        return {
-            reference,
-            original: data.original_greek_hebrew || "Original text unavailable",
-            translations: data.translations || {},
-            comparison: data.comparison_insights || "No comparison insights available",
-            depths: await this.excavateDepths(reference, data.translations || {})
+    const translations = passages.reduce<Record<string, { name: string; text: string; publicDomain: boolean; licenseNotes: string | null }>>(
+      (acc, passage) => {
+        acc[passage.version_code] = {
+          name: passage.version_name,
+          text: passage.text,
+          publicDomain: passage.public_domain,
+          licenseNotes: passage.license_notes,
         };
+        return acc;
+      },
+      {},
+    );
+
+    return {
+      reference: passages[0].reference,
+      translations,
+      comparison: await this.createComparisonInsight(passages),
+      licensingNote:
+        'Named Bible text is returned only from enabled public-domain content or configured licensed providers. AI never invents text and labels it as a published translation.',
+    };
+  }
+
+  private async createComparisonInsight(passages: TranslationPassage[]) {
+    if (!process.env.OPENAI_API_KEY || passages.length < 2) {
+      return 'Compare wording, emphasis, and readability across the available licensed or public-domain texts. Translation text itself is never generated by AI.';
     }
 
-    private async excavateDepths(reference: string, translations: any) {
-        // Deep excavation powered by AI
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                {
-                    role: "system",
-                    content: "Excavate the depths of this scripture across multiple dimensions: word studies, cultural context, prophetic layers, typological connections, numeric patterns, and chiastic structures. Return valid JSON."
-                },
-                {
-                    role: "user",
-                    content: `Reference: ${reference}\nTranslations: ${JSON.stringify(translations)}`
-                }
-            ],
-            response_format: { type: "json_object" }
-        });
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You explain differences between Bible translations supplied by the application. Never rewrite, reconstruct, or claim missing translation text. Do not claim divine revelation or prophecy. Return JSON with a comparison field containing a concise pastoral-study explanation.',
+          },
+          {
+            role: 'user',
+            content: JSON.stringify(
+              passages.map((passage) => ({
+                version: passage.version_code,
+                reference: passage.reference,
+                text: passage.text,
+              })),
+            ),
+          },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.2,
+      });
 
-        return JSON.parse(response.choices[0].message.content || '{}');
+      const parsed = JSON.parse(response.choices[0]?.message?.content || '{}');
+      return typeof parsed.comparison === 'string'
+        ? parsed.comparison
+        : 'Review the supplied translations side-by-side, noting wording and emphasis while keeping the passage in context.';
+    } catch (error) {
+      console.error('Translation comparison insight failed:', error);
+      return 'Review the supplied translations side-by-side, noting wording and emphasis while keeping the passage in context.';
     }
+  }
 }

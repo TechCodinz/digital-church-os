@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
@@ -14,7 +14,7 @@ export async function PATCH(
         }
 
         const body = await req.json();
-        const { id } = params;
+        const { id } = await params;
 
         // Verify ownership before updating
         const existing = await prisma.goal.findFirst({
@@ -44,7 +44,7 @@ export async function PATCH(
 
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
@@ -52,7 +52,7 @@ export async function DELETE(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { id } = params;
+        const { id } = await params;
 
         const existing = await prisma.goal.findFirst({
             where: { id, userId: session.user.id },

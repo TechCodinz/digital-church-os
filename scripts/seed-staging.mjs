@@ -32,7 +32,7 @@ async function seedCorePrismaModels() {
 
   const admin = await prisma.user.upsert({
     where: { email: process.env.STAGING_ADMIN_EMAIL || 'admin@digitalchurchos.test' },
-    update: { role: 'CHURCH_ADMIN', religionId: religion.id, onboardingCompleted: true },
+    update: { role: 'CHURCH_ADMIN', religionId: religion.id, onboardingCompleted: true, passwordHash },
     create: {
       email: process.env.STAGING_ADMIN_EMAIL || 'admin@digitalchurchos.test',
       passwordHash,
@@ -45,11 +45,24 @@ async function seedCorePrismaModels() {
 
   const member = await prisma.user.upsert({
     where: { email: process.env.STAGING_MEMBER_EMAIL || 'member@digitalchurchos.test' },
-    update: { role: 'MEMBER', religionId: religion.id, onboardingCompleted: true },
+    update: { role: 'MEMBER', religionId: religion.id, onboardingCompleted: true, passwordHash },
     create: {
       email: process.env.STAGING_MEMBER_EMAIL || 'member@digitalchurchos.test',
       passwordHash,
       name: 'Staging Member',
+      role: 'MEMBER',
+      religionId: religion.id,
+      onboardingCompleted: true,
+    },
+  });
+
+  const viewer = await prisma.user.upsert({
+    where: { email: process.env.STAGING_VIEWER_EMAIL || 'viewer@digitalchurchos.test' },
+    update: { role: 'MEMBER', religionId: religion.id, onboardingCompleted: true, passwordHash },
+    create: {
+      email: process.env.STAGING_VIEWER_EMAIL || 'viewer@digitalchurchos.test',
+      passwordHash,
+      name: 'Staging Viewer',
       role: 'MEMBER',
       religionId: religion.id,
       onboardingCompleted: true,
@@ -118,11 +131,89 @@ async function seedCorePrismaModels() {
     return existing;
   });
 
-  console.log('Core seed complete:', { religion: religion.id, admin: admin.email, member: member.email, aiModule: aiModule.id, sermon: sermon?.id, worship: worship?.id, conference: conference?.id });
-  return { religion, admin, member, sermon, worship, conference };
+  console.log('Core seed complete:', {
+    religion: religion.id,
+    admin: admin.email,
+    member: member.email,
+    viewer: viewer.email,
+    aiModule: aiModule.id,
+    sermon: sermon?.id,
+    worship: worship?.id,
+    conference: conference?.id,
+  });
+  return { religion, admin, member, viewer, sermon, worship, conference };
+}
+
+async function seedTenantFixtures(ctx) {
+  if (!(await tableExists('church_profiles'))) return;
+
+  await prisma.$executeRaw`
+    INSERT INTO church_profiles (id, owner_id, name, slug, denomination, country, city, description, verified, visibility, metadata)
+    VALUES
+      ('staging-church-public', ${ctx.admin.id}, 'Staging Public Church', 'staging-public-church', 'Christian', 'US', 'Test City', 'Public church fixture for Phase 11 runtime isolation tests.', true, 'PUBLIC', '{"seeded":true}'::jsonb),
+      ('staging-church-private', ${ctx.admin.id}, 'Staging Private Church', 'staging-private-church', 'Christian', 'US', 'Test City', 'Private church fixture for Phase 11 runtime isolation tests.', true, 'PRIVATE', '{"seeded":true}'::jsonb)
+    ON CONFLICT (id) DO UPDATE SET
+      owner_id = EXCLUDED.owner_id,
+      name = EXCLUDED.name,
+      slug = EXCLUDED.slug,
+      visibility = EXCLUDED.visibility,
+      verified = EXCLUDED.verified,
+      metadata = EXCLUDED.metadata
+  `;
+
+  if (await tableExists('church_profile_members')) {
+    await prisma.$executeRaw`
+      INSERT INTO church_profile_members (church_id, user_id, role, status, invited_by)
+      VALUES
+        ('staging-church-public', ${ctx.admin.id}, 'OWNER', 'ACTIVE', ${ctx.admin.id}),
+        ('staging-church-private', ${ctx.admin.id}, 'OWNER', 'ACTIVE', ${ctx.admin.id}),
+        ('staging-church-public', ${ctx.member.id}, 'STAFF', 'ACTIVE', ${ctx.admin.id}),
+        ('staging-church-private', ${ctx.viewer.id}, 'VIEWER', 'ACTIVE', ${ctx.admin.id})
+      ON CONFLICT (church_id, user_id) DO UPDATE SET
+        role = EXCLUDED.role,
+        status = 'ACTIVE',
+        invited_by = EXCLUDED.invited_by,
+        updated_at = now()
+    `;
+  }
+
+  if (ctx.conference?.id) {
+    await prisma.conference.update({
+      where: { id: ctx.conference.id },
+      data: { churchProfileId: 'staging-church-public' },
+    });
+  }
+
+  const existingPrivateConference = await prisma.conference.findFirst({
+    where: { title: 'Staging Private Gathering' },
+  });
+  if (!existingPrivateConference) {
+    await prisma.conference.create({
+      data: {
+        churchProfileId: 'staging-church-private',
+        title: 'Staging Private Gathering',
+        theme: 'Private Church Formation',
+        scriptureRefs: ['Hebrews 10:24-25'],
+        startDate: new Date(now.getTime() + 2 * 60 * 60 * 1000),
+        endDate: new Date(now.getTime() + 3 * 60 * 60 * 1000),
+        location: 'Private staging room',
+        status: 'UPCOMING',
+        religionId: ctx.religion.id,
+      },
+    });
+  }
+
+  console.log('Phase 11 tenant fixtures seeded:', {
+    publicChurch: 'staging-church-public',
+    publicStaff: ctx.member.email,
+    privateChurch: 'staging-church-private',
+    privateViewer: ctx.viewer.email,
+  });
 }
 
 async function seedRawSqlTables(ctx) {
+  await seedTenantFixtures(ctx);
+
   if (await tableExists('platform_feature_flags')) {
     await prisma.$executeRaw`
       INSERT INTO platform_feature_flags (flag_key, title, description, enabled, rollout_percent, config)
@@ -182,7 +273,7 @@ async function seedRawSqlTables(ctx) {
     `;
   }
 
-  console.log('Raw SQL seed complete for Phase 4-6 tables where available.');
+  console.log('Raw SQL seed complete for Phase 4-11 tables where available.');
 }
 
 try {

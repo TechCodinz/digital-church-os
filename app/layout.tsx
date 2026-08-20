@@ -1,29 +1,37 @@
 import './styles/globals.css';
+import './styles/cinematic.css';
 import { Inter } from 'next/font/google';
 import { Navbar } from '@/components/layout/Navbar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { Footer } from '@/components/layout/Footer';
+import { FloatingSanctuaryGuide } from '@/components/ministry/FloatingSanctuaryGuide';
 import { Providers } from './providers';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-    title: 'Digital Church OS',
-    description: 'A digital worship and spiritual community platform',
+    title: {
+        default: 'Digital Church OS — Living Sanctuary',
+        template: '%s | Digital Church OS',
+    },
+    description: 'A living digital sanctuary for worship, prayer, Scripture, discipleship, pastoral care, community, and tenant-safe church ministry.',
 };
 
-export default function RootLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
         <html lang="en" className="scroll-smooth">
-            <body className={`${inter.className} bg-cream-50 text-gray-800`}>
+            <body className={`${inter.className} bg-cream-50 text-gray-800 antialiased`}>
                 <Providers>
-                    <div className="min-h-screen flex flex-col">
+                    <a
+                        href="#main-content"
+                        className="fixed left-4 top-3 z-[100] -translate-y-24 rounded-full bg-amber-200 px-4 py-2 text-xs font-bold text-slate-950 shadow-xl transition-transform focus:translate-y-0"
+                    >
+                        Skip to main content
+                    </a>
+                    <div className="phase11-sanctuary-shell flex min-h-screen flex-col">
                         <Navbar />
-                        <main className="flex-grow">{children}</main>
+                        <main id="main-content" className="flex-grow" tabIndex={-1}>{children}</main>
+                        <FloatingSanctuaryGuide />
                         <MobileBottomNav />
                         <Footer />
                     </div>

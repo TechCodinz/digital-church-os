@@ -92,6 +92,9 @@ export async function GET(req: NextRequest) {
             avatar: true,
           },
         },
+        _count: {
+          select: { intercessions: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
       take: 100,
@@ -105,6 +108,8 @@ export async function GET(req: NextRequest) {
       isAnswered: prayer.isAnswered,
       answeredAt: prayer.answeredAt,
       createdAt: prayer.createdAt,
+      viewerIsOwner: Boolean(session?.user?.id && prayer.userId === session.user.id),
+      intercessionCount: prayer._count.intercessions,
       user: prayer.visibility === 'ANONYMOUS' && !mine && !isAdmin ? { name: 'Anonymous', avatar: null } : prayer.user,
     }));
 

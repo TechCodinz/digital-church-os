@@ -1,172 +1,186 @@
 'use client';
 
 import { useState } from 'react';
-import { paymentMethods } from '@/lib/payments/paymentMethods';
+import { ArrowRight, CheckCircle2, CreditCard, Heart, Loader2, Lock, Repeat2, ShieldCheck, WalletCards } from 'lucide-react';
 
-export const UnifiedPaymentForm = ({ purpose: externalPurpose, amount: externalAmount, setAmount: externalSetAmount, onSuccess }: any) => {
-    const [internalAmount, setInternalAmount] = useState('50');
-    const [internalPurpose, setInternalPurpose] = useState('COMMUNITY_AID');
+type Purpose = 'PLATFORM_UPKEEP' | 'COMMUNITY_AID' | 'CONFERENCE_SUPPORT';
 
-    const amount = externalAmount !== undefined ? externalAmount : internalAmount;
-    const setAmount = externalSetAmount || setInternalAmount;
-    const purpose = externalPurpose || internalPurpose;
+type GivingDesignation =
+  | 'GENERAL_MINISTRY'
+  | 'BENEVOLENCE_CARE'
+  | 'MISSIONS_OUTREACH'
+  | 'CHILDREN_YOUTH'
+  | 'WORSHIP_MEDIA';
 
-    const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
-    const [cryptoNetwork, setCryptoNetwork] = useState('ethereum');
+const PURPOSES: Array<{ id: Purpose; label: string; description: string }> = [
+  { id: 'COMMUNITY_AID', label: 'Community Aid', description: 'Support approved aid and community-care work.' },
+  { id: 'CONFERENCE_SUPPORT', label: 'Conference Support', description: 'Support published gatherings and conference operations.' },
+  { id: 'PLATFORM_UPKEEP', label: 'Platform Upkeep', description: 'Support infrastructure and approved operating costs.' },
+];
 
-    const paymentCategories = {
-        traditional: {
-            name: 'Traditional Payments',
-            methods: ['credit_card', 'debit_card', 'ach', 'paypal'],
-            badge: 'Familiar',
-        },
-        stablecoins: {
-            name: 'Stablecoins (No Volatility)',
-            methods: ['usdc_ethereum', 'usdc_polygon', 'usdc_solana', 'usdt_tron'],
-            badge: 'Best for regular giving',
-        },
-        majorCrypto: {
-            name: 'Major Cryptocurrencies',
-            methods: ['bitcoin', 'ethereum', 'litecoin', 'dogecoin'],
-            badge: 'Potential tax advantages',
-        },
-        multiChain: {
-            name: 'Multi-chain Support',
-            methods: ['polygon_eth', 'arbitrum_eth', 'base_eth'],
-            badge: 'Lower fees',
-        },
-        cardToCrypto: {
-            name: 'Card → Crypto (No KYC)',
-            methods: ['card_to_bitcoin', 'card_to_ethereum'],
-            badge: 'Pay with card, receive crypto',
-        },
-        highValue: {
-            name: 'High-Value Gifts',
-            methods: ['crypto_high_value'],
-            badge: 'Avg. $30,000 gift',
-        },
-        nonCustodial: {
-            name: 'Non-Custodial',
-            methods: ['ethereum_non_custodial'],
-            badge: 'We never touch your funds',
-        },
-    };
+export const UnifiedPaymentForm = ({
+  purpose: externalPurpose,
+  designation,
+  designationLabel,
+  isAnonymous = false,
+  amount: externalAmount,
+  setAmount: externalSetAmount,
+  onSuccess,
+}: {
+  purpose?: Purpose;
+  designation?: GivingDesignation;
+  designationLabel?: string;
+  isAnonymous?: boolean;
+  amount?: string | number;
+  setAmount?: (value: string) => void;
+  onSuccess?: (data: unknown) => void;
+}) => {
+  const [internalAmount, setInternalAmount] = useState('50');
+  const [internalPurpose, setInternalPurpose] = useState<Purpose>('COMMUNITY_AID');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-    const processPayment = async (method: string, amt: string, purp: string) => {
-        onSuccess?.({ method, amount: amt, purpose: purp });
+  const amount = externalAmount !== undefined ? String(externalAmount) : internalAmount;
+  const setAmount = externalSetAmount || setInternalAmount;
+  const purpose = externalPurpose || internalPurpose;
+
+  const startCheckout = async () => {
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount) || numericAmount < 1) {
+      setError('Enter an amount of at least $1.');
+      return;
     }
 
-    return (
-        <div className="unified-payment-form bg-white p-6 rounded-2xl">
-            {/* Amount Input */}
-            <div className="mb-6">
-                <label className="block text-stone-700 mb-2">Amount</label>
-                <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-stone-200 text-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="0.00"
-                />
-            </div>
+    setSubmitting(true);
+    setError('');
+    try {
+      const response = await fetch('/api/payments/create-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: numericAmount,
+          purpose,
+          designation,
+          isAnonymous,
+          isRecurring,
+          currency: 'usd',
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to start checkout.');
+      if (!data.url) throw new Error('Checkout URL was not returned.');
 
-            {/* Payment Method Categories */}
-            <div className="space-y-6">
-                {Object.entries(paymentCategories).map(([key, category]) => (
-                    <div key={key} className="border border-cream-200 rounded-xl p-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="font-medium text-stone-800">{category.name}</h3>
-                            {category.badge && (
-                                <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs rounded-full whitespace-nowrap overflow-hidden text-ellipsis ml-2 max-w-[120px]">
-                                    {category.badge}
-                                </span>
-                            )}
-                        </div>
+      onSuccess?.({ provider: data.provider, amount: numericAmount, purpose, designation, isAnonymous, mode: data.mode, pending: true });
+      window.location.assign(data.url);
+    } catch (checkoutError: any) {
+      setError(checkoutError?.message || 'Unable to start secure checkout.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            {category.methods.map(methodId => {
-                                const method = paymentMethods[methodId];
-                                if (!method) return null;
-                                return (
-                                    <button
-                                        key={methodId}
-                                        onClick={() => setSelectedMethod(methodId)}
-                                        className={`p-3 rounded-xl border-2 transition-all text-left ${selectedMethod === methodId
-                                            ? 'border-emerald-500 bg-emerald-50'
-                                            : 'border-cream-200 hover:border-emerald-300'
-                                            }`}
-                                    >
-                                        <div className="text-2xl mb-2">{method.icon}</div>
-                                        <div className="font-medium text-sm">{method.name}</div>
-                                        <div className="text-xs text-stone-500 mt-1">
-                                            Fee: {method.fee}
-                                        </div>
-                                        {method.volatilityRisk === 'None' && (
-                                            <div className="text-xs text-emerald-600 mt-1">
-                                                ✅ Stable
-                                            </div>
-                                        )}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Network Selection for Multi-chain */}
-            {selectedMethod?.includes('usdc') && (
-                <div className="mt-6 p-4 bg-cream-50 rounded-xl">
-                    <label className="block text-stone-700 mb-2">Select Network</label>
-                    <select
-                        value={cryptoNetwork}
-                        onChange={(e) => setCryptoNetwork(e.target.value)}
-                        className="w-full px-4 py-2 rounded-lg border border-stone-200"
-                    >
-                        <option value="ethereum">Ethereum (Higher fees)</option>
-                        <option value="polygon">Polygon (Low fees)</option>
-                        <option value="solana">Solana (Ultra-low fees)</option>
-                        <option value="base">Base (Coinbase L2)</option>
-                        <option value="arbitrum">Arbitrum (Low fees)</option>
-                    </select>
-                    <p className="text-xs text-stone-500 mt-2">
-                        All networks settle in USD automatically. Your gift goes further on networks with lower fees.
-                    </p>
-                </div>
-            )}
-
-            {/* Tax Information */}
-            <div className="mt-6 p-4 bg-amber-50 rounded-xl text-sm">
-                <h4 className="font-medium text-amber-800 mb-2">📋 Important Tax Information</h4>
-                <ul className="space-y-1 text-amber-700">
-                    <li>• Credit/debit card gifts: Tax-deductible as cash donations</li>
-                    <li>• Cryptocurrency: Considered property by IRS</li>
-                    <li>• Donating appreciated crypto: Avoid capital gains tax</li>
-                    <li>• Instant tax receipts for all methods</li>
-                    <li>• Consult your tax advisor for specific advice</li>
-                </ul>
-            </div>
-
-            {/* Submit Button */}
-            <button
-                onClick={() => processPayment(selectedMethod!, amount, purpose)}
-                disabled={!selectedMethod || !amount}
-                className="w-full mt-6 py-4 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 text-lg font-medium"
-            >
-                Give ${amount} via {selectedMethod ? paymentMethods[selectedMethod]?.name : 'selected method'}
-            </button>
-
-            {/* Provider Logos */}
-            <div className="mt-8 text-center">
-                <p className="text-sm text-stone-500 mb-3">Trusted payment partners</p>
-                <div className="flex justify-center space-x-4 opacity-70">
-                    <div className="h-6 flex items-center text-xs font-semibold uppercase">Stripe</div>
-                    <div className="h-6 flex items-center text-xs font-semibold uppercase">PayPal</div>
-                    <div className="h-6 flex items-center text-xs font-semibold uppercase">Coinbase</div>
-                    <div className="h-6 flex items-center text-xs font-semibold uppercase">BitPay</div>
-                    <div className="h-6 flex items-center text-xs font-semibold uppercase">Crypto.com</div>
-                </div>
-            </div>
+  return (
+    <div className="space-y-5">
+      {designationLabel && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">Selected designation</p>
+          <p className="mt-1 text-sm font-semibold text-stone-800">{designationLabel}</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-stone-500">The designation is carried into Stripe metadata and the recorded offering metadata after provider confirmation.</p>
         </div>
-    );
+      )}
+
+      <div>
+        <label htmlFor="giving-amount" className="text-xs font-semibold text-stone-700">Amount (USD)</label>
+        <div className="relative mt-2">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg text-stone-400">$</span>
+          <input
+            id="giving-amount"
+            type="number"
+            min="1"
+            step="0.01"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            className="w-full rounded-2xl border border-stone-200 bg-white py-4 pl-9 pr-4 text-2xl font-light text-stone-900 outline-none transition-all focus:border-emerald-400 focus:ring-2 focus:ring-emerald-300/20"
+            placeholder="0.00"
+          />
+        </div>
+      </div>
+
+      {!externalPurpose && (
+        <div>
+          <p className="text-xs font-semibold text-stone-700">Purpose</p>
+          <div className="mt-2 grid gap-2">
+            {PURPOSES.map((item) => {
+              const selected = purpose === item.id;
+              return (
+                <button key={item.id} type="button" onClick={() => setInternalPurpose(item.id)} className={`rounded-2xl border p-4 text-left transition-all ${selected ? 'border-emerald-300 bg-emerald-50' : 'border-stone-200 bg-white hover:border-emerald-200'}`}>
+                  <div className="flex items-start gap-3">
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${selected ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-50 text-stone-400'}`}><Heart className="h-4 w-4" /></span>
+                    <span className="flex-1">
+                      <span className="block text-sm font-semibold text-stone-800">{item.label}</span>
+                      <span className="mt-1 block text-[11px] leading-relaxed text-stone-500">{item.description}</span>
+                    </span>
+                    {selected && <CheckCircle2 className="mt-1 h-4 w-4 text-emerald-600" />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-stone-200 bg-white p-4">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-50 text-stone-700"><CreditCard className="h-4 w-4" /></span>
+          <div className="flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-stone-800">Secure card checkout</p>
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-700">Stripe connected path</span>
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-stone-500">You will continue to Stripe Checkout. A gift is not recorded as successful until Stripe confirms it through the signed server webhook.</p>
+          </div>
+        </div>
+      </div>
+
+      <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+        <input type="checkbox" checked={isRecurring} onChange={(event) => setIsRecurring(event.target.checked)} className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600" />
+        <span>
+          <span className="flex items-center gap-2 text-sm font-semibold text-stone-800"><Repeat2 className="h-4 w-4 text-emerald-600" /> Monthly recurring gift</span>
+          <span className="mt-1 block text-[11px] leading-relaxed text-stone-500">Recurring checkout is created by Stripe only when you select this option.</span>
+        </span>
+      </label>
+
+      {isAnonymous && (
+        <div className="flex items-start gap-2 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-[11px] leading-relaxed text-violet-800">
+          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>This gift will be stored with the anonymous preference enabled after Stripe confirms payment. Provider records still contain information Stripe requires to process the payment.</span>
+        </div>
+      )}
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded-2xl border border-dashed border-stone-200 p-4 text-stone-400">
+          <WalletCards className="h-4 w-4" />
+          <p className="mt-3 text-xs font-semibold text-stone-600">PayPal & alternate rails</p>
+          <p className="mt-1 text-[10px] leading-relaxed">Not shown as active until a production provider integration is connected and verified.</p>
+        </div>
+        <div className="rounded-2xl border border-dashed border-stone-200 p-4 text-stone-400">
+          <Lock className="h-4 w-4" />
+          <p className="mt-3 text-xs font-semibold text-stone-600">Crypto giving</p>
+          <p className="mt-1 text-[10px] leading-relaxed">No wallet, custody, network, fee, KYC, or tax claim is made before the corresponding provider flow exists.</p>
+        </div>
+      </div>
+
+      {error && <p className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs leading-relaxed text-rose-700">{error}</p>}
+
+      <button type="button" onClick={startCheckout} disabled={submitting || !amount} className="inline-flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-stone-900 px-5 py-4 text-sm font-bold text-white transition-all hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-45">
+        {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Opening secure checkout…</> : <>Continue to Stripe <ArrowRight className="h-4 w-4" /></>}
+      </button>
+
+      <div className="flex items-start gap-2 text-[10px] leading-relaxed text-stone-500">
+        <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+        <span>Tax treatment depends on the receiving organization, jurisdiction, and individual circumstances. This interface does not promise deductibility or provide tax advice.</span>
+      </div>
+    </div>
+  );
 };

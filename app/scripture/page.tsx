@@ -1,32 +1,60 @@
-import { MinistryRoutePage } from '@/components/ministry/MinistryRoutePage';
+import { ScriptureStudyWorkspace } from '@/components/scripture/ScriptureStudyWorkspace';
+import { ScriptureInsightLab } from '@/components/scripture/ScriptureInsightLab';
+import { JourneyContinuityComposer } from '@/components/journey/JourneyContinuityComposer';
+import { BookOpenText, Languages, ShieldCheck, Sparkles } from 'lucide-react';
 
 export default function ScripturePage() {
   return (
-    <MinistryRoutePage
-      badge="Bible translation and scripture intelligence"
-      emoji="📖"
-      title="Search, compare, save, and project scripture with translation-aware safeguards."
-      description="The scripture module now supports Bible provider configuration, enabled translation versions, local/public-domain passages, searchable verses, verse collections, sermon insertion, and presentation-ready scripture cards."
-      primaryHref="/sermons"
-      primaryLabel="Use in sermon studio"
-      secondaryHref="/presentation"
-      secondaryLabel="Open screen mode"
-      features={[
-        { title: 'Translation provider layer', description: 'Supports public-domain local passages and future licensed providers like API.Bible or YouVersion Platform.' },
-        { title: 'Search and comparison', description: 'Search by text, reference, topic, emotion, or version to support sermon, prayer, and teaching workflows.' },
-        { title: 'Verse collections', description: 'Members can save scripture collections for devotionals, services, prayer rooms, and teaching packs.' },
-      ]}
-      intelligence={[
-        { title: 'Sermon-aware scripture', description: 'Scripture can feed sermon packs, presentation slides, children lessons, and Bible study guides.' },
-        { title: 'Licensing safety', description: 'Modern translations remain provider-controlled so the app can avoid unsafe copying of copyrighted Bible text.' },
-        { title: 'Offline readiness', description: 'Public-domain translations can be cached for low-data and offline spiritual access.' },
-      ]}
-      safeguards={[
-        'Provider/license-aware Bible content',
-        'Public-domain offline support',
-        'Scripture collection privacy',
-        'Sermon and slide integration',
-      ]}
-    />
+    <main className="min-h-screen bg-cream-50 pb-16 pt-24">
+      <section className="px-4 pb-10 pt-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-8 lg:grid-cols-[1fr_0.8fr] lg:items-end">
+            <div>
+              <div className="mb-5 inline-flex items-center rounded-full border border-sage-200 bg-white px-4 py-2 text-sm font-medium text-sage-700 shadow-sm">
+                <BookOpenText className="mr-2 h-4 w-4" /> Bible translation & Scripture intelligence
+              </div>
+              <h1 className="max-w-4xl text-4xl font-light leading-tight tracking-tight text-stone-900 md:text-6xl">
+                Read with context, compare responsibly, remember what you learn, and carry Scripture into daily life.
+              </h1>
+              <p className="mt-5 max-w-3xl text-base leading-7 text-stone-600 sm:text-lg">
+                Search and translation providers can supply Bible text where licensed. Digital Church OS focuses the experience around references, study context, private notes, voice reflections, teaching preparation, and faithful next actions.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+              {[
+                { icon: Languages, title: 'Translation aware', body: 'Modern copyrighted versions stay provider-controlled.' },
+                { icon: Sparkles, title: 'Study before AI', body: 'Observation and context come before generated insight.' },
+                { icon: ShieldCheck, title: 'Private reflection', body: 'Notes stay local unless you intentionally share them.' },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.title} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+                    <Icon className="h-5 w-5 text-sage-600" />
+                    <p className="mt-3 font-semibold text-stone-900">{item.title}</p>
+                    <p className="mt-1 text-xs leading-5 text-stone-500">{item.body}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl space-y-8">
+          <ScriptureStudyWorkspace />
+          <JourneyContinuityComposer
+            source="Scripture"
+            title="Carry one Scripture insight forward"
+            prompt="After reading the passage itself, save only the insight, question, prayer, or application you intentionally want to remember. Passage text is not copied into Journey automatically."
+            nextHref="/daily-guide"
+            nextLabel="Carry into Daily Guide"
+            privacyNote="Only your chosen reflection and next step are saved. Licensed Bible text, search results, and voice recordings are not copied into Journey automatically."
+          />
+          <ScriptureInsightLab />
+        </div>
+      </section>
+    </main>
   );
 }

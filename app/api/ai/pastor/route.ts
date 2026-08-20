@@ -1,126 +1,98 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma, checkDbConnection } from '@/lib/prisma';
+import { checkDbConnection } from '@/lib/prisma';
 import { aiRateLimit, validateAIRequest } from '@/lib/ai-middleware';
-import { MediaGenerator } from '@/lib/ai/visual/mediaGenerator';
 import { AuditLogger } from '@/lib/audit/logger';
-
-async function getOrCreatePastorModule() {
-  const module = await prisma.aIModule.findFirst({
-    where: { type: 'CARE', name: 'AI Pastor' },
-  });
-  if (module) return module;
-
-  let religion = await prisma.religion.findFirst({ where: { name: 'Christianity' } });
-  if (!religion) {
-    religion = await prisma.religion.create({
-      data: {
-        name: 'Christianity',
-        description: 'Christian faith community configuration.',
-        primaryText: 'Bible',
-        active: true,
-      },
-    });
-  }
-
-  return prisma.aIModule.create({
-    data: {
-      name: 'AI Pastor',
-      type: 'CARE',
-      religionId: religion.id,
-      version: '1.1.0',
-      config: {
-        crisisAware: true,
-        disclaimer: 'Spiritual support only; does not replace clergy, medical care, licensed counseling, or emergency services.',
-      },
-    },
-  });
-}
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
 
   try {
     const session = await getServerSession(authOptions);
-    const isDbUp = await checkDbConnection();
+    const userId = session?.user?.id;
 
-    const rateLimitResponse = await aiRateLimit(req, session?.user?.id);
-    if (rateLimitResponse) return rateLimitResponse;
-
-    if (!session?.user && isDbUp) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Sensitive reflection/care assistance never falls back to a synthetic or
+    // shared demo identity. A real authenticated account is required even when
+    // the database or AI provider is degraded.
+    if (!userId) {
+      return NextResponse.json({ error: 'Sign in is required before using the AI ministry companion.' }, { status: 401 });
     }
 
-    const { input } = await req.json();
-    const inputError = validateAIRequest(input, 'message');
+    const rateLimitResponse = await aiRateLimit(req, userId, { maxRequests: 16, windowMs: 60_000 });
+    if (rateLimitResponse) return rateLimitResponse;
+
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: 'Request body must be valid JSON.' }, { status: 400 });
+    }
+
+    const input = typeof body === 'object' && body !== null && 'input' in body
+      ? (body as { input?: unknown }).input
+      : undefined;
+    const inputError = validateAIRequest(typeof input === 'string' ? input : undefined, 'message');
     if (inputError) return inputError;
 
+    const concern = String(input).trim();
     const { RealCounselor } = await import('@/lib/ai/christian/care/realCounselor');
     const counselor = new RealCounselor();
-    const response: any = await counselor.processSession({
-      userId: session?.user?.id || 'demo-user',
-      concern: input,
+    const response = await counselor.processSession({
+      userId,
+      concern,
     });
 
-    const themeToSearch = response.content?.scriptures?.[0]?.reference || response.type || 'comforting christian guidance';
-    const mediaGen = new MediaGenerator();
-    const [imageUrl, videoUrl] = await Promise.all([
-      mediaGen.generateImage(`Christian pastoral care: ${themeToSearch}`),
-      mediaGen.getBackgroundVideo(themeToSearch),
-    ]);
+    const timestamp = new Date().toISOString();
 
-    response.visuals = { image: imageUrl, video: videoUrl };
-
-    let interactionId: string | null = null;
-    let timestamp: Date | string = new Date().toISOString();
-
-    if (isDbUp && session?.user) {
+    // Do not duplicate the member's concern or generated care/reflection text
+    // into the generic AIInteraction audit store. The counselor's dedicated
+    // safety logger records only a redaction marker plus risk/response metadata.
+    // This route records operational metadata only when the database is healthy.
+    if (await checkDbConnection()) {
       try {
-        const module = await getOrCreatePastorModule();
-        const interaction = await prisma.aIInteraction.create({
-          data: {
-            moduleId: module.id,
-            userId: session.user.id,
-            input: { message: input },
-            output: response as any,
-            duration: Date.now() - startTime,
-            metadata: { type: response.type, route: '/api/ai/pastor' },
-          },
-        });
-        interactionId = interaction.id;
-        timestamp = interaction.createdAt;
-
         await AuditLogger.log({
-          actorId: session.user.id,
-          action: 'AI_PASTOR_INTERACTION',
-          entityType: 'AIInteraction',
-          entityId: interaction.id,
-          metadata: { type: response.type, duration: Date.now() - startTime },
-          aiInteractionId: interaction.id,
+          actorId: userId,
+          action: 'AI_MINISTRY_COMPANION_USED',
+          entityType: 'AIMinistryCompanion',
+          metadata: {
+            responseType: response.type,
+            duration: Date.now() - startTime,
+            inputLength: concern.length,
+            scriptureReferenceCount: response.content?.scriptures?.length || 0,
+            route: '/api/ai/pastor',
+            sensitiveContentPersisted: false,
+          },
           req,
         });
       } catch (logError) {
-        console.error('AI Pastor interaction logging failed:', logError);
+        console.error('AI ministry companion metadata audit failed:', logError);
       }
     }
 
     return NextResponse.json({
       response,
-      interactionId: interactionId || 'unlogged-safe-mode',
+      interactionId: null,
+      persistedConversation: false,
       timestamp,
     });
   } catch (error) {
-    console.error('AI Pastor Error:', error);
-    return NextResponse.json({ error: 'Failed to process interaction' }, { status: 500 });
+    console.error('AI ministry companion error:', error);
+    return NextResponse.json({ error: 'Unable to process the ministry reflection right now.' }, { status: 500 });
   }
 }
 
 export async function GET() {
   return NextResponse.json({
-    status: 'active',
-    module: 'AI Pastor',
-    capabilities: ['scripture-aware guidance', 'spiritual counsel', 'prayer support', 'crisis-aware safe handoff'],
+    status: 'available',
+    module: 'AI Ministry Companion',
+    capabilities: [
+      'scripture-grounded reflection',
+      'prayer drafting support',
+      'human-care routing',
+      'crisis-aware safe handoff',
+    ],
+    storesConversationTextByDefault: false,
     safeMode: !process.env.OPENAI_API_KEY,
   });
 }

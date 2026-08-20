@@ -2,9 +2,11 @@ import { OpenAI } from 'openai';
 import { ScriptureLoader } from '@/lib/ai/scripture/loader';
 import { TheologicalGuardrails } from '@/lib/ai/guardrails/theologicalGuardrails';
 
+type WorshipStyle = 'gospel' | 'contemporary' | 'hymn' | 'worship' | 'praise' | 'psalm' | 'anthem' | 'children';
+
 interface WorshipParams {
   theme: string;
-  style: 'gospel' | 'contemporary' | 'hymn' | 'worship';
+  style: WorshipStyle;
   mood?: string;
 }
 
@@ -45,7 +47,7 @@ export class RealWorshipGenerator {
         messages: [
           {
             role: 'system',
-            content: `You are a careful worship songwriting assistant. Return JSON only: { title, lyrics: { chorus, verses: [string], bridge }, chordProgression: [string], scriptureReferences: [string] }. Keep lyrics original, congregational, scripture-informed, and theologically humble.`,
+            content: `You are a careful worship songwriting assistant. Return JSON only: { title, lyrics: { chorus, verses: [string], bridge }, chordProgression: [string], scriptureReferences: [string] }. Keep lyrics original, congregational, scripture-informed, and theologically humble. Adapt musical language appropriately for the requested style without copying known copyrighted songs. For children material, keep language age-appropriate, memorable, gentle, and biblically clear.`,
           },
           {
             role: 'user',
@@ -114,9 +116,10 @@ export class RealWorshipGenerator {
     };
   }
 
-  private defaultChords(style: string) {
-    if (style === 'hymn') return ['I', 'IV', 'V', 'I'];
-    if (style === 'gospel') return ['I', 'vi', 'IV', 'V', 'I'];
+  private defaultChords(style: WorshipStyle) {
+    if (style === 'hymn' || style === 'psalm') return ['I', 'IV', 'V', 'I'];
+    if (style === 'gospel' || style === 'anthem') return ['I', 'vi', 'IV', 'V', 'I'];
+    if (style === 'children') return ['I', 'IV', 'I', 'V'];
     return ['I', 'V', 'vi', 'IV'];
   }
 }

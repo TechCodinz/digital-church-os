@@ -25,12 +25,25 @@ const onboardingFlows = {
         rewards: {
             complete: 'Access to exclusive sanctuary sessions'
         }
+    },
+    leader: {
+        steps: [
+            { id: 'identity', title: 'Define Your Ministry', content: 'Confirm your church identity, leadership role, location, service rhythm, and core ministry focus.' },
+            { id: 'team', title: 'Invite Your Team', content: 'Prepare pastors, admins, care leaders, media teams, youth workers, and volunteers for role-based access.' },
+            { id: 'service', title: 'Prepare Your First Service', content: 'Set service times, live stream links, sermon preparation, prayer flow, presentation, and follow-up actions.' },
+            { id: 'care', title: 'Configure Human Care', content: 'Assign care ownership, escalation routing, trusted contacts, and human review before opening sensitive ministry workflows.' },
+            { id: 'launch', title: 'Review Launch Readiness', content: 'Check ministry operations, media rights, feature flags, safety queues, and deployment readiness before public rollout.' },
+        ],
+        rewards: {
+            complete: 'Unlocked: Ministry Command Center and leader operating workflow'
+        }
     }
 };
 
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
-    const type = (searchParams.get('type') as keyof typeof onboardingFlows) || 'seeker';
+    const requestedType = searchParams.get('type') || 'seeker';
+    const type = requestedType in onboardingFlows ? requestedType as keyof typeof onboardingFlows : 'seeker';
 
     return NextResponse.json(onboardingFlows[type]);
 }
@@ -49,7 +62,7 @@ export async function POST(req: NextRequest) {
             await prisma.user.update({
                 where: { id: session.user.id },
                 data: {
-                    onboardingStep: step,
+                    onboardingStep: `${type || 'member'}:${step}`,
                     onboardingCompleted: step === 'complete'
                 }
             });

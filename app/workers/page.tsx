@@ -3,29 +3,29 @@ import { MinistryRoutePage } from '@/components/ministry/MinistryRoutePage';
 export default function WorkersPage() {
   return (
     <MinistryRoutePage
-      badge="Church worker productivity"
+      badge="Serve with your church"
       emoji="🛠️"
-      title="Assign, track, reward, and appreciate church workers and volunteers professionally."
-      description="Worker mode gives departments a way to assign tasks, collect completion proof, award points, track stipend eligibility, and organize church operations around service excellence."
-      primaryHref="/admin"
-      primaryLabel="Open admin CRM"
+      title="See meaningful ways to serve, complete assigned ministry work, and receive appreciation without turning service into competition."
+      description="The worker portal is the member-facing side of church service. Leader rota decisions, backup coverage, and department staffing stay in restricted church-admin operations."
+      primaryHref="/activities"
+      primaryLabel="Open service activities"
       secondaryHref="/rewards"
-      secondaryLabel="Open rewards"
+      secondaryLabel="View appreciation & rewards"
       features={[
-        { title: 'Task assignment', description: 'Leaders can assign media, ushering, choir, children, prayer, outreach, and service tasks.' },
-        { title: 'Proof and review', description: 'Workers can submit proof text or links, and leaders can review completion.' },
-        { title: 'Stipends and appreciation', description: 'Tasks can include points and stipend eligibility for worker appreciation workflows.' },
+        { title: 'Assigned service', description: 'Participate in appropriate ministry tasks and practical service opportunities.' },
+        { title: 'Completion proof', description: 'Submit proof text or links when a church-created task requires review.' },
+        { title: 'Appreciation', description: 'Approved service can connect to points, gifts, or other church-defined appreciation workflows.' },
       ]}
       intelligence={[
-        { title: 'Volunteer gap awareness', description: 'Worker records can feed the command center to show gaps and no-shows.' },
-        { title: 'Department productivity', description: 'Departments can measure work, completion, and contribution across services and events.' },
-        { title: 'Faithful service recognition', description: 'The platform can honor unseen service with records, points, gifts, and reports.' },
+        { title: 'Clear next action', description: 'Members can focus on their own service responsibilities rather than seeing private rota planning.' },
+        { title: 'Healthy contribution', description: 'Service remains voluntary, accountable, and connected to ministry purpose.' },
+        { title: 'Leader separation', description: 'Staffing gaps, primaries, backups, and check-in coordination remain behind church-admin access.' },
       ]}
       safeguards={[
-        'Admin assignment controls',
-        'Completion proof',
-        'Stipend review workflow',
-        'Worker performance records',
+        'No spiritual-performance scoring',
+        'No private leader rota exposed to members',
+        'Human review for assignments and stipends',
+        'No sensitive pastoral or disciplinary notes',
       ]}
     />
   );
