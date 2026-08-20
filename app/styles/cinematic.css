@@ -257,6 +257,106 @@ body { overflow-x: hidden; }
   backdrop-filter: blur(28px) saturate(125%);
 }
 
+/* Product-wide compatibility layer for older full-page cream/stone surfaces.
+   This gives legacy ministry tools a coherent Living Sanctuary atmosphere
+   immediately without mutating their data behavior or form logic. The selector
+   is intentionally limited to a direct page root so intentionally-light inset
+   workspaces inside newer cinematic pages keep their designed contrast. */
+#main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 3%, rgba(245,201,120,.13), transparent 23%),
+    radial-gradient(circle at 9% 30%, rgba(52,211,153,.10), transparent 27%),
+    radial-gradient(circle at 92% 62%, rgba(56,189,248,.055), transparent 24%),
+    linear-gradient(180deg, #030b09 0%, #071612 48%, #020807 100%) !important;
+  color: rgba(255,255,255,.92);
+}
+
+#main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .28;
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(255,255,255,.55) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 75% 14%, rgba(255,255,255,.30) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 88% 54%, rgba(255,255,255,.22) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 31% 77%, rgba(255,255,255,.18) 0 1px, transparent 1.4px);
+  background-size: 260px 260px, 340px 340px, 300px 300px, 390px 390px;
+}
+
+#main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50)
+:is([class~='bg-white'], [class~='bg-white/60'], [class~='bg-white/70'], [class~='bg-stone-50'], [class~='bg-stone-100']) {
+  background: linear-gradient(145deg, rgba(255,255,255,.07), rgba(255,255,255,.025)), rgba(3,12,10,.66) !important;
+  border-color: rgba(255,255,255,.09) !important;
+  box-shadow: 0 22px 65px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.035);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+#main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50)
+:is([class~='bg-sage-50'], [class~='bg-sage-100']) {
+  background: rgba(52,211,153,.09) !important;
+  border-color: rgba(110,231,183,.18) !important;
+}
+
+#main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50)
+:is([class~='bg-amber-50'], [class~='bg-amber-100']) {
+  background: rgba(245,201,120,.09) !important;
+  border-color: rgba(245,201,120,.18) !important;
+}
+
+#main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50)
+:is([class~='text-stone-900'], [class~='text-stone-800'], [class~='text-gray-900'], [class~='text-gray-800']) {
+  color: rgba(255,255,255,.94) !important;
+}
+
+#main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50)
+:is([class~='text-stone-700'], [class~='text-stone-600'], [class~='text-stone-500'], [class~='text-gray-700'], [class~='text-gray-600'], [class~='text-gray-500']) {
+  color: rgba(255,255,255,.58) !important;
+}
+
+#main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50)
+:is([class~='text-stone-400'], [class~='text-gray-400']) {
+  color: rgba(255,255,255,.36) !important;
+}
+
+#main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50)
+:is([class~='text-sage-700'], [class~='text-sage-600'], [class~='text-emerald-700'], [class~='text-emerald-600']) {
+  color: rgb(167 243 208) !important;
+}
+
+#main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50)
+:is([class~='text-amber-900'], [class~='text-amber-800'], [class~='text-amber-700']) {
+  color: rgb(253 230 138) !important;
+}
+
+#main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50)
+:is([class~='border-stone-100'], [class~='border-stone-200'], [class~='border-cream-200'], [class~='border-gray-100'], [class~='border-gray-200']) {
+  border-color: rgba(255,255,255,.09) !important;
+}
+
+#main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50)
+:is(input, textarea, select) {
+  color: rgba(255,255,255,.9);
+  caret-color: rgb(253 230 138);
+}
+
+#main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50)
+:is(input, textarea, select)::placeholder {
+  color: rgba(255,255,255,.28);
+}
+
+#main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50) .sanctuary-card {
+  border-color: rgba(255,255,255,.09) !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.07), rgba(255,255,255,.025)), rgba(3,12,10,.66) !important;
+  box-shadow: 0 24px 70px rgba(0,0,0,.22) !important;
+}
+
 @keyframes sacredLightBreath { 0%, 100% { opacity: .62; transform: translateX(-50%) perspective(700px) rotateX(8deg) scaleX(.94); } 50% { opacity: 1; transform: translateX(-50%) perspective(700px) rotateX(8deg) scaleX(1.08); } }
 @keyframes presenceOrbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes sanctuaryDrift { 0% { transform: translate3d(0,0,0) scale(.94); } 100% { transform: translate3d(5vw,-3vh,0) scale(1.08); } }
@@ -266,6 +366,13 @@ body { overflow-x: hidden; }
   .sanctuary-cinematic-hero::before { opacity: .3; }
   .sanctuary-global-aurora::before,
   .sanctuary-global-aurora::after { opacity: .36; filter: blur(54px); }
+
+  #main-content > :is(main, div).min-h-screen:is(.bg-cream-50, .bg-stone-50, .bg-gray-50) {
+    background:
+      radial-gradient(circle at 50% 5%, rgba(245,201,120,.11), transparent 20%),
+      radial-gradient(circle at 0% 38%, rgba(52,211,153,.09), transparent 25%),
+      linear-gradient(180deg, #030b09 0%, #071612 52%, #020807 100%) !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
