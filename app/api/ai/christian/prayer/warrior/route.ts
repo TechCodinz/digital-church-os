@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { authOptions } from '@/lib/auth';
 import { AuditLogger } from '@/lib/audit/logger';
 import { AI_DISCLAIMER } from '@/lib/ai/shared/guardrails';
-import { MediaGenerator } from '@/lib/ai/visual/mediaGenerator';
 import { getClientKey, rateLimit, rateLimitHeaders } from '@/lib/security/rate-limit';
 
 const GuidedPrayerSchema = z.object({
@@ -56,21 +55,10 @@ export async function POST(req: NextRequest) {
             content: prayerRequest,
         });
 
-        // Decorative media must not receive the user's sensitive prayer text.
-        // It receives only a broad generated theme, and media failure never
-        // blocks the prayer draft itself.
-        const theme = response.themes?.[0] || 'quiet Christian prayer';
-        try {
-            const mediaGen = new MediaGenerator();
-            const [imageUrl, videoUrl] = await Promise.all([
-                mediaGen.generateImage(`Quiet Christian prayer atmosphere, theme: ${theme}`),
-                mediaGen.getBackgroundVideo(theme),
-            ]);
-            response.visuals = { image: imageUrl, video: videoUrl };
-        } catch (mediaError) {
-            console.error('Optional guided-prayer media unavailable:', mediaError);
-            response.visuals = { image: null, video: null };
-        }
+        // The cinematic prayer experience is rendered locally by the sanctuary
+        // UI. Do not send prayer-derived themes or text to a second decorative
+        // media provider; that would create an unnecessary additional disclosure.
+        response.visuals = { image: null, video: null };
 
         // Sensitive prayer text is deliberately excluded from generic audit
         // metadata. The audit records operation facts only.
@@ -82,10 +70,11 @@ export async function POST(req: NextRequest) {
                 metadata: {
                     inputStored: false,
                     outputStored: false,
+                    secondaryMediaDisclosure: false,
                     inputLength: prayerRequest.length,
                     suppliedScriptureRefCount: scriptureRefs?.length || 0,
                     styleSupplied: Boolean(style),
-                    themes: response.themes?.slice(0, 6) || [],
+                    themeCount: response.themes?.length || 0,
                     durationMs: Date.now() - startTime,
                 },
                 req,
