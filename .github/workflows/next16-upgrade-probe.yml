@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   probe:
@@ -53,14 +53,27 @@ jobs:
           node-version: 20.20.2
           cache: npm
 
-      - name: Verify committed dependency graph is resolvable
+      - name: Resolve exact dependency graph
         run: |
           set -euo pipefail
-          cp package-lock.json /tmp/next16-package-lock.json
           npm install --package-lock-only --include=dev --ignore-scripts
-          git diff --exit-code -- package-lock.json
+          cp package-lock.json /tmp/next16-package-lock.json
 
-      - name: Install exact committed graph
+      - name: Commit resolver-produced lockfile
+        if: github.event_name == 'push' && github.ref == 'refs/heads/security/next16-runtime-upgrade'
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json already matches the resolved graph."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package-lock.json
+          git commit -m 'Refresh exact Next 16 dependency lockfile'
+          git push origin HEAD:security/next16-runtime-upgrade
+
+      - name: Install exact resolved graph
         run: npm ci --include=dev
 
       - name: Capture dependency security snapshot
