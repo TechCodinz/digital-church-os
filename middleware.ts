@@ -18,20 +18,18 @@ const churchAdminApiPrefixes = [
   '/api/release',
 ];
 
-// These are experience surfaces first. They may offer authenticated actions,
-// but the page itself must remain visitable when a visitor has no session or
-// when production authentication has not yet been configured. Sensitive data
-// remains behind the authenticated API routes below.
+// Public experience surfaces may offer authenticated actions, but the page
+// itself can remain visitable without a session. Personal formation records,
+// service responses, admin workspaces, and tenant operations are deliberately
+// excluded and remain protected below.
 const publicExperiencePrefixes = [
   '/prayer-room',
   '/offering',
   '/community-wall',
   '/care',
-  '/journey',
   '/growth-dna',
   '/formation',
   '/next-steps',
-  '/service-response',
   '/dream-discernment',
   '/family-altar',
   '/fasting-prayer',
