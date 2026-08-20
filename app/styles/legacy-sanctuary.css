@@ -1,0 +1,112 @@
+/* Living Sanctuary compatibility for older nested ministry sections.
+   Loaded after cinematic.css. It intentionally targets only legacy color
+   utility surfaces inside the app content; bespoke cinematic classes keep
+   their own authored appearance. */
+
+#main-content :is(section, article, aside, div).bg-cream-50,
+#main-content :is(section, article, aside, div).bg-stone-50,
+#main-content :is(section, article, aside, div).bg-gray-50 {
+  background-color: transparent !important;
+}
+
+#main-content :is(section, article, aside, div).bg-cream-50 {
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(245, 201, 120, .075), transparent 28%),
+    linear-gradient(180deg, rgba(4, 16, 13, .94), rgba(2, 9, 8, .98)) !important;
+}
+
+#main-content :is(section, article, aside, div).bg-stone-50,
+#main-content :is(section, article, aside, div).bg-gray-50 {
+  background-image: linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.018)) !important;
+}
+
+#main-content :is(section, article, aside, div).bg-white,
+#main-content :is(section, article, aside, div).bg-white\/80,
+#main-content :is(section, article, aside, div).bg-white\/70,
+#main-content :is(section, article, aside, div).bg-white\/60 {
+  background: linear-gradient(145deg, rgba(255,255,255,.07), rgba(255,255,255,.025)), rgba(3, 12, 10, .72) !important;
+  border-color: rgba(255,255,255,.095) !important;
+  box-shadow: 0 24px 72px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.04);
+  -webkit-backdrop-filter: blur(18px) saturate(118%);
+  backdrop-filter: blur(18px) saturate(118%);
+}
+
+#main-content :is(.bg-sage-50, .bg-sage-100) {
+  background: rgba(52,211,153,.085) !important;
+  border-color: rgba(110,231,183,.16) !important;
+}
+
+#main-content :is(.bg-amber-50, .bg-amber-100) {
+  background: rgba(245,201,120,.085) !important;
+  border-color: rgba(245,201,120,.18) !important;
+}
+
+#main-content :is(.bg-violet-50, .bg-violet-100) {
+  background: rgba(167,139,250,.09) !important;
+  border-color: rgba(196,181,253,.18) !important;
+}
+
+#main-content :is(.bg-rose-50, .bg-rose-100) {
+  background: rgba(251,113,133,.075) !important;
+  border-color: rgba(253,164,175,.16) !important;
+}
+
+#main-content :is(.text-stone-950, .text-stone-900, .text-stone-800, .text-gray-950, .text-gray-900, .text-gray-800) {
+  color: rgba(255,255,255,.94) !important;
+}
+
+#main-content :is(.text-stone-700, .text-stone-600, .text-stone-500, .text-gray-700, .text-gray-600, .text-gray-500) {
+  color: rgba(255,255,255,.58) !important;
+}
+
+#main-content :is(.text-stone-400, .text-gray-400) {
+  color: rgba(255,255,255,.38) !important;
+}
+
+#main-content :is(.text-sage-800, .text-sage-700, .text-sage-600, .text-emerald-800, .text-emerald-700, .text-emerald-600) {
+  color: rgb(167 243 208) !important;
+}
+
+#main-content :is(.text-amber-900, .text-amber-800, .text-amber-700, .text-amber-600) {
+  color: rgb(253 230 138) !important;
+}
+
+#main-content :is(.text-violet-800, .text-violet-700, .text-violet-600) {
+  color: rgb(221 214 254) !important;
+}
+
+#main-content :is(.border-stone-100, .border-stone-200, .border-gray-100, .border-gray-200, .border-cream-200) {
+  border-color: rgba(255,255,255,.095) !important;
+}
+
+#main-content :is(input, textarea, select).bg-white,
+#main-content :is(input, textarea, select).bg-stone-50,
+#main-content :is(input, textarea, select).bg-white\/80 {
+  background: rgba(0,0,0,.18) !important;
+  border-color: rgba(255,255,255,.11) !important;
+  color: rgba(255,255,255,.90) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+#main-content :is(input, textarea, select)::placeholder {
+  color: rgba(255,255,255,.28) !important;
+}
+
+#main-content button.bg-stone-200,
+#main-content a.bg-stone-100,
+#main-content span.bg-stone-100 {
+  background: rgba(255,255,255,.08) !important;
+  color: rgba(255,255,255,.68) !important;
+}
+
+#main-content .shadow-sm {
+  box-shadow: 0 26px 76px rgba(0,0,0,.18) !important;
+}
+
+@media (max-width: 767px) {
+  #main-content :is(section, article, aside, div).bg-cream-50 {
+    background-image:
+      radial-gradient(circle at 50% 0%, rgba(245,201,120,.07), transparent 22%),
+      linear-gradient(180deg, rgba(3,13,11,.97), rgba(2,8,7,.99)) !important;
+  }
+}
