@@ -2,27 +2,33 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { BookOpen, Heart, Home, Radio, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const navItems = [
-    { name: 'Home', href: '/dashboard', icon: Home },
-    { name: 'Word', href: '/scripture', icon: BookOpen },
-    { name: 'Pray', href: '/prayer-room', icon: Heart, primary: true },
-    { name: 'Worship', href: '/live-service', icon: Radio },
-    { name: 'Me', href: '/profile', icon: User },
-];
+import { useAuthRuntime } from '@/app/providers';
 
 export const MobileBottomNav = () => {
     const pathname = usePathname();
+    const { data: session } = useSession();
+    const { configured } = useAuthRuntime();
+
+    const homeHref = configured && session ? '/dashboard' : '/';
+    const navItems = [
+        { name: 'Home', href: homeHref, icon: Home },
+        { name: 'Word', href: '/scripture', icon: BookOpen },
+        { name: 'Pray', href: '/prayer-room', icon: Heart, primary: true },
+        { name: 'Worship', href: '/live-service', icon: Radio },
+        { name: 'Me', href: '/profile', icon: User },
+    ];
 
     const isRouteActive = (href: string) => {
+        if (href === '/' && pathname === '/') return true;
         if (href === '/dashboard' && pathname === '/') return true;
-        return pathname === href || pathname.startsWith(`${href}/`);
+        return pathname === href || (href !== '/' && pathname.startsWith(`${href}/`));
     };
 
     return (
-        <nav aria-label="Primary mobile sanctuary navigation" className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/8 bg-[#04100e]/94 text-white shadow-[0_-16px_50px_rgba(0,0,0,.35)] backdrop-blur-2xl md:hidden pb-safe">
+        <nav aria-label="Primary mobile sanctuary navigation" className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/8 text-white md:hidden pb-safe">
             <div className="mx-auto flex h-[70px] max-w-xl items-end justify-around px-2">
                 {navItems.map((item) => {
                     const Icon = item.icon;
@@ -40,7 +46,7 @@ export const MobileBottomNav = () => {
                     }
 
                     return (
-                        <Link key={item.href} href={item.href} aria-current={isActive ? 'page' : undefined} className={cn('sacred-focus-ring flex h-full min-w-[54px] flex-col items-center justify-center gap-1.5 rounded-2xl px-2 text-[9px] font-semibold tracking-wide transition-all', isActive ? 'text-emerald-300' : 'text-slate-500 hover:text-white')}>
+                        <Link key={`${item.name}-${item.href}`} href={item.href} aria-current={isActive ? 'page' : undefined} className={cn('sacred-focus-ring flex h-full min-w-[54px] flex-col items-center justify-center gap-1.5 rounded-2xl px-2 text-[9px] font-semibold tracking-wide transition-all', isActive ? 'text-emerald-300' : 'text-slate-400 hover:text-white')}>
                             <span className={cn('relative flex h-7 w-10 items-center justify-center rounded-full transition-all', isActive && 'bg-emerald-300/10')}>
                                 <Icon size={18} className={cn('transition-transform', isActive && 'scale-105')} />
                                 {isActive && <span className="absolute -bottom-1 h-1 w-1 rounded-full bg-emerald-300" />}

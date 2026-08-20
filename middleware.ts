@@ -1,5 +1,5 @@
-import { withAuth } from 'next-auth/middleware';
-import { NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+import { NextResponse, type NextRequest } from 'next/server';
 
 const churchAdminUiPrefixes = [
   '/admin',
@@ -18,50 +18,132 @@ const churchAdminApiPrefixes = [
   '/api/release',
 ];
 
+// Public experience surfaces may offer authenticated actions, but the page
+// itself can remain visitable without a session. Personal formation records,
+// service responses, admin workspaces, and tenant operations are deliberately
+// excluded and remain protected below.
+const publicExperiencePrefixes = [
+  '/prayer-room',
+  '/offering',
+  '/community-wall',
+  '/care',
+  '/growth-dna',
+  '/formation',
+  '/next-steps',
+  '/dream-discernment',
+  '/family-altar',
+  '/fasting-prayer',
+  '/fasting',
+  '/prayer-practice',
+  '/daily-guide',
+  '/spiritual',
+  '/sermons',
+  '/choir',
+  '/worship-media',
+  '/live-broadcast',
+  '/scripture',
+  '/presentation',
+  '/rewards',
+  '/activities',
+  '/conference-sponsorship',
+  '/church-network',
+  '/impact',
+  '/bible-games',
+  '/sanctuary-host',
+  '/marketplace',
+  '/website-builder',
+  '/multilingual',
+  '/mobile',
+  '/journal',
+  '/onboarding',
+];
+
 function matchesPrefix(path: string, prefix: string) {
   return path === prefix || path.startsWith(`${prefix}/`);
 }
 
-export default withAuth(
-  function middleware(req) {
-    const token = req.nextauth.token;
-    const path = req.nextUrl.pathname;
+function withSecurityHeaders(response: NextResponse) {
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(), payment=(self)');
+  return response;
+}
 
-    const adminUi = churchAdminUiPrefixes.some((prefix) => matchesPrefix(path, prefix));
-    if (adminUi && token?.role !== 'CHURCH_ADMIN') {
-      return NextResponse.redirect(new URL('/dashboard', req.url));
-    }
+function signInRedirect(req: NextRequest, reason?: string) {
+  const url = new URL('/auth/signin', req.url);
+  url.searchParams.set('callbackUrl', `${req.nextUrl.pathname}${req.nextUrl.search}`);
+  if (reason) url.searchParams.set('reason', reason);
+  return withSecurityHeaders(NextResponse.redirect(url));
+}
 
-    const adminApi = churchAdminApiPrefixes.some((prefix) => matchesPrefix(path, prefix));
-    if (adminApi && token?.role !== 'CHURCH_ADMIN') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
+export default async function middleware(req: NextRequest) {
+  const path = req.nextUrl.pathname;
+  const isApi = path.startsWith('/api/');
+  const publicExperience = publicExperiencePrefixes.some((prefix) => matchesPrefix(path, prefix));
 
-    // Church-ops persistence deliberately does NOT use the global CHURCH_ADMIN
-    // role as its tenant authorization decision. Middleware guarantees an
-    // authenticated identity; each API request then verifies church ownership
-    // or church_profile_members access for the requested church.
-    if (path.startsWith('/api/church-ops') && !token?.sub) {
-      return NextResponse.json({ error: 'Authenticated church workspace access required' }, { status: 401 });
-    }
-
-    if (path.startsWith('/api/ai') && !['CHURCH_ADMIN', 'AI_DEPARTMENT', 'MEMBER'].includes(token?.role as string)) {
-      return NextResponse.json({ error: 'Authenticated member access required' }, { status: 403 });
-    }
-
-    const res = NextResponse.next();
-    res.headers.set('X-Content-Type-Options', 'nosniff');
-    res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.headers.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(), payment=(self)');
-
-    return res;
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token,
-    },
+  // Public sanctuary pages must never collapse into NextAuth's Configuration
+  // error just because a deployment secret is missing. Authenticated actions
+  // on those pages still call protected APIs and therefore still fail closed.
+  if (!isApi && publicExperience) {
+    return withSecurityHeaders(NextResponse.next());
   }
-);
+
+  const authSecret = process.env.NEXTAUTH_SECRET;
+  if (!authSecret) {
+    if (isApi) {
+      return withSecurityHeaders(
+        NextResponse.json(
+          {
+            error: 'Authentication is temporarily unavailable',
+            code: 'AUTH_NOT_CONFIGURED',
+          },
+          { status: 503 },
+        ),
+      );
+    }
+    return signInRedirect(req, 'auth-unavailable');
+  }
+
+  const token = await getToken({ req, secret: authSecret });
+  if (!token) {
+    if (isApi) {
+      return withSecurityHeaders(
+        NextResponse.json({ error: 'Authentication required' }, { status: 401 }),
+      );
+    }
+    return signInRedirect(req);
+  }
+
+  const adminUi = churchAdminUiPrefixes.some((prefix) => matchesPrefix(path, prefix));
+  if (adminUi && token.role !== 'CHURCH_ADMIN') {
+    return withSecurityHeaders(NextResponse.redirect(new URL('/dashboard', req.url)));
+  }
+
+  const adminApi = churchAdminApiPrefixes.some((prefix) => matchesPrefix(path, prefix));
+  if (adminApi && token.role !== 'CHURCH_ADMIN') {
+    return withSecurityHeaders(
+      NextResponse.json({ error: 'Admin access required' }, { status: 403 }),
+    );
+  }
+
+  // Church-ops persistence deliberately does NOT use the global CHURCH_ADMIN
+  // role as its tenant authorization decision. Middleware guarantees an
+  // authenticated identity; each API request then verifies church ownership
+  // or church_profile_members access for the requested church.
+  if (path.startsWith('/api/church-ops') && !token.sub) {
+    return withSecurityHeaders(
+      NextResponse.json({ error: 'Authenticated church workspace access required' }, { status: 401 }),
+    );
+  }
+
+  if (path.startsWith('/api/ai') && !['CHURCH_ADMIN', 'AI_DEPARTMENT', 'MEMBER'].includes(token.role as string)) {
+    return withSecurityHeaders(
+      NextResponse.json({ error: 'Authenticated member access required' }, { status: 403 }),
+    );
+  }
+
+  return withSecurityHeaders(NextResponse.next());
+}
 
 export const config = {
   matcher: [
