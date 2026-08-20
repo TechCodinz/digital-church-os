@@ -2,15 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Heart, Users, User, HandHeart } from 'lucide-react';
+import { BookOpen, Heart, Home, Radio, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
     { name: 'Home', href: '/dashboard', icon: Home },
-    { name: 'Pray', href: '/prayer-room', icon: Heart },
-    { name: 'Give', href: '/offering', icon: HandHeart },
-    { name: 'Community', href: '/community-wall', icon: Users },
-    { name: 'Profile', href: '/profile', icon: User },
+    { name: 'Word', href: '/scripture', icon: BookOpen },
+    { name: 'Pray', href: '/prayer-room', icon: Heart, primary: true },
+    { name: 'Worship', href: '/live-service', icon: Radio },
+    { name: 'Me', href: '/profile', icon: User },
 ];
 
 export const MobileBottomNav = () => {
@@ -22,33 +22,30 @@ export const MobileBottomNav = () => {
     };
 
     return (
-        <nav aria-label="Primary mobile ministry navigation" className="fixed bottom-0 left-0 right-0 z-50 border-t border-stone-200 bg-white/95 shadow-[0_-8px_30px_rgba(28,25,23,0.06)] backdrop-blur-xl md:hidden pb-safe">
-            <div className="mx-auto grid h-16 max-w-xl grid-cols-5 px-1">
+        <nav aria-label="Primary mobile sanctuary navigation" className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/8 bg-[#04100e]/94 text-white shadow-[0_-16px_50px_rgba(0,0,0,.35)] backdrop-blur-2xl md:hidden pb-safe">
+            <div className="mx-auto flex h-[70px] max-w-xl items-end justify-around px-2">
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = isRouteActive(item.href);
 
+                    if (item.primary) {
+                        return (
+                            <Link key={item.href} href={item.href} aria-current={isActive ? 'page' : undefined} className="sacred-focus-ring -mt-6 flex min-w-[64px] flex-col items-center justify-end gap-1 pb-2">
+                                <span className={cn('flex h-14 w-14 items-center justify-center rounded-full border shadow-2xl transition-all', isActive ? 'border-amber-200/70 bg-gradient-to-br from-amber-200 to-amber-300 text-slate-950 shadow-amber-300/25' : 'border-amber-300/25 bg-[#0a1c18] text-amber-300 shadow-black/40')}>
+                                    <Icon size={21} className={cn('transition-transform', isActive && 'scale-110')} />
+                                </span>
+                                <span className={cn('text-[9px] font-bold tracking-wide', isActive ? 'text-amber-300' : 'text-slate-500')}>{item.name}</span>
+                            </Link>
+                        );
+                    }
+
                     return (
-                        <Link
-                            key={item.href}
-                            href={item.href}
-                            aria-current={isActive ? 'page' : undefined}
-                            className={cn(
-                                'group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-medium tracking-tight transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sage-500',
-                                isActive ? 'text-sage-700' : 'text-stone-500 hover:bg-sage-50/60 hover:text-sage-700',
-                            )}
-                        >
-                            <span className={cn(
-                                'absolute top-0 h-0.5 w-8 rounded-full bg-transparent transition',
-                                isActive && 'bg-sage-600',
-                            )} />
-                            <span className={cn(
-                                'flex h-8 w-8 items-center justify-center rounded-xl transition',
-                                isActive ? 'bg-sage-50 text-sage-700' : 'text-stone-500 group-hover:bg-white',
-                            )}>
-                                <Icon size={20} className={cn('transition-transform', isActive && 'scale-105')} />
+                        <Link key={item.href} href={item.href} aria-current={isActive ? 'page' : undefined} className={cn('sacred-focus-ring flex h-full min-w-[54px] flex-col items-center justify-center gap-1.5 rounded-2xl px-2 text-[9px] font-semibold tracking-wide transition-all', isActive ? 'text-emerald-300' : 'text-slate-500 hover:text-white')}>
+                            <span className={cn('relative flex h-7 w-10 items-center justify-center rounded-full transition-all', isActive && 'bg-emerald-300/10')}>
+                                <Icon size={18} className={cn('transition-transform', isActive && 'scale-105')} />
+                                {isActive && <span className="absolute -bottom-1 h-1 w-1 rounded-full bg-emerald-300" />}
                             </span>
-                            <span className="max-w-full truncate">{item.name}</span>
+                            <span>{item.name}</span>
                         </Link>
                     );
                 })}

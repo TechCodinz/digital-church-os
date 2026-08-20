@@ -14,7 +14,25 @@ import {
 } from '@/lib/church-ops/conference-access';
 import { canWriteChurchOps } from '@/lib/church-ops/access';
 
-const UrlField = z.union([z.string().url(), z.literal('')]).optional();
+function isSafePublicHttpUrl(value: string) {
+  if (!value.trim()) return true;
+  try {
+    const url = new URL(value.trim());
+    return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+function safeStoredUrl(value: string | null | undefined) {
+  if (!value?.trim() || !isSafePublicHttpUrl(value)) return null;
+  return new URL(value.trim()).toString();
+}
+
+const UrlField = z.union([
+  z.string().trim().max(2048).refine(isSafePublicHttpUrl, 'URL must be public HTTP(S) without embedded credentials.'),
+  z.literal(''),
+]).optional();
 
 const ConferenceCreateSchema = z.object({
   churchId: z.string().trim().min(3),
@@ -34,7 +52,9 @@ const ConferenceUpdateSchema = ConferenceCreateSchema.omit({ churchId: true }).p
 });
 
 function normalizeUrl(value?: string) {
-  return value?.trim() ? value.trim() : null;
+  if (!value?.trim()) return null;
+  const url = new URL(value.trim());
+  return url.toString();
 }
 
 function migrationResponse() {
@@ -144,9 +164,6 @@ export async function GET(req: NextRequest) {
       ids = rows.map((row) => row.id);
       scope = 'church';
     } else {
-      // Unscoped historical records are a product-admin quarantine only. New
-      // member/public callers must choose a church explicitly; null tenancy is
-      // never treated as a shadow global conference calendar.
       if (session?.user?.role !== 'CHURCH_ADMIN') {
         return NextResponse.json({ error: 'Choose a church conference calendar.' }, { status: 400 });
       }
@@ -167,9 +184,7 @@ export async function GET(req: NextRequest) {
     const conferences = await prisma.conference.findMany({
       where,
       include: {
-        attendees: {
-          select: { attended: true },
-        },
+        attendees: { select: { attended: true } },
       },
       orderBy: { startDate: 'asc' },
     });
@@ -212,6 +227,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       conferences.map((conference) => ({
         ...conference,
+        virtualRoomLink: safeStoredUrl(conference.virtualRoomLink),
+        replayUrl: safeStoredUrl(conference.replayUrl),
         attendeeCount: Math.max(conference.attendees.length, rawRegistrationCounts.get(conference.id) || 0),
         isRegistered: registeredIds.has(conference.id),
       })),

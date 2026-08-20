@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Play, Pause, Square, Volume2, VolumeX, Loader2,
-    Mic, Settings, ChevronDown, ChevronUp
+    Mic, Settings
 } from 'lucide-react';
 
 type VoiceContext = 'sermon' | 'prayer' | 'scripture' | 'pastoral' | 'children';
@@ -14,11 +14,17 @@ interface VoicePlayerProps {
     text: string;
     context?: VoiceContext;
     emotion?: VoiceEmotion;
-    label?: string;         // e.g. "Listen to this Sermon"
+    label?: string;
     autoPlay?: boolean;
-    compact?: boolean;      // condensed player (button only)
+    compact?: boolean;
     className?: string;
     onComplete?: () => void;
+    /**
+     * Keep narration entirely in the browser with Web Speech. Use this for
+     * sensitive user-generated prayer/care content so text is never posted to
+     * the server TTS route or a configured external voice provider.
+     */
+    localOnly?: boolean;
 }
 
 const CONTEXT_LABELS: Record<VoiceContext, string> = {
@@ -39,6 +45,13 @@ const EMOTION_LABELS: Record<VoiceEmotion, string> = {
     default: '⚖️ Balanced',
 };
 
+function localSpeechConfig(emotion: VoiceEmotion) {
+    if (emotion === 'urgent') return { rate: 1.02, pitch: 1.0, volume: 1.0 };
+    if (emotion === 'celebratory' || emotion === 'triumphant') return { rate: 1.0, pitch: 1.04, volume: 1.0 };
+    if (emotion === 'somber' || emotion === 'tender' || emotion === 'compassionate') return { rate: 0.88, pitch: 0.98, volume: 1.0 };
+    return { rate: 0.94, pitch: 1.0, volume: 1.0 };
+}
+
 export function VoicePlayer({
     text,
     context = 'pastoral',
@@ -48,6 +61,7 @@ export function VoicePlayer({
     compact = false,
     className = '',
     onComplete,
+    localOnly = false,
 }: VoicePlayerProps) {
     const [status, setStatus] = useState<'idle' | 'loading' | 'playing' | 'paused' | 'error'>('idle');
     const [provider, setProvider] = useState<string>('');
@@ -61,26 +75,24 @@ export function VoicePlayer({
     const audioUrlRef = useRef<string | null>(null);
     const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
     const isBrowserSpeech = useRef(false);
+    const autoPlayStartedRef = useRef(false);
 
-    // Cleanup on unmount
+    const stopAll = useCallback(() => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+        if (isBrowserSpeech.current && typeof window !== 'undefined') {
+            window.speechSynthesis?.cancel();
+        }
+    }, []);
+
     useEffect(() => {
         return () => {
             stopAll();
             if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
         };
-    }, []);
-
-    const stopAll = useCallback(() => {
-        // Stop HTML audio
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-        }
-        // Stop browser speech
-        if (isBrowserSpeech.current && typeof window !== 'undefined') {
-            window.speechSynthesis?.cancel();
-        }
-    }, []);
+    }, [stopAll]);
 
     const formatTime = (secs: number) => {
         const m = Math.floor(secs / 60);
@@ -88,17 +100,17 @@ export function VoicePlayer({
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
-    const playBrowserSpeech = useCallback((speechText: string, config: any) => {
+    const playBrowserSpeech = useCallback((speechText: string, config: { rate?: number; pitch?: number; volume?: number }) => {
         if (typeof window === 'undefined' || !window.speechSynthesis) {
             setStatus('error');
             return;
         }
+
         const utter = new SpeechSynthesisUtterance(speechText);
         utter.rate = config?.rate ?? 1.0;
         utter.pitch = config?.pitch ?? 1.0;
         utter.volume = muted ? 0 : (config?.volume ?? 1.0);
 
-        // Try to pick a good English voice
         const voices = window.speechSynthesis.getVoices();
         const preferred = voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes('natural'))
             || voices.find(v => v.lang === 'en-US')
@@ -116,61 +128,50 @@ export function VoicePlayer({
 
     const handlePlay = useCallback(async () => {
         if (status === 'playing') {
-            // Pause
-            if (isBrowserSpeech.current) {
-                window.speechSynthesis?.pause();
-            } else {
-                audioRef.current?.pause();
-            }
+            if (isBrowserSpeech.current) window.speechSynthesis?.pause();
+            else audioRef.current?.pause();
             setStatus('paused');
             return;
         }
 
         if (status === 'paused') {
-            // Resume
-            if (isBrowserSpeech.current) {
-                window.speechSynthesis?.resume();
-            } else {
-                audioRef.current?.play();
-            }
+            if (isBrowserSpeech.current) window.speechSynthesis?.resume();
+            else await audioRef.current?.play();
             setStatus('playing');
             return;
         }
 
-        // Fresh play
         stopAll();
         isBrowserSpeech.current = false;
         setStatus('loading');
         setProgress(0);
 
+        if (localOnly) {
+            setProvider('web-speech-local');
+            playBrowserSpeech(text, localSpeechConfig(selectedEmotion));
+            return;
+        }
+
         try {
             const res = await fetch('/api/voice/tts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    text,
-                    context,
-                    emotion: selectedEmotion,
-                }),
+                body: JSON.stringify({ text, context, emotion: selectedEmotion }),
             });
 
             if (!res.ok) throw new Error('TTS request failed');
-
             const contentType = res.headers.get('Content-Type') || '';
 
             if (contentType.includes('audio')) {
-                // Real audio from ElevenLabs or OpenAI TTS
                 const blob = await res.blob();
                 const url = URL.createObjectURL(blob);
                 if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
                 audioUrlRef.current = url;
 
                 setProvider(res.headers.get('X-Voice-Provider') || 'ai-voice');
-
                 const audio = new Audio(url);
                 audioRef.current = audio;
                 audio.muted = muted;
-
                 audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
                 audio.addEventListener('timeupdate', () => {
                     if (audio.duration) setProgress((audio.currentTime / audio.duration) * 100);
@@ -184,20 +185,17 @@ export function VoicePlayer({
 
                 await audio.play();
                 setStatus('playing');
-
             } else {
-                // Browser speech fallback
                 const data = await res.json();
                 setProvider('web-speech');
-                playBrowserSpeech(data.text || text, data.speechConfig);
+                playBrowserSpeech(data.text || text, data.speechConfig || localSpeechConfig(selectedEmotion));
             }
         } catch (err) {
             console.error('Voice play error:', err);
-            // Emergency fallback to browser speech
             setProvider('web-speech');
-            playBrowserSpeech(text, { rate: 0.9, pitch: 1.0, volume: 1.0 });
+            playBrowserSpeech(text, localSpeechConfig(selectedEmotion));
         }
-    }, [status, text, context, selectedEmotion, muted, stopAll, playBrowserSpeech, onComplete]);
+    }, [status, text, context, selectedEmotion, muted, stopAll, playBrowserSpeech, onComplete, localOnly]);
 
     const handleStop = useCallback(() => {
         stopAll();
@@ -221,112 +219,87 @@ export function VoicePlayer({
     }, [duration]);
 
     useEffect(() => {
-        if (autoPlay && status === 'idle') handlePlay();
-    }, [autoPlay]);
+        if (!autoPlay || autoPlayStartedRef.current) return;
+        autoPlayStartedRef.current = true;
+        void handlePlay();
+    }, [autoPlay, handlePlay]);
 
     const isActive = status === 'playing' || status === 'paused';
     const isLoading = status === 'loading';
 
-    // ── Compact (button-only) mode ────────────────────────────────────────────
     if (compact) {
         return (
             <button
-                onClick={handlePlay}
+                type="button"
+                onClick={() => void handlePlay()}
                 disabled={isLoading}
-                title={`Listen — ${CONTEXT_LABELS[context]}`}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl bg-sage-600 text-white text-sm font-semibold hover:bg-sage-700 active:scale-95 transition-all disabled:opacity-50 ${className}`}
+                title={localOnly ? 'Listen on this device' : `Listen — ${CONTEXT_LABELS[context]}`}
+                className={`flex items-center gap-2 rounded-xl bg-sage-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-sage-700 active:scale-95 disabled:opacity-50 ${className}`}
             >
-                {isLoading ? (
-                    <Loader2 size={16} className="animate-spin" />
-                ) : status === 'playing' ? (
-                    <Pause size={16} />
-                ) : (
-                    <Volume2 size={16} />
-                )}
+                {isLoading ? <Loader2 size={16} className="animate-spin" /> : status === 'playing' ? <Pause size={16} /> : <Volume2 size={16} />}
                 {label || 'Listen'}
             </button>
         );
     }
 
-    // ── Full player ───────────────────────────────────────────────────────────
     return (
-        <div className={`bg-white rounded-2xl border border-stone-100 shadow-md overflow-hidden ${className}`}>
-            {/* Header bar */}
-            <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 flex items-center justify-between">
+        <div className={`overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-md ${className}`}>
+            <div className="flex items-center justify-between border-b border-stone-100 bg-stone-50 px-5 py-3">
                 <div className="flex items-center gap-2">
                     <Mic size={14} className="text-sage-500" />
-                    <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
-                        {CONTEXT_LABELS[context]}
-                    </span>
-                    {provider && (
-                        <span className="text-[10px] px-2 py-0.5 bg-stone-200 text-stone-500 rounded-full font-medium">
+                    <span className="text-xs font-bold uppercase tracking-wider text-stone-500">{CONTEXT_LABELS[context]}</span>
+                    {localOnly && (
+                        <span className="rounded-full bg-sage-100 px-2 py-0.5 text-[10px] font-semibold text-sage-700">On-device only</span>
+                    )}
+                    {!localOnly && provider && (
+                        <span className="rounded-full bg-stone-200 px-2 py-0.5 text-[10px] font-medium text-stone-500">
                             {provider === 'elevenlabs' ? '⚡ ElevenLabs' : provider === 'openai-tts' ? '🤖 OpenAI TTS' : '🌐 Browser'}
                         </span>
                     )}
                 </div>
-                <button
-                    onClick={() => setShowSettings(s => !s)}
-                    className="text-stone-400 hover:text-stone-600 transition-colors"
-                >
+                <button type="button" onClick={() => setShowSettings(s => !s)} className="text-stone-400 transition-colors hover:text-stone-600" aria-label="Voice settings">
                     <Settings size={14} />
                 </button>
             </div>
 
-            {/* Settings panel */}
             <AnimatePresence>
                 {showSettings && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden border-b border-stone-100"
-                    >
-                        <div className="px-5 py-3 space-y-3">
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden border-b border-stone-100">
+                        <div className="space-y-3 px-5 py-3">
                             <div>
-                                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest block mb-2">
-                                    Voice Emotion
-                                </label>
+                                <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-stone-400">Voice Emotion</label>
                                 <div className="flex flex-wrap gap-2">
                                     {(Object.keys(EMOTION_LABELS) as VoiceEmotion[]).map(em => (
                                         <button
+                                            type="button"
                                             key={em}
                                             onClick={() => setSelectedEmotion(em)}
-                                            className={`text-xs px-3 py-1 rounded-full border font-medium transition-all ${selectedEmotion === em
-                                                    ? 'bg-sage-600 text-white border-sage-600'
-                                                    : 'bg-white text-stone-600 border-stone-200 hover:border-sage-400'
-                                                }`}
+                                            className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${selectedEmotion === em ? 'border-sage-600 bg-sage-600 text-white' : 'border-stone-200 bg-white text-stone-600 hover:border-sage-400'}`}
                                         >
                                             {EMOTION_LABELS[em]}
                                         </button>
                                     ))}
                                 </div>
                             </div>
+                            {localOnly && <p className="text-[10px] leading-5 text-stone-500">This narration uses your browser/device speech engine. The text is not posted to Digital Church OS TTS or an external voice provider.</p>}
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            {/* Player controls */}
-            <div className="px-5 py-4 space-y-3">
-                {label && (
-                    <p className="text-sm font-medium text-stone-700 truncate">{label}</p>
-                )}
+            <div className="space-y-3 px-5 py-4">
+                {label && <p className="truncate text-sm font-medium text-stone-700">{label}</p>}
 
-                {/* Progress bar (only shown for real audio) */}
                 {!isBrowserSpeech.current && duration > 0 && (
                     <div className="space-y-1">
                         <div
-                            className="h-1.5 bg-stone-100 rounded-full cursor-pointer overflow-hidden"
+                            className="h-1.5 cursor-pointer overflow-hidden rounded-full bg-stone-100"
                             onClick={e => {
                                 const rect = e.currentTarget.getBoundingClientRect();
                                 seekTo(((e.clientX - rect.left) / rect.width) * 100);
                             }}
                         >
-                            <motion.div
-                                className="h-full bg-sage-500 rounded-full"
-                                style={{ width: `${progress}%` }}
-                                transition={{ duration: 0.1 }}
-                            />
+                            <motion.div className="h-full rounded-full bg-sage-500" style={{ width: `${progress}%` }} transition={{ duration: 0.1 }} />
                         </div>
                         <div className="flex justify-between text-[10px] text-stone-400">
                             <span>{formatTime((progress / 100) * duration)}</span>
@@ -335,63 +308,33 @@ export function VoicePlayer({
                     </div>
                 )}
 
-                {/* Waveform animation when playing */}
                 {status === 'playing' && (
-                    <div className="flex items-end gap-0.5 h-6">
+                    <div className="flex h-6 items-end gap-0.5">
                         {[0.3, 0.7, 1, 0.5, 0.9, 0.6, 1, 0.4, 0.8, 0.3, 0.6, 1, 0.7].map((h, i) => (
-                            <motion.div
-                                key={i}
-                                className="w-1 bg-sage-400 rounded-full"
-                                animate={{ scaleY: [h, h * 0.3, h] }}
-                                transition={{ duration: 0.6 + i * 0.05, repeat: Infinity, ease: 'easeInOut' }}
-                                style={{ height: `${h * 100}%`, originY: 1 }}
-                            />
+                            <motion.div key={i} className="w-1 rounded-full bg-sage-400" animate={{ scaleY: [h, h * 0.3, h] }} transition={{ duration: 0.6 + i * 0.05, repeat: Infinity, ease: 'easeInOut' }} style={{ height: `${h * 100}%`, originY: 1 }} />
                         ))}
                     </div>
                 )}
 
-                {/* Control buttons */}
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={handlePlay}
-                        disabled={isLoading}
-                        className="w-12 h-12 rounded-2xl bg-sage-600 text-white flex items-center justify-center shadow-md hover:bg-sage-700 active:scale-95 transition-all disabled:opacity-60"
-                    >
-                        {isLoading ? (
-                            <Loader2 size={20} className="animate-spin" />
-                        ) : status === 'playing' ? (
-                            <Pause size={20} />
-                        ) : (
-                            <Play size={20} className="ml-0.5" />
-                        )}
+                    <button type="button" onClick={() => void handlePlay()} disabled={isLoading} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sage-600 text-white shadow-md transition-all hover:bg-sage-700 active:scale-95 disabled:opacity-60">
+                        {isLoading ? <Loader2 size={20} className="animate-spin" /> : status === 'playing' ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
                     </button>
 
                     {isActive && (
-                        <button
-                            onClick={handleStop}
-                            className="w-10 h-10 rounded-xl border border-stone-200 text-stone-500 flex items-center justify-center hover:bg-stone-50 transition-all"
-                        >
+                        <button type="button" onClick={handleStop} className="flex h-10 w-10 items-center justify-center rounded-xl border border-stone-200 text-stone-500 transition-all hover:bg-stone-50" aria-label="Stop narration">
                             <Square size={16} />
                         </button>
                     )}
 
-                    <button
-                        onClick={toggleMute}
-                        className="w-10 h-10 rounded-xl border border-stone-200 text-stone-500 flex items-center justify-center hover:bg-stone-50 transition-all"
-                    >
+                    <button type="button" onClick={toggleMute} className="flex h-10 w-10 items-center justify-center rounded-xl border border-stone-200 text-stone-500 transition-all hover:bg-stone-50" aria-label={muted ? 'Unmute narration' : 'Mute narration'}>
                         {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
                     </button>
 
                     <div className="flex-1" />
 
-                    {status === 'error' && (
-                        <span className="text-xs text-red-500 font-medium">Failed — tap retry</span>
-                    )}
-                    {status === 'idle' && provider && (
-                        <span className="text-[10px] text-stone-400">
-                            {provider === 'web-speech' ? 'Using device voice' : 'AI voice ready'}
-                        </span>
-                    )}
+                    {status === 'error' && <span className="text-xs font-medium text-red-500">Narration unavailable</span>}
+                    {status === 'idle' && provider && <span className="text-[10px] text-stone-400">{localOnly || provider.startsWith('web-speech') ? 'Using device voice' : 'AI voice ready'}</span>}
                 </div>
             </div>
         </div>

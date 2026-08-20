@@ -3,27 +3,94 @@
 import Link from 'next/link';
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, User, Bot, Sparkles, ShieldCheck, HeartHandshake } from 'lucide-react';
+import { X, Send, User, Bot, Sparkles, ShieldCheck, HeartHandshake, BookOpenText, AlertTriangle } from 'lucide-react';
 
 interface Message {
     id: string;
     role: 'user' | 'assistant';
     content: string;
     timestamp: Date;
+    kind?: 'normal' | 'crisis' | 'error';
 }
+
+type CompanionResponse = {
+    type?: 'crisis' | 'counseling' | 'encouragement' | string;
+    content?: {
+        reflection?: string;
+        scriptures?: Array<{ reference?: string; text?: string; application?: string }>;
+        practicalSteps?: string[];
+        resources?: Record<string, string>;
+    };
+    disclaimer?: string;
+    reflection?: string;
+    encouragement?: string;
+    guidance?: string;
+    compassionateResponse?: string;
+    scripture?: string;
+    scriptures?: unknown[];
+    scriptureFoundations?: unknown[];
+    prayer?: string;
+    closingPrayer?: string;
+};
 
 const quickPrompts = [
     'Help me reflect on a difficult decision',
-    'Give me scripture for hope and patience',
+    'Give me Scripture references for hope and patience',
     'Help me prepare a prayer for my family',
 ];
+
+function renderStructuredResponse(response: CompanionResponse | string | null | undefined) {
+    if (!response) return 'The companion did not return a usable response. You can continue in Scripture, prayer, or human care.';
+    if (typeof response === 'string') return response;
+
+    const parts: string[] = [];
+    const content = response.content;
+    const structuredScriptures = content?.scriptures;
+    const practicalSteps = content?.practicalSteps;
+
+    if (content?.reflection) parts.push(content.reflection);
+
+    if (Array.isArray(structuredScriptures) && structuredScriptures.length) {
+        const scriptureLines = structuredScriptures
+            .filter((item) => item?.reference)
+            .map((item) => {
+                const detail = item.application ? ` — ${item.application}` : '';
+                return `📖 ${item.reference}${detail}`;
+            });
+        if (scriptureLines.length) parts.push(scriptureLines.join('\n'));
+    }
+
+    if (Array.isArray(practicalSteps) && practicalSteps.length) {
+        parts.push(`Possible next steps:\n${practicalSteps.slice(0, 6).map((step, index) => `${index + 1}. ${step}`).join('\n')}`);
+    }
+
+    // Backward-compatible rendering for older provider response shapes while the
+    // product converges on the structured care/reflection contract above.
+    if (!parts.length) {
+        if (response.reflection) parts.push(response.reflection);
+        if (response.encouragement) parts.push(response.encouragement);
+        if (response.guidance) parts.push(response.guidance);
+        if (response.compassionateResponse) parts.push(response.compassionateResponse);
+
+        const legacyScriptures = response.scriptures || response.scriptureFoundations || [];
+        const firstLegacyScripture = response.scripture || (Array.isArray(legacyScriptures) && typeof legacyScriptures[0] === 'string' ? legacyScriptures[0] : '');
+        if (firstLegacyScripture) parts.push(`📖 ${firstLegacyScripture}`);
+
+        const prayer = response.prayer || response.closingPrayer;
+        if (prayer) parts.push(`Prayer draft:\n${prayer}`);
+    }
+
+    if (response.disclaimer) parts.push(`Boundary: ${response.disclaimer}`);
+
+    return parts.join('\n\n') || 'The companion returned a response that could not be displayed safely. Please use Scripture, prayer, or human care instead.';
+}
 
 export const AIPastorModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
     const [messages, setMessages] = useState<Message[]>([
         {
             id: '1',
             role: 'assistant',
-            content: 'Welcome. I am an AI ministry companion designed to offer scripture-grounded reflection, prayer support, and a pathway to human pastoral care when you need it. How can I support your walk today?',
+            content: 'Welcome. I am an AI ministry companion for Scripture-grounded reflection, prayer drafting, and finding a responsible next step. I do not speak for God, diagnose, or replace human pastoral care. How can I support your reflection today?',
             timestamp: new Date()
         }
     ]);
@@ -59,44 +126,29 @@ export const AIPastorModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
                 body: JSON.stringify({ input: value })
             });
 
-            const data = await res.json();
-            const response = data.response;
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error || 'The AI ministry companion is unavailable.');
 
-            let content = '';
-            if (typeof response === 'string') {
-                content = response;
-            } else if (response) {
-                const parts: string[] = [];
-                if (response.reflection) parts.push(response.reflection);
-                if (response.encouragement) parts.push(response.encouragement);
-                if (response.guidance) parts.push(response.guidance);
-                if (response.spiritualInsight) parts.push(response.spiritualInsight);
-                if (response.compassionateResponse) parts.push(response.compassionateResponse);
-
-                const scriptures = response.scriptures || response.scriptureFoundations || [];
-                const scripture = response.scripture || (Array.isArray(scriptures) && scriptures[0]) || '';
-                if (scripture) parts.push(`📖 ${scripture}`);
-
-                const prayer = response.prayer || response.closingPrayer;
-                if (prayer && parts.length > 0) parts.push(`🙏 Prayer: ${prayer}`);
-
-                content = parts.join('\n\n') || JSON.stringify(response);
-            }
-
+            const response = data.response as CompanionResponse | string | undefined;
+            const isCrisis = typeof response === 'object' && response?.type === 'crisis';
             const assistMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: content || 'Let us slow down, reflect on Scripture, and consider a faithful next step together.',
-                timestamp: new Date()
+                content: renderStructuredResponse(response),
+                timestamp: new Date(),
+                kind: isCrisis ? 'crisis' : 'normal',
             };
 
             setMessages(prev => [...prev, assistMsg]);
-        } catch {
+        } catch (error) {
             const errMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: 'The AI guidance service is temporarily unavailable. You can try again shortly, continue in prayer or Scripture, or reach the human care team if you need personal support.',
-                timestamp: new Date()
+                content: error instanceof Error
+                    ? `${error.message} You can continue in Scripture or prayer, or use the human care pathway for personal support.`
+                    : 'The AI guidance service is temporarily unavailable. Continue in Scripture or prayer, or use the human care pathway for personal support.',
+                timestamp: new Date(),
+                kind: 'error',
             };
             setMessages(prev => [...prev, errMsg]);
         } finally {
@@ -112,38 +164,41 @@ export const AIPastorModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-stone-900/40 backdrop-blur-md"
+                        className="absolute inset-0 bg-stone-950/55 backdrop-blur-md"
                         onClick={onClose}
                     />
 
                     <motion.div
-                        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                        initial={{ scale: 0.94, opacity: 0, y: 20 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                        className="relative flex h-[84vh] w-full max-w-2xl flex-col overflow-hidden rounded-[32px] bg-white shadow-2xl"
+                        exit={{ scale: 0.94, opacity: 0, y: 20 }}
+                        className="relative flex h-[86vh] w-full max-w-2xl flex-col overflow-hidden rounded-[32px] border border-white/10 bg-white shadow-2xl"
                     >
-                        <div className="flex items-center justify-between bg-stone-800 p-6 text-white">
-                            <div className="flex items-center space-x-4">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sage-500">
-                                    <Bot size={24} />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-light">AI Ministry Companion</h2>
-                                    <div className="flex items-center text-[10px] font-bold uppercase tracking-widest text-sage-300">
-                                        <Sparkles size={10} className="mr-1" /> Scripture-grounded guidance
+                        <div className="relative overflow-hidden bg-stone-950 p-6 text-white">
+                            <div className="sanctuary-light-column pointer-events-none absolute inset-0 opacity-30" />
+                            <div className="relative flex items-center justify-between">
+                                <div className="flex items-center space-x-4">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-sage-500/90 shadow-lg shadow-sage-900/20">
+                                        <Bot size={23} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-light">AI Ministry Companion</h2>
+                                        <div className="flex items-center text-[10px] font-bold uppercase tracking-widest text-sage-300">
+                                            <Sparkles size={10} className="mr-1" /> Scripture-grounded reflection
+                                        </div>
                                     </div>
                                 </div>
+                                <button onClick={onClose} className="rounded-full p-2 transition-colors hover:bg-white/10" aria-label="Close AI ministry companion">
+                                    <X size={24} />
+                                </button>
                             </div>
-                            <button onClick={onClose} className="rounded-full p-2 transition-colors hover:bg-white/10" aria-label="Close AI ministry companion">
-                                <X size={24} />
-                            </button>
                         </div>
 
                         <div className="border-b border-sage-100 bg-sage-50 px-5 py-3">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="flex items-start gap-2 text-xs leading-5 text-sage-800">
+                                <div className="flex items-start gap-2 text-xs leading-5 text-sage-900">
                                     <ShieldCheck size={16} className="mt-0.5 shrink-0" />
-                                    <span>AI suggestions are advisory. Sensitive care remains human-led and your church care team can take over when needed.</span>
+                                    <span>Your conversation text is not copied into the generic AI interaction log by default. AI suggestions remain advisory and human care is available when needed.</span>
                                 </div>
                                 <Link href="/care" onClick={onClose} className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-sage-700 shadow-sm transition hover:bg-sage-100">
                                     <HeartHandshake size={14} /> Human care
@@ -154,11 +209,11 @@ export const AIPastorModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
                         <div ref={scrollRef} className="custom-scrollbar flex-1 space-y-6 overflow-y-auto bg-cream-50 p-6">
                             {messages.map((msg) => (
                                 <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`flex max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                                        <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${msg.role === 'user' ? 'ml-3 bg-stone-200 text-stone-600' : 'mr-3 bg-sage-100 text-sage-600'}`}>
-                                            {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
+                                    <div className={`flex max-w-[88%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                                        <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${msg.role === 'user' ? 'ml-3 bg-stone-200 text-stone-600' : msg.kind === 'crisis' ? 'mr-3 bg-rose-100 text-rose-700' : 'mr-3 bg-sage-100 text-sage-600'}`}>
+                                            {msg.role === 'user' ? <User size={16} /> : msg.kind === 'crisis' ? <AlertTriangle size={16} /> : <Bot size={16} />}
                                         </div>
-                                        <div className={`whitespace-pre-wrap rounded-2xl p-4 text-sm leading-relaxed ${msg.role === 'user' ? 'rounded-tr-none bg-stone-800 text-white' : 'rounded-tl-none border border-stone-100 bg-white text-stone-700 shadow-sm'}`}>
+                                        <div className={`whitespace-pre-wrap rounded-2xl p-4 text-sm leading-relaxed ${msg.role === 'user' ? 'rounded-tr-none bg-stone-800 text-white' : msg.kind === 'crisis' ? 'rounded-tl-none border border-rose-200 bg-rose-50 text-rose-900 shadow-sm' : msg.kind === 'error' ? 'rounded-tl-none border border-amber-200 bg-amber-50 text-amber-900 shadow-sm' : 'rounded-tl-none border border-stone-100 bg-white text-stone-700 shadow-sm'}`}>
                                             {msg.content}
                                         </div>
                                     </div>
@@ -191,27 +246,37 @@ export const AIPastorModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
                             )}
                         </div>
 
-                        <div className="border-t border-stone-100 bg-white p-6">
-                            <div className="relative flex items-center">
-                                <input
-                                    type="text"
+                        <div className="border-t border-stone-100 bg-white p-5 sm:p-6">
+                            <div className="relative">
+                                <textarea
                                     value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                    placeholder="Share a concern, question, prayer need, or Scripture topic..."
-                                    className="w-full rounded-2xl border-none bg-cream-50 py-4 pl-6 pr-14 text-stone-700 outline-none transition-all focus:ring-2 focus:ring-sage-200"
+                                    onChange={(e) => setInput(e.target.value.slice(0, 4000))}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            void handleSend();
+                                        }
+                                    }}
+                                    rows={2}
+                                    maxLength={4000}
+                                    placeholder="Share a question, prayer need, decision, or Scripture topic…"
+                                    className="w-full resize-none rounded-2xl border-none bg-cream-50 py-4 pl-5 pr-14 text-stone-700 outline-none transition-all focus:ring-2 focus:ring-sage-200"
                                 />
                                 <button
-                                    onClick={() => handleSend()}
+                                    onClick={() => void handleSend()}
                                     disabled={!input.trim() || loading}
-                                    className="absolute right-2 rounded-xl bg-sage-500 p-3 text-white transition-all hover:bg-sage-600 disabled:opacity-50"
+                                    className="absolute bottom-3 right-2 rounded-xl bg-sage-500 p-3 text-white transition-all hover:bg-sage-600 disabled:opacity-50"
                                     aria-label="Send message"
                                 >
                                     <Send size={20} />
                                 </button>
                             </div>
-                            <p className="mt-3 text-center text-[10px] uppercase tracking-widest text-stone-400">
-                                AI ministry guidance does not replace pastors, counselors, medical care, or emergency services.
+                            <div className="mt-3 flex flex-col gap-2 text-[10px] uppercase tracking-widest text-stone-400 sm:flex-row sm:items-center sm:justify-between">
+                                <span>Enter sends · Shift+Enter adds a line</span>
+                                <Link href="/scripture" onClick={onClose} className="inline-flex items-center gap-1 text-sage-600"><BookOpenText className="h-3 w-3" /> Open Scripture</Link>
+                            </div>
+                            <p className="mt-3 text-center text-[10px] leading-5 text-stone-400">
+                                AI does not speak for God, diagnose, provide emergency care, or replace pastors, counselors, medical professionals, safeguarding authorities, or emergency services.
                             </p>
                         </div>
                     </motion.div>
