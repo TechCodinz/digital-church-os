@@ -1,34 +1,46 @@
 /* Living Sanctuary compatibility for older nested ministry sections.
-   Loaded after cinematic.css. It intentionally targets only legacy color
-   utility surfaces inside the app content; bespoke cinematic classes keep
-   their own authored appearance. */
+   Loaded after cinematic.css. It intentionally targets legacy color utility
+   surfaces inside app content so older pages inherit readable dark-glass
+   continuity while bespoke cinematic primitives retain their authored look. */
 
-#main-content :is(section, article, aside, div).bg-cream-50,
-#main-content :is(section, article, aside, div).bg-stone-50,
-#main-content :is(section, article, aside, div).bg-gray-50 {
+#main-content :is(section, article, aside, div, button, a, li, form, label).bg-cream-50,
+#main-content :is(section, article, aside, div, button, a, li, form, label).bg-cream-100,
+#main-content :is(section, article, aside, div, button, a, li, form, label).bg-stone-50,
+#main-content :is(section, article, aside, div, button, a, li, form, label).bg-gray-50,
+#main-content :is(section, article, aside, div, button, a, li, form, label).bg-gray-100 {
   background-color: transparent !important;
 }
 
-#main-content :is(section, article, aside, div).bg-cream-50 {
+#main-content :is(section, article, aside, div, button, a, li, form, label).bg-cream-50,
+#main-content :is(section, article, aside, div, button, a, li, form, label).bg-cream-100 {
   background-image:
     radial-gradient(circle at 50% 0%, rgba(245, 201, 120, .075), transparent 28%),
     linear-gradient(180deg, rgba(4, 16, 13, .94), rgba(2, 9, 8, .98)) !important;
 }
 
-#main-content :is(section, article, aside, div).bg-stone-50,
-#main-content :is(section, article, aside, div).bg-gray-50 {
+#main-content :is(section, article, aside, div, button, a, li, form, label).bg-stone-50,
+#main-content :is(section, article, aside, div, button, a, li, form, label).bg-gray-50,
+#main-content :is(section, article, aside, div, button, a, li, form, label).bg-gray-100 {
   background-image: linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.018)) !important;
 }
 
-#main-content :is(section, article, aside, div).bg-white,
-#main-content :is(section, article, aside, div).bg-white\/80,
-#main-content :is(section, article, aside, div).bg-white\/70,
-#main-content :is(section, article, aside, div).bg-white\/60 {
+/* Cover legacy cards regardless of whether they are semantic sections,
+   links, motion buttons, list items or translucent utility variants. */
+#main-content :is(.bg-white, .bg-white\/95, .bg-white\/90, .bg-white\/85, .bg-white\/80, .bg-white\/75, .bg-white\/70, .bg-white\/60, .bg-white\/50, .bg-white\/40) {
   background: linear-gradient(145deg, rgba(255,255,255,.07), rgba(255,255,255,.025)), rgba(3, 12, 10, .72) !important;
   border-color: rgba(255,255,255,.095) !important;
   box-shadow: 0 24px 72px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.04);
   -webkit-backdrop-filter: blur(18px) saturate(118%);
   backdrop-filter: blur(18px) saturate(118%);
+}
+
+/* Tailwind hover utilities can otherwise flash a white card back in on
+   pointer-capable devices after the compatibility background is applied. */
+#main-content [class*="hover:bg-white"]:hover,
+#main-content [class*="hover:bg-stone-50"]:hover,
+#main-content [class*="hover:bg-gray-50"]:hover {
+  background: linear-gradient(145deg, rgba(255,255,255,.10), rgba(255,255,255,.04)), rgba(3, 12, 10, .82) !important;
+  border-color: rgba(245,201,120,.18) !important;
 }
 
 #main-content :is(.bg-sage-50, .bg-sage-100) {
@@ -81,7 +93,11 @@
 
 #main-content :is(input, textarea, select).bg-white,
 #main-content :is(input, textarea, select).bg-stone-50,
-#main-content :is(input, textarea, select).bg-white\/80 {
+#main-content :is(input, textarea, select).bg-white\/95,
+#main-content :is(input, textarea, select).bg-white\/90,
+#main-content :is(input, textarea, select).bg-white\/80,
+#main-content :is(input, textarea, select).bg-white\/75,
+#main-content :is(input, textarea, select).bg-white\/70 {
   background: rgba(0,0,0,.18) !important;
   border-color: rgba(255,255,255,.11) !important;
   color: rgba(255,255,255,.90) !important;
@@ -94,7 +110,10 @@
 
 #main-content button.bg-stone-200,
 #main-content a.bg-stone-100,
-#main-content span.bg-stone-100 {
+#main-content span.bg-stone-100,
+#main-content button.bg-gray-100,
+#main-content a.bg-gray-100,
+#main-content span.bg-gray-100 {
   background: rgba(255,255,255,.08) !important;
   color: rgba(255,255,255,.68) !important;
 }
@@ -104,7 +123,8 @@
 }
 
 @media (max-width: 767px) {
-  #main-content :is(section, article, aside, div).bg-cream-50 {
+  #main-content :is(section, article, aside, div, button, a, li, form, label).bg-cream-50,
+  #main-content :is(section, article, aside, div, button, a, li, form, label).bg-cream-100 {
     background-image:
       radial-gradient(circle at 50% 0%, rgba(245,201,120,.07), transparent 22%),
       linear-gradient(180deg, rgba(3,13,11,.97), rgba(2,8,7,.99)) !important;
