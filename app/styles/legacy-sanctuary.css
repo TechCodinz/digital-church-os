@@ -1,7 +1,59 @@
-/* Living Sanctuary compatibility for older nested ministry sections.
-   Loaded after cinematic.css. It intentionally targets legacy color utility
-   surfaces inside app content so older pages inherit readable dark-glass
-   continuity while bespoke cinematic primitives retain their authored look. */
+/* Living Sanctuary compatibility for older ministry sections.
+   Loaded after cinematic.css. V6 treats legacy page roots as cinematic
+   sanctuary canvases, then converts their nested light utility surfaces into
+   readable dark glass while bespoke cinematic primitives keep their authored
+   appearance. */
+
+/* Product-wide cinematic bridge for routes that have not yet received a
+   bespoke V6 composition. This is deliberately atmospheric rather than a
+   simple dark-mode recolor. */
+#main-content > :is(main, div).bg-cream-50,
+#main-content > :is(main, div).bg-stone-50,
+#main-content > :is(main, div).bg-gray-50 {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 10%, rgba(245,201,120,.13), transparent 20%),
+    radial-gradient(circle at 12% 38%, rgba(52,211,153,.10), transparent 28%),
+    radial-gradient(circle at 88% 62%, rgba(56,189,248,.06), transparent 26%),
+    linear-gradient(180deg, #030b09 0%, #06110f 48%, #020807 100%) !important;
+  color: rgba(255,255,255,.94) !important;
+}
+
+#main-content > :is(main, div).bg-cream-50::before,
+#main-content > :is(main, div).bg-stone-50::before,
+#main-content > :is(main, div).bg-gray-50::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -8%;
+  left: 50%;
+  width: min(48vw, 620px);
+  height: 72vh;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(255,231,176,.16), rgba(111,255,205,.035) 60%, transparent);
+  clip-path: polygon(44% 0, 56% 0, 90% 100%, 10% 100%);
+  filter: blur(18px);
+  pointer-events: none;
+}
+
+#main-content > :is(main, div).bg-cream-50::after,
+#main-content > :is(main, div).bg-stone-50::after,
+#main-content > :is(main, div).bg-gray-50::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  opacity: .32;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 13% 18%, rgba(255,255,255,.62) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 74% 12%, rgba(255,255,255,.38) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 86% 54%, rgba(255,255,255,.3) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 31% 72%, rgba(255,255,255,.22) 0 1px, transparent 1.4px);
+  background-size: 250px 250px, 320px 320px, 285px 285px, 380px 380px;
+}
 
 #main-content :is(section, article, aside, div, button, a, li, form, label).bg-cream-50,
 #main-content :is(section, article, aside, div, button, a, li, form, label).bg-cream-100,
@@ -136,6 +188,14 @@
 }
 
 @media (max-width: 767px) {
+  #main-content > :is(main, div).bg-cream-50::before,
+  #main-content > :is(main, div).bg-stone-50::before,
+  #main-content > :is(main, div).bg-gray-50::before {
+    width: 88vw;
+    height: 62vh;
+    opacity: .8;
+  }
+
   #main-content :is(section, article, aside, div, button, a, li, form, label).bg-cream-50,
   #main-content :is(section, article, aside, div, button, a, li, form, label).bg-cream-100 {
     background-image:
