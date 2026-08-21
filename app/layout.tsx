@@ -1,5 +1,6 @@
 import './styles/globals.css';
 import './styles/cinematic.css';
+import './styles/legacy-sanctuary.css';
 import { Inter } from 'next/font/google';
 import type { Viewport } from 'next';
 import { Navbar } from '@/components/layout/Navbar';
@@ -49,7 +50,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             __html: `
                                 if ('serviceWorker' in navigator) {
                                   window.addEventListener('load', function() {
-                                    navigator.serviceWorker.register('/sw.js');
+                                    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+                                      .then(function(registration) { return registration.update(); })
+                                      .catch(function() {});
                                   });
                                 }
                             `,

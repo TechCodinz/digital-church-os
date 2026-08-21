@@ -2,24 +2,15 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
     return {
-        name: 'Digital Church OS',
-        short_name: 'ChurchOS',
-        description: 'A digital worship and spiritual community platform',
+        name: 'Digital Church OS — Living Sanctuary',
+        short_name: 'Church OS',
+        description: 'A living digital sanctuary for Scripture, prayer, worship, pastoral care, discipleship, and church ministry.',
         start_url: '/',
+        scope: '/',
         display: 'standalone',
-        background_color: '#faf9f6',
-        theme_color: '#789b64',
-        icons: [
-            {
-                src: '/icon-192.png',
-                sizes: '192x192',
-                type: 'image/png',
-            },
-            {
-                src: '/icon-512.png',
-                sizes: '512x512',
-                type: 'image/png',
-            },
-        ],
+        background_color: '#030b09',
+        theme_color: '#06110f',
+        categories: ['lifestyle', 'education', 'social'],
+        orientation: 'any',
     };
 }
