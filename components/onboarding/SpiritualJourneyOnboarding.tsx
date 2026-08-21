@@ -212,8 +212,14 @@ export function SpiritualJourneyOnboarding() {
           <div className="relative border-b border-white/8 px-6 py-6 sm:px-8">
             <div className="absolute inset-0 bg-gradient-to-r from-amber-200/[0.035] via-transparent to-emerald-300/[0.035]" />
             <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-4"><span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-amber-100"><JourneyIcon className="h-5 w-5" /></span><div><p className="sanctuary-section-label text-emerald-200/50">{journey?.label}</p><p className="mt-1 text-sm text-white/40">Step {step + 1} of {journey!.steps.length}</p></div></div>
-              <div className="min-w-[180px]"><div className="mb-2 flex justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-white/28"><span>Orientation</span><span>{progress}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-white/8"><div className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-amber-200 transition-all" style={{ width: `${progress}%` }} /></div></div></div>
+              <div className="flex items-center gap-4">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-amber-100"><JourneyIcon className="h-5 w-5" /></span>
+                <div><p className="sanctuary-section-label text-emerald-200/50">{journey?.label}</p><p className="mt-1 text-sm text-white/40">Step {step + 1} of {journey!.steps.length}</p></div>
+              </div>
+              <div className="min-w-[180px]">
+                <div className="mb-2 flex justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-white/28"><span>Orientation</span><span>{progress}%</span></div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/8"><div className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-amber-200 transition-all" style={{ width: `${progress}%` }} /></div>
+              </div>
             </div>
           </div>
 
