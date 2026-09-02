@@ -41,14 +41,19 @@ export async function GET() {
   let persistedUrl = '';
   let persistedTitle = '';
 
-  try {
-    const persisted = await readSiteSettings();
-    persistedUrl = sanitizeUrl(persisted.streamUrl);
-    persistedTitle = normalizeTitle(persisted.streamTitle);
-  } catch (error) {
-    // The public service can still use deployment environment configuration while the settings migration is pending.
-    if (!(error instanceof SiteSettingsMigrationRequiredError)) {
-      console.error('Live-service persisted config load failed:', error);
+  // Persistence is optional for the public live-service endpoint. On deployments that
+  // intentionally have no DATABASE_URL, skip Prisma entirely and fall back to the
+  // environment-managed stream configuration instead of emitting a runtime error.
+  if (process.env.DATABASE_URL?.trim()) {
+    try {
+      const persisted = await readSiteSettings();
+      persistedUrl = sanitizeUrl(persisted.streamUrl);
+      persistedTitle = normalizeTitle(persisted.streamTitle);
+    } catch (error) {
+      // The public service can still use deployment environment configuration while the settings migration is pending.
+      if (!(error instanceof SiteSettingsMigrationRequiredError)) {
+        console.error('Live-service persisted config load failed:', error);
+      }
     }
   }
 
